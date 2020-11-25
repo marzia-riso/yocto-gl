@@ -1,3 +1,6 @@
+def make_edge(edge): 
+	return edge if edge[0] < edge[1] else (edge[1], edge[0])
+
 def get_faces(graph):
 	edges = []
 	for node, adj in enumerate(graph):
@@ -11,7 +14,7 @@ def get_faces(graph):
 
 	faces = []
 	path = [edges[0]]
-	edgeset.discard(edges[0]);
+	edgeset.remove(edges[0]);
 
 	while (len(edgeset) > 0):
 		neighbors = graph[path[-1][-1]]
@@ -24,14 +27,15 @@ def get_faces(graph):
 			path = []
 			for edge in edgeset:
 				path.append(edge)
-				edgeset.discard(edge)
+				edgeset.remove(edge)
 				break
 		else:
 			path.append(tup)
-			edgeset.discard(tup)
+			edgeset.discard(tup)	
+			# edgeset.discard(make_edge(tup))
 
 	if len(path) != 0: faces.append(path)
-	return iter(faces)
+	return faces
 
 import sys
 import ast
@@ -46,5 +50,5 @@ if __name__=="__main__":
 
 
 	faces = get_faces(graph)
-	for face in faces:
+	for face in iter(faces):
 		print(face)
