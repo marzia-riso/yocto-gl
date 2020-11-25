@@ -69,11 +69,12 @@ struct app_state {
   generic_shape* ioshape = new generic_shape{};
   shape_bvh      bvh     = {};
 
-  // bezier info
+  // boolmesh info
   bool_mesh mesh = bool_mesh{};
 
-  vector<mesh_polygon> polygons = {};
-  vector<mesh_point>   points   = {};  // Click inserted points
+  vector<mesh_polygon> polygons      = {};
+  vector<mesh_point>   points        = {};  // Click inserted points
+  vector<isec_polygon> intersections = {};
 
   // rendering state
   shade_scene*    glscene         = new shade_scene{};
@@ -443,10 +444,9 @@ void key_input(app_state* app, const gui_input& input) {
     if (button.state != gui_button::state::pressing) continue;
 
     switch (idx) {
-      case (int)gui_key('S'): {
+      case (int)gui_key('I'): {
         // Hashgrid from triangle idx to <polygon idx, segment start uv, segment
         // end uv> to handle intersections and self-intersections
-        // Use tuple(?)
         // Compute during segments creation (?)
         auto hashgrid =
             unordered_map<int, vector<std::tuple<int, vec2f, vec2f>>>();
@@ -456,6 +456,9 @@ void key_input(app_state* app, const gui_input& input) {
             hashgrid[segment.face].push_back({p, segment.start, segment.end});
           }
         }
+
+        // Remember it!
+        app->intersections.clear();
 
         for (auto& entry : hashgrid) {
           if (entry.second.size() < 2) continue;
@@ -472,6 +475,9 @@ void key_input(app_state* app, const gui_input& input) {
               auto point = mesh_point{entry.first, isec};
               app->points.push_back(point);
 
+              app->intersections.push_back(isec_polygon{
+                  (int)app->points.size() - 1, {fcurve, i}, {scurve, j}});
+
               draw_mesh_point(
                   app->glscene, app->mesh, app->isecs_material, point, 0.0020f);
             }
@@ -479,6 +485,7 @@ void key_input(app_state* app, const gui_input& input) {
         }
         break;
       }
+
       case (int)gui_key::enter: {
         auto& polygon = app->polygons.back();
         if (polygon.points.size() < 3 || is_closed(polygon)) return;
