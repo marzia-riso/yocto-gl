@@ -17,6 +17,15 @@ struct bool_mesh {
   dual_geodesic_solver dual_solver = {};
 };
 
+struct hashgrid_entry {
+  int polygon_id = -1;
+  int edge_id    = -1;
+  int segment_id = -1;
+
+  vec2f start;
+  vec2f end;
+};
+
 struct mesh_segment {
   vec2f start = {};
   vec2f end   = {};
@@ -24,14 +33,14 @@ struct mesh_segment {
 };
 
 struct mesh_polygon {
-  vector<int>          points   = {};
-  vector<mesh_segment> segments = {};
+  vector<int>                  points = {};
+  vector<vector<mesh_segment>> edges  = {};
 };
 
-struct isec_polygon {
-  vec2i first  = {};  // First polygon and segment ids
-  vec2i second = {};  // Second polygon and segment ids
-  int   point;        // Mesh_point id
+struct intersection {
+  int   point         = -1;
+  float lerp          = -1;            // Intersection lerp
+  vec3i crossing_edge = {-1, -1, -1};  // Polygon, Edge and Segment ids
 };
 
 inline bool is_closed(const mesh_polygon& polygon) {
@@ -41,78 +50,83 @@ inline bool is_closed(const mesh_polygon& polygon) {
 
 inline void update_mesh_polygon(
     mesh_polygon& polygon, const vector<mesh_segment>& segments) {
-  polygon.segments.insert(
-      polygon.segments.end(), segments.begin(), segments.end());
+  polygon.edges.push_back(segments);
 }
 
-inline void update_intersection_segments(
-    const vector<isec_polygon>& intersections, const vector<mesh_point>& points,
-    vector<mesh_polygon>& polygons) {
-  auto isecs = vector<vec3i>(intersections.size() * 2);
-  for (auto i = 0; i < intersections.size(); i++) {
-    auto isec        = intersections[i];
-    isecs[2 * i]     = {isec.first.x, isec.first.y, isec.point};
-    isecs[2 * i + 1] = {isec.second.x, isec.second.y, isec.point};
-  }
+// (marzia) Not used
+// inline void update_intersection_segments(
+//     const vector<isec_polygon>& intersections, const vector<mesh_point>&
+//     points, vector<mesh_polygon>& polygons) {
+//   auto isecs = vector<vec3i>(intersections.size() * 2);
+//   for (auto i = 0; i < intersections.size(); i++) {
+//     auto isec        = intersections[i];
+//     isecs[2 * i]     = {isec.first.x, isec.first.y, isec.point};
+//     isecs[2 * i + 1] = {isec.second.x, isec.second.y, isec.point};
+//   }
 
-  sort(isecs.begin(), isecs.end(), [](auto& a, auto& b) { return a.y > b.y; });
-  for (auto& isec : isecs) {
-    auto& segments      = polygons[isec.x].segments;
-    auto& point         = points[isec.z];
-    auto  segment_start = mesh_segment{
-        segments[isec.y].start, point.uv, point.face};
-    auto segment_end = mesh_segment{point.uv, segments[isec.y].end, point.face};
+//   sort(isecs.begin(), isecs.end(), [](auto& a, auto& b) { return a.y > b.y;
+//   }); for (auto& isec : isecs) {
+//     auto& segments      = polygons[isec.x].segments;
+//     auto& point         = points[isec.z];
+//     auto  segment_start = mesh_segment{
+//         segments[isec.y].start, point.uv, point.face};
+//     auto segment_end = mesh_segment{point.uv, segments[isec.y].end,
+//     point.face};
 
-    segments[isec.y] = segment_start;
-    segments.insert(segments.begin() + isec.y + 1, segment_end);
-  }
-}
+//     segments[isec.y] = segment_start;
+//     segments.insert(segments.begin() + isec.y + 1, segment_end);
+//   }
+// }
 
-inline vector<int> polygon_strip(const mesh_polygon& polygon) {
-  auto strip = vector<int>(polygon.segments.size());
-  for (auto i = 0; i < polygon.segments.size(); i++)
-    strip[i] = polygon.segments[i].face;
-  return strip;
-}
+// (marzia) Not used
+// inline vector<int> polygon_strip(const mesh_polygon& polygon) {
+//   auto strip = vector<int>(polygon.segments.size());
+//   for (auto i = 0; i < polygon.segments.size(); i++)
+//     strip[i] = polygon.segments[i].face;
+//   return strip;
+// }
 
-inline vector<mesh_segment> segments_from_face(
-    const mesh_polygon& polygon, int face) {
-  auto segments = vector<mesh_segment>();
-  for (auto i = 0; i < polygon.segments.size(); i++)
-    if (polygon.segments[i].face == face)
-      segments.push_back(polygon.segments[i]);
-  return segments;
-}
+// (marzia) Not used
+// inline vector<mesh_segment> segments_from_face(
+//     const mesh_polygon& polygon, int face) {
+//   auto segments = vector<mesh_segment>();
+//   for (auto i = 0; i < polygon.segments.size(); i++)
+//     if (polygon.segments[i].face == face)
+//       segments.push_back(polygon.segments[i]);
+//   return segments;
+// }
 
-inline vector<int> strip_intersection(
-    const mesh_polygon& left, const mesh_polygon& right) {
-  auto left_faces  = polygon_strip(left);
-  auto right_faces = polygon_strip(right);
+// (marzia) Not used
+// inline vector<int> strip_intersection(
+//     const mesh_polygon& left, const mesh_polygon& right) {
+//   auto left_faces  = polygon_strip(left);
+//   auto right_faces = polygon_strip(right);
 
-  std::sort(left_faces.begin(), left_faces.end());
-  std::sort(right_faces.begin(), right_faces.end());
+//   std::sort(left_faces.begin(), left_faces.end());
+//   std::sort(right_faces.begin(), right_faces.end());
 
-  auto intersections = vector<int>();
+//   auto intersections = vector<int>();
 
-  auto i = 0;
-  auto j = 0;
-  while (i < left_faces.size() && j < right_faces.size()) {
-    if (left_faces[i] == right_faces[j]) {
-      intersections.push_back(left_faces[i]);
-      i++;
-      j++;
-    } else if (left_faces[i] < right_faces[j])
-      i++;
-    else
-      j++;
-  }
+//   auto i = 0;
+//   auto j = 0;
+//   while (i < left_faces.size() && j < right_faces.size()) {
+//     if (left_faces[i] == right_faces[j]) {
+//       intersections.push_back(left_faces[i]);
+//       i++;
+//       j++;
+//     } else if (left_faces[i] < right_faces[j])
+//       i++;
+//     else
+//       j++;
+//   }
 
-  std::sort(intersections.begin(), intersections.end());
-  intersections.erase(std::unique(intersections.begin(), intersections.end()),
-      intersections.end());
+//   std::sort(intersections.begin(), intersections.end());
+//   intersections.erase(std::unique(intersections.begin(),
+//   intersections.end()),
+//       intersections.end());
 
-  return intersections;
-}
+//   return intersections;
+// }
 
 inline bool_mesh init_mesh(const generic_shape* shape) {
   auto mesh        = bool_mesh{};
