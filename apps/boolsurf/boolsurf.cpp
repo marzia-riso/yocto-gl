@@ -445,15 +445,17 @@ void key_input(app_state* app, const gui_input& input) {
 
     switch (idx) {
       case (int)gui_key('I'): {
-        // Hashgrid from triangle idx to <polygon idx, segment start uv, segment
-        // end uv> to handle intersections and self-intersections
-        // Compute during segments creation (?)
+        // Hashgrid from triangle idx to <polygon idx, segment idx, segment
+        // start uv, segment end uv> to handle intersections and
+        // self-intersections Compute during segments creation (?)
         auto hashgrid =
-            unordered_map<int, vector<std::tuple<int, vec2f, vec2f>>>();
+            unordered_map<int, vector<std::tuple<int, int, vec2f, vec2f>>>();
         for (auto p = 0; p < app->polygons.size(); p++) {
           auto& polygon = app->polygons[p];
-          for (auto& segment : polygon.segments) {
-            hashgrid[segment.face].push_back({p, segment.start, segment.end});
+          for (auto s = 0; s < polygon.segments.size(); s++) {
+            auto& segment = polygon.segments[s];
+            hashgrid[segment.face].push_back(
+                {p, s, segment.start, segment.end});
           }
         }
 
@@ -463,9 +465,9 @@ void key_input(app_state* app, const gui_input& input) {
         for (auto& entry : hashgrid) {
           if (entry.second.size() < 2) continue;
           for (auto i = 0; i < entry.second.size(); i++) {
-            auto& [fcurve, fstart, fend] = entry.second[i];
+            auto& [fcurve, fsegment, fstart, fend] = entry.second[i];
             for (auto j = i + 1; j < entry.second.size(); j++) {
-              auto& [scurve, sstart, send] = entry.second[j];
+              auto& [scurve, ssegment, sstart, send] = entry.second[j];
 
               auto l = intersect_segments(fstart, fend, sstart, send);
               if (l.x <= 0.0f || l.x >= 1.0f || l.y <= 0.0f || l.y >= 1.0f)
@@ -475,17 +477,38 @@ void key_input(app_state* app, const gui_input& input) {
               auto point = mesh_point{entry.first, isec};
               app->points.push_back(point);
 
-              app->intersections.push_back(isec_polygon{
-                  (int)app->points.size() - 1, {fcurve, i}, {scurve, j}});
+              auto intersection = isec_polygon{{fcurve, fsegment},
+                  {scurve, ssegment}, (int)app->points.size() - 1};
+              app->intersections.push_back(intersection);
 
-              draw_mesh_point(
-                  app->glscene, app->mesh, app->isecs_material, point, 0.0020f);
+              // draw_mesh_point(
+              //    app->glscene, app->mesh, app->isecs_material, point,
+              //    0.0020f);
             }
           }
         }
+
+        update_intersection_segments(
+            app->intersections, app->points, app->polygons);
+        for (auto& polygon : app->polygons) {
+          for (auto& segment : polygon.segments) {
+            auto start = mesh_point{segment.face, segment.start};
+            auto end   = mesh_point{segment.face, segment.end};
+            printf("Segment start: %f %f - end: %f %f\n", start.uv.x,
+                start.uv.y, end.uv.x, end.uv.y);
+
+            auto s = eval_position(
+                app->mesh.triangles, app->mesh.positions, start);
+            auto e = eval_position(
+                app->mesh.triangles, app->mesh.positions, end);
+
+            draw_segment(
+                app->glscene, app->mesh, app->points_material, segment);
+          }
+          printf("\n");
+        }
         break;
       }
-
       case (int)gui_key::enter: {
         auto& polygon = app->polygons.back();
         if (polygon.points.size() < 3 || is_closed(polygon)) return;
@@ -500,18 +523,7 @@ void key_input(app_state* app, const gui_input& input) {
             geo_path.lerps, geo_path.start, geo_path.end);
 
         update_mesh_polygon(polygon, segments);
-        // for (auto& segment : polygon.segments) {
-        //   auto start = mesh_point{segment.face, segment.start};
-        //   auto end   = mesh_point{segment.face, segment.end};
 
-        //   auto s = eval_position(
-        //       app->mesh.triangles, app->mesh.positions, start);
-        //   auto e = eval_position(app->mesh.triangles, app->mesh.positions,
-        //   end);
-
-        //   draw_segment(app->glscene, app->mesh, app->points_material,
-        //   segment);
-        // }
         break;
       }
     }

@@ -6,6 +6,7 @@
 #include <unordered_set>
 
 using namespace yocto;
+using std::sort;
 using std::unordered_set;
 
 struct bool_mesh {
@@ -28,9 +29,9 @@ struct mesh_polygon {
 };
 
 struct isec_polygon {
-  int   point;        // Mesh_point id
   vec2i first  = {};  // First polygon and segment ids
   vec2i second = {};  // Second polygon and segment ids
+  int   point;        // Mesh_point id
 };
 
 inline bool is_closed(const mesh_polygon& polygon) {
@@ -42,6 +43,29 @@ inline void update_mesh_polygon(
     mesh_polygon& polygon, const vector<mesh_segment>& segments) {
   polygon.segments.insert(
       polygon.segments.end(), segments.begin(), segments.end());
+}
+
+inline void update_intersection_segments(
+    const vector<isec_polygon>& intersections, const vector<mesh_point>& points,
+    vector<mesh_polygon>& polygons) {
+  auto isecs = vector<vec3i>(intersections.size() * 2);
+  for (auto i = 0; i < intersections.size(); i++) {
+    auto isec        = intersections[i];
+    isecs[2 * i]     = {isec.first.x, isec.first.y, isec.point};
+    isecs[2 * i + 1] = {isec.second.x, isec.second.y, isec.point};
+  }
+
+  sort(isecs.begin(), isecs.end(), [](auto& a, auto& b) { return a.y > b.y; });
+  for (auto& isec : isecs) {
+    auto& segments      = polygons[isec.x].segments;
+    auto& point         = points[isec.z];
+    auto  segment_start = mesh_segment{
+        segments[isec.y].start, point.uv, point.face};
+    auto segment_end = mesh_segment{point.uv, segments[isec.y].end, point.face};
+
+    segments[isec.y] = segment_start;
+    segments.insert(segments.begin() + isec.y + 1, segment_end);
+  }
 }
 
 inline vector<int> polygon_strip(const mesh_polygon& polygon) {
