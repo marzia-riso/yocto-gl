@@ -59,7 +59,7 @@ namespace yocto {
 inline void update_button_from_input(gui_button& button, bool pressing) {
   if (pressing) {
     // TODO(giacomo): solve this assert
-    assert(button.state != gui_button::state::down);
+    //assert(button.state != gui_button::state::down);
     button.state = gui_button::state::pressing;
   } else {
     button.state = gui_button::state::releasing;
