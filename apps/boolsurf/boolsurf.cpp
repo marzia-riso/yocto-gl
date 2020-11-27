@@ -463,7 +463,7 @@ void key_input(app_state* app, const gui_input& input) {
 
         // Remember it!
         // app->intersections.clear();
-        auto hashmap = unordered_map<vec3i, vector<intersection>>();
+        auto hashmap = unordered_map<vec2i, vector<intersection>>();
 
         for (auto& entry : hashgrid) {
           if (entry.second.size() < 2) continue;
@@ -478,21 +478,33 @@ void key_input(app_state* app, const gui_input& input) {
                 continue;
               auto isec = lerp(second.start, second.end, l.y);
 
-              auto point = mesh_point{entry.first, isec};
-              app->points.push_back(point);
+              auto isec_point = mesh_point{entry.first, isec};
+              app->points.push_back(isec_point);
 
-              hashmap[{first.polygon_id, first.edge_id, first.segment_id}]
-                  .push_back({(int)app->points.size() - 1, l.x,
-                      {second.polygon_id, second.edge_id, second.segment_id}});
-              hashmap[{second.polygon_id, second.edge_id, second.segment_id}]
-                  .push_back({(int)app->points.size() - 1, l.y,
-                      {first.polygon_id, first.edge_id, first.segment_id}});
+              // Update first segment
+              auto first_offset = edge_offset(app->polygons[first.polygon_id],
+                  first.edge_id, (int)app->points.size() - 1,
+                  app->mesh.triangles, app->mesh.positions, app->points);
 
-              draw_mesh_point(
-                  app->glscene, app->mesh, app->isecs_material, point, 0.0020f);
+              hashmap[{first.polygon_id, first.edge_id}].push_back(
+                  {(int)app->points.size() - 1, first_offset[1],
+                      {second.polygon_id, second.edge_id}});
+
+              // Update second segment
+              auto second_offset = edge_offset(app->polygons[second.polygon_id],
+                  second.edge_id, (int)app->points.size() - 1,
+                  app->mesh.triangles, app->mesh.positions, app->points);
+              hashmap[{second.polygon_id, second.edge_id}].push_back(
+                  {(int)app->points.size() - 1, second_offset[1],
+                      {first.polygon_id, first.edge_id}});
+
+              draw_mesh_point(app->glscene, app->mesh, app->isecs_material,
+                  isec_point, 0.0020f);
             }
           }
         }
+        compute_graph(hashmap);
+
       } break;
 
       case (int)gui_key::enter: {
