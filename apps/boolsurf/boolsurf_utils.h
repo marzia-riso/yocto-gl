@@ -37,10 +37,11 @@ struct mesh_polygon {
   vector<vector<mesh_segment>> edges  = {};
 };
 
-struct intersection {
-  int   point         = -1;
-  float offset        = -1;        // Edge offset
-  vec3i crossing_edge = {-1, -1};  // Polygon, Edge ids
+struct intersection_node {
+  int   point   = -1;
+  vec2i edge    = {};
+  int   segment = 0;
+  float t       = 0;
 };
 
 inline bool is_closed(const mesh_polygon& polygon) {
