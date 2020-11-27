@@ -54,31 +54,6 @@ inline void update_mesh_polygon(
   polygon.edges.push_back(segments);
 }
 
-inline vector<float> edge_offset(const mesh_polygon& polygon, const int edge,
-    const int isec, const vector<vec3i>& triangles,
-    const vector<vec3f>& positions, const vector<mesh_point>& points) {
-  auto edge_start = eval_position(
-      triangles, positions, points[polygon.points[edge]]);
-  auto isec_point = eval_position(triangles, positions, points[isec]);
-  auto edge_end   = eval_position(
-      triangles, positions, points[polygon.points[edge + 1]]);
-
-  return path_parameters({edge_start, isec_point, edge_end});
-}
-
-inline void compute_graph(unordered_map<vec2i, vector<intersection>> hashmap) {
-  for (auto& entry : hashmap) {
-    printf("Polygon: %d Edge: %d\n", entry.first.x, entry.first.y);
-    std::sort(entry.second.begin(), entry.second.end(),
-        [](intersection& a, intersection& b) { return a.offset < b.offset; });
-
-    for (auto& v : entry.second) {
-      printf("\t Isec: %d Polygon: %d Edge: %d Offset:%f\n", v.point,
-          v.crossing_edge.x, v.crossing_edge.y, v.offset);
-    }
-  }
-}
-
 // (marzia) Not used
 // inline void update_intersection_segments(
 //     const vector<isec_polygon>& intersections, const vector<mesh_point>&

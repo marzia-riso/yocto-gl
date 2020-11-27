@@ -536,16 +536,8 @@ void key_input(app_state* app, const gui_input& input) {
             adj[2] = k == value.size() - 1 ? key.y : value[k + 1].point;
             for (int i = 0; i < other.size(); i++) {
               if (other[i].point != point) continue;
-              if (i == 0) {
-                adj[1] = item.edge.x;
-              } else {
-                adj[1] = other[i - 1].point;
-              }
-              if (i == other.size() - 1) {
-                adj[3] = item.edge.y;
-              } else {
-                adj[3] = other[i + 1].point;
-              }
+              adj[1] = i == 0 ? item.edge.x : other[i - 1].point;
+              adj[3] = i == other.size() - 1 ? item.edge.y : other[i + 1].point;
             }
           }
         }
