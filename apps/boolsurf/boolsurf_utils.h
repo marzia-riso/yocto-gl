@@ -49,6 +49,14 @@ inline bool is_closed(const mesh_polygon& polygon) {
   return (polygon.points.front() == polygon.points.back());
 }
 
+inline vec2i get_edge_points(const vector<mesh_polygon>& polygons,
+    const vector<mesh_point>& points, const int polygon_id, const int edge_id) {
+  auto& polygon = polygons[polygon_id];
+  auto  a       = (int)polygon.points[edge_id];
+  auto  b       = (int)polygon.points[(edge_id + 1) % polygon.points.size()];
+  return vec2i{a, b};
+}
+
 inline void update_mesh_polygon(
     mesh_polygon& polygon, const vector<mesh_segment>& segments) {
   polygon.edges.push_back(segments);

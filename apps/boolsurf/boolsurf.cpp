@@ -449,10 +449,16 @@ void key_input(app_state* app, const gui_input& input) {
         // segment start uv, segment end uv> to handle intersections and
         // self-intersections
         auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
+        auto edge_map = unordered_map<vec2i, vector<intersection_node>>();
         for (auto p = 0; p < app->polygons.size(); p++) {
           auto& polygon = app->polygons[p];
           for (auto e = 0; e < polygon.edges.size(); e++) {
-            auto& edge = polygon.edges[e];
+            auto& edge      = polygon.edges[e];
+            auto end_points = get_edge_points(app->polygons, app->points, p, e);
+            edge_map[end_points].push_back({end_points.x, {-1, -1}, 0, 0.0f});
+            edge_map[end_points].push_back(
+                {end_points.y, {-1, -1}, (int)(edge.size() - 1), 1.0f});
+
             for (auto s = 0; s < edge.size(); s++) {
               auto& segment = edge[s];
               hashgrid[segment.face].push_back(
@@ -460,18 +466,6 @@ void key_input(app_state* app, const gui_input& input) {
             }
           }
         }
-
-        auto get_edge = [&](const hashgrid_entry& segment) {
-          auto& polygon = app->polygons[segment.polygon_id];
-          auto  a       = (int)polygon.points[segment.edge_id];
-          auto  b       = (int)polygon
-                       .points[(segment.edge_id + 1) % polygon.points.size()];
-          return vec2i{a, b};
-        };
-
-        // Remember it!
-        // app->intersections.clear();
-        auto edge_map = unordered_map<vec2i, vector<intersection_node>>();
 
         for (auto& [face, value] : hashgrid) {
           if (value.size() < 2) continue;
@@ -500,8 +494,10 @@ void key_input(app_state* app, const gui_input& input) {
               //        |
               //        D
 
-              auto AB = get_edge(segmentAB);
-              auto CD = get_edge(segmentCD);
+              auto AB = get_edge_points(app->polygons, app->points,
+                  segmentAB.polygon_id, segmentAB.edge_id);
+              auto CD = get_edge_points(app->polygons, app->points,
+                  segmentCD.polygon_id, segmentCD.edge_id);
               edge_map[AB].push_back({point_id, CD, segmentAB.segment_id, l.x});
               edge_map[CD].push_back({point_id, AB, segmentCD.segment_id, l.y});
 
@@ -520,59 +516,26 @@ void key_input(app_state* app, const gui_input& input) {
           });
         }
 
+        // Graph Creation
         auto graph = vector<vector<int>>(app->points.size());
         for (auto& [key, value] : edge_map) {
-          printf("Key: %d - Key: %d\n", key.x, key.y);
-          graph[key.x].push_back(value[0].point);
-          graph[key.y].push_back(value.back().point);
-          for (int k = 0; k < value.size(); k++) {
-            auto& item  = value[k];
-            auto  point = item.point;
-            printf("\tPoint: %d\n", point);
-            auto& other = edge_map.at(item.edge);
-            auto& adj   = graph[point];
-            adj.resize(4);
-            adj[0] = k == 0 ? key.x : value[k - 1].point;
-            adj[2] = k == value.size() - 1 ? key.y : value[k + 1].point;
-            for (int i = 0; i < other.size(); i++) {
-              if (other[i].point != point) continue;
-              adj[1] = i == 0 ? item.edge.x : other[i - 1].point;
-              adj[3] = i == other.size() - 1 ? item.edge.y : other[i + 1].point;
-            }
-          }
-        }
+          for (int i = 0; i < value.size() - 1; i++) {
+            auto& first  = value[i];
+            auto& second = value[i + 1];
 
-        for (auto point = 0; point < graph.size(); point++) {
-          auto& adj = graph[point];
-          // if (adj.size() >=2) continue;
-          // if (adj.size() == 1){
-          //  printf("")
-          //}
-          if (adj.size() >= 2) continue;
-          printf("Point: %d\n", point);
-          auto& segments = hashgrid[app->points[point].face];
-          for (auto i = 0; i < segments.size() - 1; i++) {
-            auto& segmentAB = segments[i];
-            auto  AB        = get_edge(segmentAB);
-            if (edge_map.find(AB) != edge_map.end()) continue;
-            if (AB.x == point) {
-              adj.push_back(AB.y);
-              graph[AB.y].push_back(point);
-            } else if (AB.y == point) {
-              adj.push_back(AB.x);
-              graph[AB.x].push_back(point);
-            }
+            graph[first.point].push_back(second.point);
+            graph[second.point].push_back(first.point);
           }
         }
 
         // print graph
-        for (int i = 0; i < graph.size(); i++) {
-          printf("%d: [", i);
-          for (int k = 0; k < graph[i].size(); k++) {
-            printf("%d ", graph[i][k]);
-          }
-          printf("]\n");
-        }
+        // for (int i = 0; i < graph.size(); i++) {
+        //   printf("%d: [", i);
+        //   for (int k = 0; k < graph[i].size(); k++) {
+        //     printf("%d ", graph[i][k]);
+        //   }
+        //   printf("]\n");
+        // }
       } break;
 
       case (int)gui_key::enter: {
