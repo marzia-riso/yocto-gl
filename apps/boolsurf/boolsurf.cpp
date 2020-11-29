@@ -509,25 +509,7 @@ void key_input(app_state* app, const gui_input& input) {
           }
         }
 
-        for (auto& [key, value] : edge_map) {
-          sort(value.begin(), value.end(), [](auto& a, auto& b) {
-            if (a.segment == b.segment) return a.t < b.t;
-            return a.segment < b.segment;
-          });
-        }
-
-        // Graph Creation
-        auto graph = vector<vector<int>>(app->points.size());
-        for (auto& [key, value] : edge_map) {
-          for (int i = 0; i < value.size() - 1; i++) {
-            auto& first  = value[i];
-            auto& second = value[i + 1];
-
-            graph[first.point].push_back(second.point);
-            graph[second.point].push_back(first.point);
-          }
-        }
-
+        auto graph = compute_graph(app->points.size(), edge_map);
         // print graph
         // for (int i = 0; i < graph.size(); i++) {
         //   printf("%d: [", i);
@@ -537,14 +519,16 @@ void key_input(app_state* app, const gui_input& input) {
         //   printf("]\n");
         // }
 
-        auto faces = compute_graph_faces(graph);
+        // Clock-wise ordering of node neighborhood
 
-        for (auto& face : faces) {
-          for (auto& seg : face) {
-            printf("(%d - %d) ", seg.x, seg.y);
-          }
-          printf("\n");
-        }
+        auto faces = compute_graph_faces(graph);
+        // print faces
+        // for (auto& face : faces) {
+        //   for (auto& seg : face) {
+        //     printf("(%d - %d) ", seg.x, seg.y);
+        //   }
+        //   printf("\n");
+        // }
 
       } break;
 

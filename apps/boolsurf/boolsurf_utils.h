@@ -257,6 +257,28 @@ inline vector<mesh_segment> mesh_segments(const vector<vec3i>& triangles,
   return result;
 }
 
+inline vector<vector<int>> compute_graph(const int   nodes,
+    unordered_map<vec2i, vector<intersection_node>>& edge_map) {
+  for (auto& [key, value] : edge_map) {
+    sort(value.begin(), value.end(), [](auto& a, auto& b) {
+      if (a.segment == b.segment) return a.t < b.t;
+      return a.segment < b.segment;
+    });
+  }
+
+  auto graph = vector<vector<int>>(nodes);
+  for (auto& [key, value] : edge_map) {
+    for (int i = 0; i < value.size() - 1; i++) {
+      auto& first  = value[i];
+      auto& second = value[i + 1];
+
+      graph[first.point].push_back(second.point);
+      graph[second.point].push_back(first.point);
+    }
+  }
+  return graph;
+}
+
 inline vector<vector<vec2i>> compute_graph_faces(vector<vector<int>> graph) {
   auto edges = vector<vec2i>();
   for (auto node = 0; node < graph.size(); node++) {
