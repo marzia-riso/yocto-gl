@@ -39,7 +39,7 @@ struct mesh_polygon {
 
 struct intersection_node {
   int   point   = -1;
-  vec2i edge    = {};
+  vec2i edges   = {};
   int   segment = 0;
   float t       = 0;
 };
@@ -179,6 +179,13 @@ static int find_in_vec(const vec3i& vec, int x) {
   return -1;
 }
 
+template <class T>
+inline int find_idx(const vector<T>& vec, T x) {
+  for (auto i = 0; i < vec.size(); i++)
+    if (vec[i] == x) return i;
+  return -1;
+}
+
 // TODO(giacomo): Expose this function in yocto_mesh.h
 inline int find_adjacent_triangle(
     const vec3i& triangle, const vec3i& adjacent) {
@@ -248,4 +255,40 @@ inline vector<mesh_segment> mesh_segments(const vector<vec3i>& triangles,
     result[i] = {start_uv, end_uv, strip[i]};
   }
   return result;
+}
+
+inline vector<vector<vec2i>> compute_graph_faces(vector<vector<int>> graph) {
+  auto edges = vector<vec2i>();
+  for (auto node = 0; node < graph.size(); node++) {
+    auto& adjacents = graph[node];
+    for (auto& adj : adjacents) edges.push_back(vec2i{node, adj});
+  }
+
+  auto faces = vector<vector<vec2i>>();
+  auto path  = vector<vec2i>();
+  path.push_back(edges[0]);
+  edges.erase(edges.begin());
+
+  while (edges.size() > 0) {
+    auto neighbors = graph[path.back().y];
+    auto last_node = path.back().y;
+
+    auto idx = (find_idx(neighbors, path.back().x) + 1) % neighbors.size();
+    auto next_node = neighbors[idx];
+    auto tup       = vec2i{last_node, next_node};
+
+    if (tup == path.front()) {
+      faces.push_back(path);
+      path.clear();
+      path.push_back(edges[0]);
+      edges.erase(edges.begin());
+    } else {
+      path.push_back(tup);
+      auto rem_idx = find_idx(edges, tup);
+      edges.erase(edges.begin() + rem_idx);
+    }
+  }
+
+  if (path.size()) faces.push_back(path);
+  return faces;
 }

@@ -536,6 +536,16 @@ void key_input(app_state* app, const gui_input& input) {
         //   }
         //   printf("]\n");
         // }
+
+        auto faces = compute_graph_faces(graph);
+
+        for (auto& face : faces) {
+          for (auto& seg : face) {
+            printf("(%d - %d) ", seg.x, seg.y);
+          }
+          printf("\n");
+        }
+
       } break;
 
       case (int)gui_key::enter: {
