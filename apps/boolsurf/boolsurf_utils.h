@@ -358,6 +358,20 @@ inline vector<vector<vec2i>> compute_graph_faces(
   return faces;
 }
 
+inline vector<mesh_polygon> compute_arrangement(
+    const vector<vector<vec2i>>& faces) {
+  auto mesh_arrangement = vector<mesh_polygon>(faces.size());
+  for (auto i = 0; i < faces.size(); i++) {
+    auto polygon = mesh_polygon{};
+    for (auto j = 0; j < faces[i].size(); j++) {
+      polygon.points.push_back(faces[i][j].x);
+    }
+    polygon.points.push_back(polygon.points.front());
+    mesh_arrangement[i] = polygon;
+  }
+  return mesh_arrangement;
+}
+
 inline void print_faces(const vector<vector<vec2i>>& faces) {
   printf("faces:\n");
   for (int i = 0; i < faces.size(); i++) {

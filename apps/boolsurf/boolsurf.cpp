@@ -77,13 +77,14 @@ struct app_state {
   // vector<isec_polygon> intersections = {};
 
   // rendering state
-  shade_scene*    glscene         = new shade_scene{};
-  shade_camera*   glcamera        = nullptr;
-  shade_material* mesh_material   = nullptr;
-  shade_material* edges_material  = nullptr;
-  shade_material* points_material = nullptr;
-  shade_material* paths_material  = nullptr;
-  shade_material* isecs_material  = nullptr;
+  shade_scene*            glscene         = new shade_scene{};
+  shade_camera*           glcamera        = nullptr;
+  shade_material*         mesh_material   = nullptr;
+  shade_material*         edges_material  = nullptr;
+  shade_material*         points_material = nullptr;
+  shade_material*         paths_material  = nullptr;
+  shade_material*         isecs_material  = nullptr;
+  vector<shade_material*> cell_materials  = {};
 
   gui_widgets widgets = {};
 
@@ -121,7 +122,7 @@ frame3f camera_frame(float lens, float aspect, float film = 0.036) {
 }
 
 void update_path_shape(shade_shape* shape, const bool_mesh& mesh,
-    const geodesic_path& path, bool thin = false) {
+    const geodesic_path& path, float radius, bool thin = false) {
   auto positions = path_positions(
       path, mesh.triangles, mesh.positions, mesh.adjacencies);
 
@@ -143,7 +144,7 @@ void update_path_shape(shade_shape* shape, const bool_mesh& mesh,
     froms.push_back(from);
     tos.push_back(to);
   }
-  auto radius   = 0.0005f;
+
   auto cylinder = make_uvcylinder({4, 1, 1}, {radius, 1});
   for (auto& p : cylinder.positions) {
     p.z = p.z * 0.5 + 0.5;
@@ -179,6 +180,12 @@ void init_glscene(app_state* app, shade_scene* glscene, const bool_mesh& mesh,
   app->points_material = add_material(glscene, {0, 0, 0}, {0, 0, 1}, 1, 0, 0.4);
   app->paths_material  = add_material(glscene, {0, 0, 0}, {1, 0, 0}, 1, 0, 0.4);
   app->isecs_material  = add_material(glscene, {0, 0, 0}, {0, 1, 0}, 1, 0, 0.4);
+  app->cell_materials.push_back(
+      add_material(glscene, {0, 0, 0}, {1, 1, 0}, 1, 0, 0.4));
+  app->cell_materials.push_back(
+      add_material(glscene, {0, 0, 0}, {1, 0, 1}, 1, 0, 0.4));
+  app->cell_materials.push_back(
+      add_material(glscene, {0, 0, 0}, {0, 1, 1}, 1, 0, 0.4));
 
   // shapes
   if (progress_cb) progress_cb("convert shape", progress.x++, progress.y);
@@ -356,9 +363,9 @@ geodesic_path compute_path(const mesh_polygon& polygon,
 }
 
 void draw_path(shade_scene* scene, const bool_mesh& mesh,
-    shade_material* material, const geodesic_path& path) {
+    shade_material* material, const geodesic_path& path, float radius) {
   auto shape = add_shape(scene);
-  update_path_shape(shape, mesh, path);
+  update_path_shape(shape, mesh, path, radius);
   add_instance(scene, identity3x4f, shape, material, false);
 }
 
@@ -405,6 +412,27 @@ void draw_segment(shade_scene* scene, const bool_mesh& mesh,
   set_instances(shape, froms, tos);
 }
 
+void draw_arrangement(shade_scene* scene, const bool_mesh& mesh,
+    vector<shade_material*> material, const vector<mesh_point> points,
+    vector<mesh_polygon>& polygons) {
+  for (auto p = 0; p < polygons.size(); p++) {
+    auto& polygon = polygons[p];
+    auto  mat     = material[p % material.size()];
+    for (auto n = 0; n < polygon.points.size() - 1; n++) {
+      auto& start = points[polygon.points[n]];
+      auto& end   = points[polygon.points[n + 1]];
+
+      auto geo_path = compute_geodesic_path(mesh, start, end);
+      draw_path(scene, mesh, mat, geo_path, 0.0010f);
+
+      auto segments = mesh_segments(mesh.triangles, geo_path.strip,
+          geo_path.lerps, geo_path.start, geo_path.end);
+
+      update_mesh_polygon(polygon, segments);
+    }
+  }
+}
+
 void mouse_input(app_state* app, const gui_input& input) {
   if (is_active(&app->widgets)) return;
 
@@ -427,7 +455,8 @@ void mouse_input(app_state* app, const gui_input& input) {
 
       if (polygon.points.size() > 1) {
         auto geo_path = compute_path(polygon, app->points, app->mesh);
-        draw_path(app->glscene, app->mesh, app->paths_material, geo_path);
+        draw_path(
+            app->glscene, app->mesh, app->paths_material, geo_path, 0.0005f);
 
         auto segments = mesh_segments(app->mesh.triangles, geo_path.strip,
             geo_path.lerps, geo_path.start, geo_path.end);
@@ -496,6 +525,7 @@ void key_input(app_state* app, const gui_input& input) {
               auto w      = segmentAB.end - segmentAB.start;
               auto v      = segmentCD.end - segmentCD.start;
               auto ccwise = cross(w, v) > 0;
+
               // Flip orientation when self-intersecting.
               if (segmentAB.polygon_id == segmentCD.polygon_id) {
                 ccwise = !ccwise;
@@ -529,6 +559,11 @@ void key_input(app_state* app, const gui_input& input) {
 
         auto faces = compute_graph_faces(graph);
         print_faces(faces);
+
+        // Remove Outer Face (?)
+        auto arrangement = compute_arrangement(faces);
+        draw_arrangement(app->glscene, app->mesh, app->cell_materials,
+            app->points, arrangement);
       } break;
 
       case (int)gui_key::enter: {
@@ -539,7 +574,8 @@ void key_input(app_state* app, const gui_input& input) {
         polygon.points.push_back(point);
 
         auto geo_path = compute_path(polygon, app->points, app->mesh);
-        draw_path(app->glscene, app->mesh, app->paths_material, geo_path);
+        draw_path(
+            app->glscene, app->mesh, app->paths_material, geo_path, 0.0005f);
 
         auto segments = mesh_segments(app->mesh.triangles, geo_path.strip,
             geo_path.lerps, geo_path.start, geo_path.end);
