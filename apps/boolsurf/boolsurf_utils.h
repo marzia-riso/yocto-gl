@@ -181,7 +181,7 @@ static int find_in_vec(const vec3i& vec, int x) {
 }
 
 template <class T>
-inline int find_idx(const vector<T>& vec, T x) {
+inline int find_idx(const vector<T>& vec, const T& x) {
   for (auto i = 0; i < vec.size(); i++)
     if (vec[i] == x) return i;
   return -1;
@@ -300,8 +300,20 @@ inline vector<vector<int>> compute_graph(const int   nodes,
       graph[node].resize(4);
       graph[node][0] = value[i - 1].point;
       graph[node][2] = value[i + 1].point;
-      graph[node][1] = isec.edges.x;
-      graph[node][3] = isec.edges.y;
+
+      auto& other = edge_map.at(isec.edges);
+      auto  id    = -1;
+      for (int i = 0; i < other.size(); i++) {
+        if (other[i].point == node) {
+          id = i;
+          break;
+        }
+      }
+      assert(id != -1);
+      assert(id != 0);
+      assert(id != other.size() - 1);
+      graph[node][1] = other[id - 1].point;
+      graph[node][3] = other[id + 1].point;
       if (counterclockwise.at(node)) {
         swap(graph[node][1], graph[node][3]);
       }

@@ -487,10 +487,14 @@ void key_input(app_state* app, const gui_input& input) {
               auto point    = mesh_point{face, uv};
               auto point_id = (int)app->points.size();
 
-              auto w                     = segmentAB.end - segmentAB.start;
-              auto v                     = segmentCD.end - segmentCD.start;
-              auto xx                    = cross(w, v);
-              counterclockwise[point_id] = (xx > 0);
+              auto w      = segmentAB.end - segmentAB.start;
+              auto v      = segmentCD.end - segmentCD.start;
+              auto ccwise = cross(w, v) > 0;
+              // Flip orientation when self-intersecting.
+              if (segmentAB.polygon_id == segmentCD.polygon_id) {
+                ccwise = !ccwise;
+              }
+              counterclockwise[point_id] = ccwise;
 
               //        C
               //        |
