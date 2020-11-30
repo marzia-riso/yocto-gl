@@ -448,7 +448,11 @@ void key_input(app_state* app, const gui_input& input) {
         // Hashgrid from triangle idx to <polygon idx, edge_idx, segment idx,
         // segment start uv, segment end uv> to handle intersections and
         // self-intersections
-        auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
+        // auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
+
+        // deterministic access for debug
+        auto hashgrid = vector<vector<hashgrid_entry>>(
+            app->mesh.triangles.size());
         auto edge_map = unordered_map<vec2i, vector<intersection_node>>();
         auto counterclockwise = unordered_map<int, bool>();
 
@@ -469,7 +473,9 @@ void key_input(app_state* app, const gui_input& input) {
           }
         }
 
-        for (auto& [face, value] : hashgrid) {
+        // for (auto& [face, value] : hashgrid) {
+        for (auto f = 0; f < hashgrid.size(); f++) {
+          auto& value = hashgrid[f];
           if (value.size() < 2) continue;
           for (auto i = 0; i < value.size() - 1; i++) {
             auto& segmentAB = value[i];
@@ -484,7 +490,7 @@ void key_input(app_state* app, const gui_input& input) {
               }
 
               auto uv       = lerp(segmentCD.start, segmentCD.end, l.y);
-              auto point    = mesh_point{face, uv};
+              auto point    = mesh_point{f, uv};
               auto point_id = (int)app->points.size();
 
               auto w      = segmentAB.end - segmentAB.start;
@@ -521,18 +527,8 @@ void key_input(app_state* app, const gui_input& input) {
             app->points.size(), edge_map, counterclockwise);
         print_graph(graph);
 
-        // Clock-wise ordering of node neighborhood
-
         auto faces = compute_graph_faces(graph);
         print_faces(faces);
-        // print faces
-        // for (auto& face : faces) {
-        //   for (auto& seg : face) {
-        //     printf("(%d - %d) ", seg.x, seg.y);
-        //   }
-        //   printf("\n");
-        // }
-
       } break;
 
       case (int)gui_key::enter: {

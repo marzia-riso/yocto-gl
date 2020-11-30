@@ -7,7 +7,6 @@
 #include <unordered_set>
 
 using namespace yocto;
-using std::sort;
 using std::unordered_set;
 
 struct bool_mesh {
@@ -319,16 +318,6 @@ inline vector<vector<int>> compute_graph(const int   nodes,
       }
     }
   }
-
-  // for (int i = 0; i < graph.size(); i++) {
-  //   auto it = counterclockwise.find(i);
-  //   if (it == counterclockwise.end()) {
-  //     continue;
-  //   }
-  //   if (it->second > 0) {
-  //     swap(graph[i][1], graph[i][3]);
-  //   }
-  // }
   return graph;
 }
 
