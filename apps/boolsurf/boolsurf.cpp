@@ -450,6 +450,8 @@ void key_input(app_state* app, const gui_input& input) {
         // self-intersections
         auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
         auto edge_map = unordered_map<vec2i, vector<intersection_node>>();
+        auto counterclockwise = unordered_map<int, bool>();
+
         for (auto p = 0; p < app->polygons.size(); p++) {
           auto& polygon = app->polygons[p];
           for (auto e = 0; e < polygon.edges.size(); e++) {
@@ -476,17 +478,19 @@ void key_input(app_state* app, const gui_input& input) {
 
               auto l = intersect_segments(segmentAB.start, segmentAB.end,
                   segmentCD.start, segmentCD.end);
+
               if (l.x <= 0.0f || l.x >= 1.0f || l.y <= 0.0f || l.y >= 1.0f) {
                 continue;
               }
 
-              auto uv = lerp(segmentCD.start, segmentCD.end, l.y);
-              // auto uv = (lerp(segmentAB.start, segmentAB.end, l.x) +
-              //               lerp(segmentCD.start, segmentCD.end, l.y)) *
-              //           0.5; more robust?
-
+              auto uv       = lerp(segmentCD.start, segmentCD.end, l.y);
               auto point    = mesh_point{face, uv};
               auto point_id = (int)app->points.size();
+
+              auto w                     = segmentAB.end - segmentAB.start;
+              auto v                     = segmentCD.end - segmentCD.start;
+              auto xx                    = cross(w, v);
+              counterclockwise[point_id] = (xx > 0);
 
               //        C
               //        |
@@ -509,19 +513,14 @@ void key_input(app_state* app, const gui_input& input) {
           }
         }
 
-        auto graph = compute_graph(app->points.size(), edge_map);
-        // print graph
-        // for (int i = 0; i < graph.size(); i++) {
-        //   printf("%d: [", i);
-        //   for (int k = 0; k < graph[i].size(); k++) {
-        //     printf("%d ", graph[i][k]);
-        //   }
-        //   printf("]\n");
-        // }
+        auto graph = compute_graph(
+            app->points.size(), edge_map, counterclockwise);
+        print_graph(graph);
 
         // Clock-wise ordering of node neighborhood
 
         auto faces = compute_graph_faces(graph);
+        print_faces(faces);
         // print faces
         // for (auto& face : faces) {
         //   for (auto& seg : face) {

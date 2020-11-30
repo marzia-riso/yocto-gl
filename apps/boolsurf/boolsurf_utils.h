@@ -3,6 +3,7 @@
 #include <yocto/yocto_mesh.h>
 #include <yocto/yocto_shape.h>
 
+#include <cassert>
 #include <unordered_set>
 
 using namespace yocto;
@@ -258,7 +259,8 @@ inline vector<mesh_segment> mesh_segments(const vector<vec3i>& triangles,
 }
 
 inline vector<vector<int>> compute_graph(const int   nodes,
-    unordered_map<vec2i, vector<intersection_node>>& edge_map) {
+    unordered_map<vec2i, vector<intersection_node>>& edge_map,
+    const unordered_map<int, bool>&                  counterclockwise) {
   for (auto& [key, value] : edge_map) {
     sort(value.begin(), value.end(), [](auto& a, auto& b) {
       if (a.segment == b.segment) return a.t < b.t;
@@ -266,20 +268,60 @@ inline vector<vector<int>> compute_graph(const int   nodes,
     });
   }
 
+  //        C
+  //        |
+  // A -- point --> B   cross() < 0
+  //        |
+  //        V
+  //        D
+  // A, D, B, C
+
+  //        D
+  //        ^
+  //        |
+  // A -- point --> B cross() > 0
+  //        |
+  //        C
+  // A, C, B, D
+
+  // [AB] : A-- point(C, D), point(...) -- B
+
   auto graph = vector<vector<int>>(nodes);
   for (auto& [key, value] : edge_map) {
-    for (int i = 0; i < value.size() - 1; i++) {
-      auto& first  = value[i];
-      auto& second = value[i + 1];
+    assert(key.x == value[0].point);
+    assert(key.y == value.back().point);
+    graph[key.x].push_back(value[1].point);
+    graph[key.y].push_back(value[value.size() - 2].point);
 
-      graph[first.point].push_back(second.point);
-      graph[second.point].push_back(first.point);
+    for (int i = 1; i < value.size() - 1; i++) {
+      auto& isec = value[i];
+      auto  node = isec.point;
+      if (graph[node].size()) continue;
+      graph[node].resize(4);
+      graph[node][0] = value[i - 1].point;
+      graph[node][2] = value[i + 1].point;
+      graph[node][1] = isec.edges.x;
+      graph[node][3] = isec.edges.y;
+      if (counterclockwise.at(node)) {
+        swap(graph[node][1], graph[node][3]);
+      }
     }
   }
+
+  // for (int i = 0; i < graph.size(); i++) {
+  //   auto it = counterclockwise.find(i);
+  //   if (it == counterclockwise.end()) {
+  //     continue;
+  //   }
+  //   if (it->second > 0) {
+  //     swap(graph[i][1], graph[i][3]);
+  //   }
+  // }
   return graph;
 }
 
-inline vector<vector<vec2i>> compute_graph_faces(vector<vector<int>> graph) {
+inline vector<vector<vec2i>> compute_graph_faces(
+    const vector<vector<int>>& graph) {
   auto edges = vector<vec2i>();
   for (auto node = 0; node < graph.size(); node++) {
     auto& adjacents = graph[node];
@@ -313,4 +355,26 @@ inline vector<vector<vec2i>> compute_graph_faces(vector<vector<int>> graph) {
 
   if (path.size()) faces.push_back(path);
   return faces;
+}
+
+inline void print_faces(const vector<vector<vec2i>>& faces) {
+  printf("faces:\n");
+  for (int i = 0; i < faces.size(); i++) {
+    printf("[");
+    for (int k = 0; k < faces[i].size(); k++) {
+      printf("%d ", faces[i][k].x);
+    }
+    printf("]\n");
+  }
+}
+
+inline void print_graph(const vector<vector<int>>& graph) {
+  printf("graph:\n");
+  for (int i = 0; i < graph.size(); i++) {
+    printf("%d: [", i);
+    for (int k = 0; k < graph[i].size(); k++) {
+      printf("%d ", graph[i][k]);
+    }
+    printf("]\n");
+  }
 }
