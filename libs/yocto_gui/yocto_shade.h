@@ -274,6 +274,9 @@ void set_instances(shade_shape* shape, const vector<vec3f>& positions);
 void set_instances(
     shade_shape* shape, const vector<vec3f>& froms, const vector<vec3f>& tos);
 
+// set point size
+void set_point_size(shade_shape* shape, float point_size);
+
 // get shaoe properties
 const ogl_arraybuffer* get_positions(const shade_shape* shape);
 const ogl_arraybuffer* get_normals(const shade_shape* shape);

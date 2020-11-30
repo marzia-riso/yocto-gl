@@ -14,6 +14,7 @@ add_subdirectory(ysceneitraces)
 add_subdirectory(yimageview)
 add_subdirectory(yimageviews)
 add_subdirectory(yshapeview)
+add_subdirectory(ysculpting)
 add_subdirectory(boolsurf)
 endif(YOCTO_OPENGL)
 
