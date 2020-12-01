@@ -515,10 +515,10 @@ void key_input(app_state* app, const gui_input& input) {
                   segmentAB.polygon_id, segmentAB.edge_id);
               auto CD = get_edge_points(app->polygons, app->points,
                   segmentCD.polygon_id, segmentCD.edge_id);
-              if (AB.x > CD.x) {
-                std::swap(segmentAB, segmentCD);
-                std::swap(AB, CD);
-              }
+              // if (AB.x > CD.x) {
+              //   std::swap(segmentAB, segmentCD);
+              //   std::swap(AB, CD);
+              // }
 
               auto l = intersect_segments(segmentAB.start, segmentAB.end,
                   segmentCD.start, segmentCD.end);
