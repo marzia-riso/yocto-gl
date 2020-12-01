@@ -511,6 +511,15 @@ void key_input(app_state* app, const gui_input& input) {
             for (auto j = i + 1; j < value.size(); j++) {
               auto& segmentCD = value[j];
 
+              auto AB = get_edge_points(app->polygons, app->points,
+                  segmentAB.polygon_id, segmentAB.edge_id);
+              auto CD = get_edge_points(app->polygons, app->points,
+                  segmentCD.polygon_id, segmentCD.edge_id);
+              if (AB.x > CD.x) {
+                std::swap(segmentAB, segmentCD);
+                std::swap(AB, CD);
+              }
+
               auto l = intersect_segments(segmentAB.start, segmentAB.end,
                   segmentCD.start, segmentCD.end);
 
@@ -522,9 +531,10 @@ void key_input(app_state* app, const gui_input& input) {
               auto point    = mesh_point{f, uv};
               auto point_id = (int)app->points.size();
 
-              auto w      = segmentAB.end - segmentAB.start;
-              auto v      = segmentCD.end - segmentCD.start;
-              auto ccwise = cross(w, v) > 0;
+              auto orientation = cross(segmentAB.end - segmentAB.start,
+                  segmentCD.end - segmentCD.start);
+              assert(orientation != 0);
+              auto ccwise = orientation > 0;
 
               // Flip orientation when self-intersecting.
               if (segmentAB.polygon_id == segmentCD.polygon_id) {
@@ -538,10 +548,6 @@ void key_input(app_state* app, const gui_input& input) {
               //        |
               //        D
 
-              auto AB = get_edge_points(app->polygons, app->points,
-                  segmentAB.polygon_id, segmentAB.edge_id);
-              auto CD = get_edge_points(app->polygons, app->points,
-                  segmentCD.polygon_id, segmentCD.edge_id);
               edge_map[AB].push_back({point_id, CD, segmentAB.segment_id, l.x});
               edge_map[CD].push_back({point_id, AB, segmentCD.segment_id, l.y});
 
