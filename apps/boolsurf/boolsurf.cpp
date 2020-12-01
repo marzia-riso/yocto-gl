@@ -565,6 +565,13 @@ void key_input(app_state* app, const gui_input& input) {
         draw_arrangement(app->glscene, app->mesh, app->cell_materials,
             app->points, arrangement);
       } break;
+      case (int)gui_key('C'): {
+        app->points.clear();
+        app->polygons.clear();
+        load_shape(app, app->filename);
+        clear_scene(app->glscene);
+        init_glscene(app, app->glscene, app->mesh, {});
+      } break;
 
       case (int)gui_key::enter: {
         auto& polygon = app->polygons.back();
@@ -620,6 +627,7 @@ int main(int argc, const char* argv[]) {
   init_window(window, {1280 + 320, 720}, "boolsurf", true);
   window->user_data = app;
 
+  app->filename = filename;
   load_shape(app, filename);
 
   init_glscene(app, app->glscene, app->mesh, {});
