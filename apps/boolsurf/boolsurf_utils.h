@@ -290,7 +290,7 @@ inline vector<vector<int>> compute_graph(const int   nodes,
 
   auto graph = vector<vector<int>>(nodes);
   for (auto& key : keys) {
-    auto& value = edge_map[key];
+    auto& value = edge_map.at(key);
     assert(key.x == value[0].point);
     assert(key.y == value.back().point);
     graph[key.x].push_back(value[1].point);
