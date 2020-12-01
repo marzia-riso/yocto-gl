@@ -27,6 +27,7 @@
 //
 
 #include <yocto/yocto_bvh.h>
+#include <yocto/yocto_common.h>
 #include <yocto/yocto_commonio.h>
 #include <yocto/yocto_geometry.h>
 #include <yocto/yocto_image.h>
@@ -122,9 +123,65 @@ frame3f camera_frame(float lens, float aspect, float film = 0.036) {
 }
 
 void update_path_shape(shade_shape* shape, const bool_mesh& mesh,
-    const geodesic_path& path, float radius, bool thin = false) {
+    const geodesic_path& path, float radius, float offset = 0,
+    bool thin = false) {
   auto positions = path_positions(
       path, mesh.triangles, mesh.positions, mesh.adjacencies);
+
+  if (thin) {
+    set_positions(shape, positions);
+    shape->shape->elements = ogl_element_type::line_strip;
+    set_instances(shape, {}, {});
+    return;
+  }
+
+  auto froms = vector<vec3f>();
+  auto tos   = vector<vec3f>();
+  froms.reserve(positions.size() - 1);
+  tos.reserve(positions.size() - 1);
+  for (int i = 0; i < positions.size() - 1; i++) {
+    auto from = positions[i];
+    auto to   = positions[i + 1];
+    if (from == to) continue;
+    froms.push_back(from);
+    tos.push_back(to);
+  }
+
+  auto cylinder = make_uvcylinder({4, 1, 1}, {radius, 1});
+  for (auto& p : cylinder.positions) {
+    p.z = p.z * 0.5 + 0.5;
+  }
+
+  set_quads(shape, cylinder.quads);
+  set_positions(shape, cylinder.positions);
+  set_normals(shape, cylinder.normals);
+  set_texcoords(shape, cylinder.texcoords);
+  set_instances(shape, froms, tos);
+}
+
+void update_path_shape(shade_shape* shape, const bool_mesh& mesh,
+    const mesh_path& path, float radius, float offset = 0, bool thin = false) {
+  auto positions = vector<vec3f>(path.points.size());
+  for (int i = 0; i < positions.size(); i++) {
+    positions[i] = eval_position(
+        mesh.triangles, mesh.positions, path.points[i]);
+  }
+
+  if (offset > 0) {
+    // auto mesh_points = convert_mesh_path(mesh.triangles, mesh.adjacencies,
+    // path.strip, path.lerps, path.start, path.end);
+    auto pos = positions;
+    for (int i = 0; i < pos.size(); i++) {
+      auto a  = (i - 1 + (int)pos.size()) % pos.size();
+      auto b  = i;
+      auto c  = (i + 1) % pos.size();
+      auto n0 = eval_normal(mesh.triangles, mesh.normals, path.points[b]);
+      auto v  = pos[b] - pos[a];
+      auto w  = pos[c] - pos[b];
+      positions[i] += offset * normalize(cross(n0, v)) / 2;
+      positions[i] += offset * normalize(cross(n0, w)) / 2;
+    }
+  }
 
   if (thin) {
     set_positions(shape, positions);
@@ -172,20 +229,37 @@ void init_glscene(app_state* app, shade_scene* glscene, const bool_mesh& mesh,
   app->glcamera->focus = length(app->glcamera->frame.o);
 
   // material
+  // TODO(giacomo): Replace this with a proper colormap.
   if (progress_cb) progress_cb("convert material", progress.x++, progress.y);
   app->mesh_material = add_material(
       glscene, {0, 0, 0}, {0.5, 0.5, 0.9}, 1, 0, 0.4);
   app->edges_material = add_material(
       glscene, {0, 0, 0}, {0.4, 0.4, 1}, 1, 0, 0.4);
   app->points_material = add_material(glscene, {0, 0, 0}, {0, 0, 1}, 1, 0, 0.4);
-  app->paths_material  = add_material(glscene, {0, 0, 0}, {1, 0, 0}, 1, 0, 0.4);
+  app->paths_material  = add_material(glscene, {0, 0, 0}, {1, 1, 1}, 1, 0, 0.4);
   app->isecs_material  = add_material(glscene, {0, 0, 0}, {0, 1, 0}, 1, 0, 0.4);
-  app->cell_materials.push_back(
-      add_material(glscene, {0, 0, 0}, {1, 1, 0}, 1, 0, 0.4));
-  app->cell_materials.push_back(
-      add_material(glscene, {0, 0, 0}, {1, 0, 1}, 1, 0, 0.4));
-  app->cell_materials.push_back(
-      add_material(glscene, {0, 0, 0}, {0, 1, 1}, 1, 0, 0.4));
+  app->cell_materials.resize(64);
+  for (int i = 0; i < 64; i++) {
+    auto angle = (i % 4) + 0.1f * (i % 4);
+    auto rot   = vec2f{yocto::cos(angle), yocto::sin(angle)};
+
+    auto r      = vec3f{1, 0, 0};
+    auto g      = vec3f{0, 0.5, 0};
+    auto b      = vec3f{0, 0, 1};
+    auto y      = vec3f{1, 1, 0};
+    auto color  = zero3f;
+    auto weight = 0.0f;
+    color += max(0.0f, dot(rot, vec2f{1, 0})) * r;
+    weight += max(0.0f, dot(rot, vec2f{0, 0}));
+    color += max(0.0f, dot(rot, vec2f{0, 1})) * g;
+    weight += max(0.0f, dot(rot, vec2f{0, 1}));
+    color += max(0.0f, dot(rot, vec2f{-1, 0})) * b;
+    weight += max(0.0f, dot(rot, vec2f{-1, 0}));
+    color += max(0.0f, dot(rot, vec2f{0, -1})) * y;
+    weight += max(0.0f, dot(rot, vec2f{0, -1}));
+    color /= weight;
+    app->cell_materials[i] = add_material(glscene, {0, 0, 0}, color, 1, 0, 0.4);
+  }
 
   // shapes
   if (progress_cb) progress_cb("convert shape", progress.x++, progress.y);
@@ -413,23 +487,32 @@ void draw_segment(shade_scene* scene, const bool_mesh& mesh,
 }
 
 void draw_arrangement(shade_scene* scene, const bool_mesh& mesh,
-    vector<shade_material*> material, const vector<mesh_point> points,
+    const vector<shade_material*>& material, const vector<mesh_point>& points,
     vector<mesh_polygon>& polygons) {
   for (auto p = 0; p < polygons.size(); p++) {
     auto& polygon = polygons[p];
     auto  mat     = material[p % material.size()];
+    auto  path    = mesh_path{};
     for (auto n = 0; n < polygon.points.size() - 1; n++) {
       auto& start = points[polygon.points[n]];
       auto& end   = points[polygon.points[n + 1]];
 
       auto geo_path = compute_geodesic_path(mesh, start, end);
-      draw_path(scene, mesh, mat, geo_path, 0.0010f);
+      append(path.points,
+          convert_mesh_path(mesh.triangles, mesh.adjacencies, geo_path.strip,
+              geo_path.lerps, geo_path.start, geo_path.end)
+              .points);
 
       auto segments = mesh_segments(mesh.triangles, geo_path.strip,
           geo_path.lerps, geo_path.start, geo_path.end);
 
       update_mesh_polygon(polygon, segments);
     }
+    auto shape = add_shape(scene);
+    // TODO: Make this proportional to avg_edge_length
+    float offset = 0.002f;
+    update_path_shape(shape, mesh, path, 0.0010f, offset);
+    add_instance(scene, identity3x4f, shape, mat, false);
   }
 }
 
