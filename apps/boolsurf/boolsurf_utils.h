@@ -266,6 +266,9 @@ inline vector<vector<int>> compute_graph(const int   nodes,
       return a.segment < b.segment;
     });
   }
+  auto keys = vector<vec2i>();
+  for (auto& [key, value] : edge_map) keys.push_back(key);
+  sort(keys.begin(), keys.end(), [](auto& a, auto& b) { return a.x < b.x; });
 
   //        C
   //        |
@@ -286,16 +289,6 @@ inline vector<vector<int>> compute_graph(const int   nodes,
   // [AB] : A-- point(C, D), point(...) -- B
 
   auto graph = vector<vector<int>>(nodes);
-  auto keys  = vector<vec2i>();
-  for (auto& [key, value] : edge_map) {
-    keys.push_back(key);
-  }
-
-  std::sort(
-      keys.begin(), keys.end(), [](auto& a, auto& b) { return a.x < b.x; });
-
-  printf("Size edge_map: %d - Size keys: %d\n", edge_map.size(), keys.size());
-  // for (auto& [key, value] : edge_map) {
   for (auto& key : keys) {
     auto& value = edge_map[key];
     assert(key.x == value[0].point);
