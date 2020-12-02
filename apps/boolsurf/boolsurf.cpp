@@ -171,6 +171,15 @@ void update_path_shape(shade_shape* shape, const bool_mesh& mesh,
     // auto mesh_points = convert_mesh_path(mesh.triangles, mesh.adjacencies,
     // path.strip, path.lerps, path.start, path.end);
     auto pos = positions;
+    int num_subdivisions = 8;
+    for (int i = 0; i < num_subdivisions; i++) {
+      auto pos = positions;
+      for (int i = 0; i < pos.size(); i++) {
+        auto a       = (i - 1 + (int)pos.size()) % pos.size();
+        auto c       = (i + 1) % pos.size();
+        positions[i] = (positions[a] + positions[c]) / 2;
+      }
+    }
     for (int i = 0; i < pos.size(); i++) {
       auto a  = (i - 1 + (int)pos.size()) % pos.size();
       auto b  = i;
@@ -238,27 +247,24 @@ void init_glscene(app_state* app, shade_scene* glscene, const bool_mesh& mesh,
   app->points_material = add_material(glscene, {0, 0, 0}, {0, 0, 1}, 1, 0, 0.4);
   app->paths_material  = add_material(glscene, {0, 0, 0}, {1, 1, 1}, 1, 0, 0.4);
   app->isecs_material  = add_material(glscene, {0, 0, 0}, {0, 1, 0}, 1, 0, 0.4);
-  app->cell_materials.resize(64);
-  for (int i = 0; i < 64; i++) {
-    auto angle = (i % 4) + 0.1f * (i % 4);
-    auto rot   = vec2f{yocto::cos(angle), yocto::sin(angle)};
-
-    auto r      = vec3f{1, 0, 0};
-    auto g      = vec3f{0, 0.5, 0};
-    auto b      = vec3f{0, 0, 1};
-    auto y      = vec3f{1, 1, 0};
-    auto color  = zero3f;
-    auto weight = 0.0f;
-    color += max(0.0f, dot(rot, vec2f{1, 0})) * r;
-    weight += max(0.0f, dot(rot, vec2f{0, 0}));
-    color += max(0.0f, dot(rot, vec2f{0, 1})) * g;
-    weight += max(0.0f, dot(rot, vec2f{0, 1}));
-    color += max(0.0f, dot(rot, vec2f{-1, 0})) * b;
-    weight += max(0.0f, dot(rot, vec2f{-1, 0}));
-    color += max(0.0f, dot(rot, vec2f{0, -1})) * y;
-    weight += max(0.0f, dot(rot, vec2f{0, -1}));
-    color /= weight;
-    app->cell_materials[i] = add_material(glscene, {0, 0, 0}, color, 1, 0, 0.4);
+  auto colors          = vector<vec3f>{
+      {1, 0, 0},
+      {0, 1, 0},
+      {0, 0, 1},
+      {0, 1, 1},
+      {1, 1, 0},
+      {1, 0, 1},
+      {0.5, 0, 0},
+      {0, 0.5, 0},
+      {0, 0, 0.5},
+      {0, 0.5, 0.5},
+      {0.5, 0.5, 0},
+      {0.5, 0, 0.5},
+  };
+  app->cell_materials.resize(colors.size());
+  for (int i = 0; i < colors.size(); i++) {
+    app->cell_materials[i] = add_material(
+        glscene, {0, 0, 0}, colors[i], 1, 0, 0.4);
   }
 
   // shapes
