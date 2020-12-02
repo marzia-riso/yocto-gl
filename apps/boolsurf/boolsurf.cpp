@@ -170,8 +170,8 @@ void update_path_shape(shade_shape* shape, const bool_mesh& mesh,
   if (offset > 0) {
     // auto mesh_points = convert_mesh_path(mesh.triangles, mesh.adjacencies,
     // path.strip, path.lerps, path.start, path.end);
-    auto pos = positions;
-    int num_subdivisions = 8;
+    auto pos              = positions;
+    int  num_subdivisions = 8;
     for (int i = 0; i < num_subdivisions; i++) {
       auto pos = positions;
       for (int i = 0; i < pos.size(); i++) {
@@ -655,6 +655,10 @@ void key_input(app_state* app, const gui_input& input) {
         auto arrangement = compute_arrangement(faces);
         draw_arrangement(app->glscene, app->mesh, app->cell_materials,
             app->points, arrangement);
+
+        auto dual_graph = compute_dual_graph(arrangement);
+        print_graph(dual_graph);
+
       } break;
       case (int)gui_key('C'): {
         app->points.clear();

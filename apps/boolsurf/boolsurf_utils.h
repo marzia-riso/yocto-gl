@@ -257,6 +257,28 @@ inline vector<mesh_segment> mesh_segments(const vector<vec3i>& triangles,
   return result;
 }
 
+inline void print_graph(const vector<vector<int>>& graph) {
+  printf("graph:\n");
+  for (int i = 0; i < graph.size(); i++) {
+    printf("%d: [", i);
+    for (int k = 0; k < graph[i].size(); k++) {
+      printf("%d ", graph[i][k]);
+    }
+    printf("]\n");
+  }
+}
+
+inline void print_faces(const vector<vector<vec2i>>& faces) {
+  printf("faces:\n");
+  for (int i = 0; i < faces.size(); i++) {
+    printf("[");
+    for (int k = 0; k < faces[i].size(); k++) {
+      printf("%d ", faces[i][k].x);
+    }
+    printf("]\n");
+  }
+}
+
 inline vector<vector<int>> compute_graph(const int   nodes,
     unordered_map<vec2i, vector<intersection_node>>& edge_map,
     const unordered_map<int, bool>&                  counterclockwise) {
@@ -376,24 +398,27 @@ inline vector<mesh_polygon> compute_arrangement(
   return mesh_arrangement;
 }
 
-inline void print_faces(const vector<vector<vec2i>>& faces) {
-  printf("faces:\n");
-  for (int i = 0; i < faces.size(); i++) {
-    printf("[");
-    for (int k = 0; k < faces[i].size(); k++) {
-      printf("%d ", faces[i][k].x);
-    }
-    printf("]\n");
-  }
-}
+inline vector<vector<int>> compute_dual_graph(
+    const vector<mesh_polygon>& cells) {
+  auto edge_cell  = unordered_map<vec2i, int>();
+  auto dual_graph = vector<vector<int>>(cells.size());
+  for (auto c = 0; c < cells.size(); c++) {
+    auto& cell = cells[c];
+    for (auto p = 0; p < cell.points.size() - 1; p++) {
+      auto edge = vec2i{cell.points[p], cell.points[p + 1]};
+      if (edge.x > edge.y) std::swap(edge.x, edge.y);
 
-inline void print_graph(const vector<vector<int>>& graph) {
-  printf("graph:\n");
-  for (int i = 0; i < graph.size(); i++) {
-    printf("%d: [", i);
-    for (int k = 0; k < graph[i].size(); k++) {
-      printf("%d ", graph[i][k]);
+      if (edge_cell.find(edge) != edge_cell.end()) {
+        dual_graph[c].push_back(edge_cell[edge]);
+        dual_graph[edge_cell[edge]].push_back(c);
+      } else
+        edge_cell[edge] = c;
     }
-    printf("]\n");
   }
+
+  for (auto& adj : dual_graph) {
+    sort(adj.begin(), adj.end());
+    adj.erase(unique(adj.begin(), adj.end()), adj.end());
+  }
+  return dual_graph;
 }
