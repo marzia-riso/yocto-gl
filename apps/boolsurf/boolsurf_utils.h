@@ -357,8 +357,8 @@ inline vector<vector<vec2i>> compute_graph_faces(
 
   auto faces = vector<vector<vec2i>>();
   auto path  = vector<vec2i>();
-  path.push_back(edges[0]);
-  edges.erase(edges.begin());
+  path.push_back(edges.back());
+  edges.pop_back();
 
   while (edges.size() > 0) {
     auto neighbors = graph[path.back().y];
@@ -371,8 +371,8 @@ inline vector<vector<vec2i>> compute_graph_faces(
     if (tup == path.front()) {
       faces.push_back(path);
       path.clear();
-      path.push_back(edges[0]);
-      edges.erase(edges.begin());
+      path.push_back(edges.back());
+      edges.pop_back();
     } else {
       path.push_back(tup);
       auto rem_idx = find_idx(edges, tup);
