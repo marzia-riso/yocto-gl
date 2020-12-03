@@ -383,3 +383,21 @@ inline vector<vector<int>> compute_dual_graph(
   }
   return dual_graph;
 }
+
+inline void visit_dual_graph(const vector<vector<int>>& dual_graph, int start) {
+  auto queue     = std::deque<int>{};
+  auto visited   = vector<bool>(dual_graph.size());
+  visited[start] = true;
+  queue.push_back(start);
+
+  while (!queue.empty()) {
+    auto current = queue.front();
+    queue.pop_front();
+
+    for (auto adj : dual_graph[current]) {
+      if (visited[adj]) continue;
+      visited[adj] = true;
+      queue.push_back(adj);
+    }
+  }
+};

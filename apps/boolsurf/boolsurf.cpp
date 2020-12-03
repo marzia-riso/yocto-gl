@@ -657,6 +657,9 @@ void key_input(app_state* app, const gui_input& input) {
         auto dual_graph = compute_dual_graph(arrangement);
         print_graph(dual_graph);
 
+        //(marzia) Predefined starting point (should be outer face idx)
+        visit_dual_graph(dual_graph, 1);
+
       } break;
       case (int)gui_key('C'): {
         app->points.clear();
