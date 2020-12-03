@@ -37,6 +37,11 @@ struct mesh_polygon {
   vector<vector<mesh_segment>> edges  = {};
 };
 
+struct cell_polygon {
+  vector<int> points    = {};
+  vector<int> embedding = {};
+};
+
 struct intersection_node {
   int   point   = -1;
   vec2i edges   = {};
@@ -61,50 +66,6 @@ inline void update_mesh_polygon(
     mesh_polygon& polygon, const vector<mesh_segment>& segments) {
   polygon.edges.push_back(segments);
 }
-
-// (marzia) Not used
-// inline void update_intersection_segments(
-//     const vector<isec_polygon>& intersections, const vector<mesh_point>&
-//     points, vector<mesh_polygon>& polygons) {
-//   auto isecs = vector<vec3i>(intersections.size() * 2);
-//   for (auto i = 0; i < intersections.size(); i++) {
-//     auto isec        = intersections[i];
-//     isecs[2 * i]     = {isec.first.x, isec.first.y, isec.point};
-//     isecs[2 * i + 1] = {isec.second.x, isec.second.y, isec.point};
-//   }
-
-//   sort(isecs.begin(), isecs.end(), [](auto& a, auto& b) { return a.y >
-//   b.y;
-//   }); for (auto& isec : isecs) {
-//     auto& segments      = polygons[isec.x].segments;
-//     auto& point         = points[isec.z];
-//     auto  segment_start = mesh_segment{
-//         segments[isec.y].start, point.uv, point.face};
-//     auto segment_end = mesh_segment{point.uv, segments[isec.y].end,
-//     point.face};
-
-//     segments[isec.y] = segment_start;
-//     segments.insert(segments.begin() + isec.y + 1, segment_end);
-//   }
-// }
-
-// (marzia) Not used
-// inline vector<int> polygon_strip(const mesh_polygon& polygon) {
-//   auto strip = vector<int>(polygon.segments.size());
-//   for (auto i = 0; i < polygon.segments.size(); i++)
-//     strip[i] = polygon.segments[i].face;
-//   return strip;
-// }
-
-// (marzia) Not used
-// inline vector<mesh_segment> segments_from_face(
-//     const mesh_polygon& polygon, int face) {
-//   auto segments = vector<mesh_segment>();
-//   for (auto i = 0; i < polygon.segments.size(); i++)
-//     if (polygon.segments[i].face == face)
-//       segments.push_back(polygon.segments[i]);
-//   return segments;
-// }
 
 // (marzia) Not used
 // inline vector<int> strip_intersection(
@@ -384,22 +345,22 @@ inline vector<vector<vec2i>> compute_graph_faces(
   return faces;
 }
 
-inline vector<mesh_polygon> compute_arrangement(
-    const vector<vector<vec2i>>& faces) {
-  auto mesh_arrangement = vector<mesh_polygon>(faces.size());
-  for (auto i = 0; i < faces.size(); i++) {
-    auto polygon = mesh_polygon{};
-    for (auto j = 0; j < faces[i].size(); j++) {
-      polygon.points.push_back(faces[i][j].x);
+inline vector<cell_polygon> compute_arrangement(
+    const vector<vector<vec2i>>& cells) {
+  auto arrangement = vector<cell_polygon>(cells.size());
+  for (auto i = 0; i < cells.size(); i++) {
+    auto c = cell_polygon{};
+    for (auto j = 0; j < cells[i].size(); j++) {
+      c.points.push_back(cells[i][j].x);
     }
-    polygon.points.push_back(polygon.points.front());
-    mesh_arrangement[i] = polygon;
+    c.points.push_back(c.points.front());
+    arrangement[i] = c;
   }
-  return mesh_arrangement;
+  return arrangement;
 }
 
 inline vector<vector<int>> compute_dual_graph(
-    const vector<mesh_polygon>& cells) {
+    const vector<cell_polygon>& cells) {
   auto edge_cell  = unordered_map<vec2i, int>();
   auto dual_graph = vector<vector<int>>(cells.size());
   for (auto c = 0; c < cells.size(); c++) {

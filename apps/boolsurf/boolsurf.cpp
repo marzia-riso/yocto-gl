@@ -73,8 +73,8 @@ struct app_state {
   // boolmesh info
   bool_mesh mesh = bool_mesh{};
 
-  vector<mesh_polygon> polygons = {};
-  vector<mesh_point>   points   = {};  // Click inserted points
+  vector<mesh_polygon> cells  = {};
+  vector<mesh_point>   points = {};  // Click inserted points
   // vector<isec_polygon> intersections = {};
 
   // rendering state
@@ -494,9 +494,9 @@ void draw_segment(shade_scene* scene, const bool_mesh& mesh,
 
 void draw_arrangement(shade_scene* scene, const bool_mesh& mesh,
     const vector<shade_material*>& material, const vector<mesh_point>& points,
-    vector<mesh_polygon>& polygons) {
-  for (auto p = 0; p < polygons.size(); p++) {
-    auto& polygon = polygons[p];
+    vector<cell_polygon>& cells) {
+  for (auto p = 0; p < cells.size(); p++) {
+    auto& polygon = cells[p];
     auto  mat     = material[p % material.size()];
     auto  path    = mesh_path{};
     for (auto n = 0; n < polygon.points.size() - 1; n++) {
@@ -509,10 +509,9 @@ void draw_arrangement(shade_scene* scene, const bool_mesh& mesh,
               geo_path.lerps, geo_path.start, geo_path.end)
               .points);
 
-      auto segments = mesh_segments(mesh.triangles, geo_path.strip,
-          geo_path.lerps, geo_path.start, geo_path.end);
-
-      update_mesh_polygon(polygon, segments);
+      // auto segments = mesh_segments(mesh.triangles, geo_path.strip,
+      //    geo_path.lerps, geo_path.start, geo_path.end);
+      // update_mesh_polygon(polygon, segments);
     }
     auto shape = add_shape(scene);
     // TODO: Make this proportional to avg_edge_length
@@ -529,11 +528,10 @@ void mouse_input(app_state* app, const gui_input& input) {
       input.mouse_left.state == gui_button::state::releasing) {
     auto isec = intersect_shape(app, input);
     if (isec.hit) {
-      if (!app->polygons.size()) app->polygons.push_back(mesh_polygon{});
-      if (is_closed(app->polygons.back()))
-        app->polygons.push_back(mesh_polygon{});
+      if (!app->cells.size()) app->cells.push_back(mesh_polygon{});
+      if (is_closed(app->cells.back())) app->cells.push_back(mesh_polygon{});
 
-      auto& polygon = app->polygons.back();
+      auto& polygon = app->cells.back();
       auto  point   = mesh_point{isec.element, isec.uv};
 
       app->points.push_back(point);
@@ -574,11 +572,11 @@ void key_input(app_state* app, const gui_input& input) {
         auto edge_map = unordered_map<vec2i, vector<intersection_node>>();
         auto counterclockwise = unordered_map<int, bool>();
 
-        for (auto p = 0; p < app->polygons.size(); p++) {
-          auto& polygon = app->polygons[p];
+        for (auto p = 0; p < app->cells.size(); p++) {
+          auto& polygon = app->cells[p];
           for (auto e = 0; e < polygon.edges.size(); e++) {
-            auto& edge      = polygon.edges[e];
-            auto end_points = get_edge_points(app->polygons, app->points, p, e);
+            auto& edge       = polygon.edges[e];
+            auto  end_points = get_edge_points(app->cells, app->points, p, e);
             edge_map[end_points].push_back({end_points.x, {-1, -1}, 0, 0.0f});
             edge_map[end_points].push_back(
                 {end_points.y, {-1, -1}, (int)(edge.size() - 1), 1.0f});
@@ -600,9 +598,9 @@ void key_input(app_state* app, const gui_input& input) {
             for (auto j = i + 1; j < value.size(); j++) {
               auto& segmentCD = value[j];
 
-              auto AB = get_edge_points(app->polygons, app->points,
+              auto AB = get_edge_points(app->cells, app->points,
                   segmentAB.polygon_id, segmentAB.edge_id);
-              auto CD = get_edge_points(app->polygons, app->points,
+              auto CD = get_edge_points(app->cells, app->points,
                   segmentCD.polygon_id, segmentCD.edge_id);
 
               auto l = intersect_segments(segmentAB.start, segmentAB.end,
@@ -662,14 +660,14 @@ void key_input(app_state* app, const gui_input& input) {
       } break;
       case (int)gui_key('C'): {
         app->points.clear();
-        app->polygons.clear();
+        app->cells.clear();
         load_shape(app, app->filename);
         clear_scene(app->glscene);
         init_glscene(app, app->glscene, app->mesh, {});
       } break;
 
       case (int)gui_key::enter: {
-        auto& polygon = app->polygons.back();
+        auto& polygon = app->cells.back();
         if (polygon.points.size() < 3 || is_closed(polygon)) return;
 
         auto point = polygon.points.front();
