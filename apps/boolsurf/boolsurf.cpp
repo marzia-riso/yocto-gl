@@ -577,9 +577,11 @@ void key_input(app_state* app, const gui_input& input) {
           for (auto e = 0; e < polygon.edges.size(); e++) {
             auto& edge       = polygon.edges[e];
             auto  end_points = get_edge_points(app->cells, app->points, p, e);
-            edge_map[end_points].push_back({end_points.x, {-1, -1}, 0, 0.0f});
+            auto  end        = (int)(edge.size() - 1);
             edge_map[end_points].push_back(
-                {end_points.y, {-1, -1}, (int)(edge.size() - 1), 1.0f});
+                {end_points.x, {-1, -1}, p, 0, 0.0f});
+            edge_map[end_points].push_back(
+                {end_points.y, {-1, -1}, p, end, 1.0f});
 
             for (auto s = 0; s < edge.size(); s++) {
               auto& segment = edge[s];
@@ -631,8 +633,10 @@ void key_input(app_state* app, const gui_input& input) {
               //        |
               //        D
 
-              edge_map[AB].push_back({point_id, CD, segmentAB.segment_id, l.x});
-              edge_map[CD].push_back({point_id, AB, segmentCD.segment_id, l.y});
+              edge_map[AB].push_back({point_id, CD, segmentAB.polygon_id,
+                  segmentAB.segment_id, l.x});
+              edge_map[CD].push_back({point_id, AB, segmentCD.polygon_id,
+                  segmentCD.segment_id, l.y});
 
               app->points.push_back(point);
 
@@ -646,19 +650,21 @@ void key_input(app_state* app, const gui_input& input) {
             app->points.size(), edge_map, counterclockwise);
         print_graph(graph);
 
+        auto edge_polygon = compute_edge_polygon(edge_map);
+
         auto faces = compute_graph_faces(graph);
         print_faces(faces);
 
         // Remove Outer Face (?)
-        auto arrangement = compute_arrangement(faces);
+        auto arrangement = compute_arrangement(faces, app->cells.size());
         draw_arrangement(app->glscene, app->mesh, app->cell_materials,
             app->points, arrangement);
 
-        auto dual_graph = compute_dual_graph(arrangement);
-        print_graph(dual_graph);
+        auto dual_graph = compute_dual_graph(arrangement, edge_polygon);
+        print_dual_graph(dual_graph);
 
         //(marzia) Predefined starting point (should be outer face idx)
-        visit_dual_graph(dual_graph, 1);
+        visit_dual_graph(dual_graph, arrangement, 2);
 
       } break;
       case (int)gui_key('C'): {
