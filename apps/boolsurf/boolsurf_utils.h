@@ -418,42 +418,45 @@ inline vector<vector<edge>> compute_dual_graph(
     sort(adj.begin(), adj.end(),
         [](auto& a, auto& b) { return a.point < b.point; });
 
-    adj.erase(unique(adj.begin(), adj.end(), [](auto& a, auto& b) {
-      return ((a.point == b.point) && (a.polygon == b.polygon));
-    }));
+    adj.erase(unique(adj.begin(), adj.end(),
+                  [](auto& a, auto& b) {
+                    return ((a.point == b.point) && (a.polygon == b.polygon));
+                  }),
+        adj.end());
   }
   return dual_graph;
 }
 
 inline void visit_dual_graph(const vector<vector<edge>>& dual_graph,
-    vector<cell_polygon>& cells, int start) {
-  auto queue     = std::deque<int>{};
-  auto visited   = vector<bool>(dual_graph.size());
+    vector<cell_polygon>& cells, int start, const int num_polygons) {
+  auto queue   = std::deque<int>{};
+  auto visited = vector<bool>(dual_graph.size());
+
   visited[start] = true;
   queue.push_back(start);
 
   while (!queue.empty()) {
-    auto current = queue.front();
-    queue.pop_front();
-    printf("Node: %d\n", current);
+    auto current   = queue.front();
+    auto embedding = cells[current].embedding;
 
+    queue.pop_front();
     for (auto adj : dual_graph[current]) {
       if (visited[adj.point]) continue;
-      auto& cell = cells[adj.point];
 
       // Substitute with if (entering or exiting a polygon)
-      if (cell.embedding[adj.polygon] == 0)
-        cell.embedding[adj.polygon] += 1;
+      if (embedding[adj.polygon] == 0)
+        embedding[adj.polygon] += 1;
       else
-        cell.embedding[adj.polygon] -= 1;
-      visited[adj.point] = true;
+        embedding[adj.polygon] -= 1;
+      cells[adj.point].embedding = embedding;
+      visited[adj.point]         = true;
 
       queue.push_back(adj.point);
     }
   }
 
-  for (auto& cell : cells) {
-    printf("Cell: %d Embedding: %d %d\n", cell.points.size(), cell.embedding[0],
-        cell.embedding[1]);
+  for (auto i = 0; i < cells.size(); i++) {
+    printf("Cell: %d Embedding: %d %d\n", i, cells[i].embedding[0],
+        cells[i].embedding[1]);
   }
 };
