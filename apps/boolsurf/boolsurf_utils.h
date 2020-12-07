@@ -241,7 +241,8 @@ inline void print_dual_graph(const vector<vector<edge>>& graph) {
   for (int i = 0; i < graph.size(); i++) {
     printf("%d: [", i);
     for (int k = 0; k < graph[i].size(); k++) {
-      printf("(%d %d) ", graph[i][k].point, graph[i][k].polygon);
+      printf("(%d P: %d C: %d) ", graph[i][k].point, graph[i][k].polygon,
+          graph[i][k].counterclock);
     }
     printf("]\n");
   }
@@ -326,16 +327,16 @@ inline vector<vector<int>> compute_graph(const int   nodes,
   return graph;
 }
 
-inline unordered_map<vec2i, int> compute_edge_polygon(
+inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_polygon(
     unordered_map<vec2i, vector<intersection_node>>& edge_map) {
-  auto edge_polygon = unordered_map<vec2i, int>();
+  auto edge_polygon = unordered_map<vec2i, std::pair<int, bool>>();
   for (auto& [edge, value] : edge_map) {
     for (auto v = 0; v < value.size() - 1; v++) {
       auto& start = value[v];
       auto& end   = value[v + 1];
 
-      edge_polygon[{start.point, end.point}] = start.polygon;
-      edge_polygon[{end.point, start.point}] = start.polygon;
+      edge_polygon[{start.point, end.point}] = {start.polygon, true};
+      edge_polygon[{end.point, start.point}] = {start.polygon, false};
     }
   }
   return edge_polygon;
@@ -396,21 +397,25 @@ inline vector<cell_polygon> compute_arrangement(
 }
 
 inline vector<vector<edge>> compute_dual_graph(
-    const vector<cell_polygon>& cells,
-    unordered_map<vec2i, int>&  edge_polygon) {
+    const vector<cell_polygon>&                 cells,
+    unordered_map<vec2i, std::pair<int, bool>>& edge_polygon) {
   auto edge_cell  = unordered_map<vec2i, int>();
   auto dual_graph = vector<vector<edge>>(cells.size());
+
   for (auto c = 0; c < cells.size(); c++) {
     auto& cell = cells[c];
     for (auto p = 0; p < cell.points.size() - 1; p++) {
-      auto edge = vec2i{cell.points[p], cell.points[p + 1]};
-      if (edge.x > edge.y) std::swap(edge.x, edge.y);
-
+      auto edge     = vec2i{cell.points[p], cell.points[p + 1]};
+      auto rev_edge = vec2i{edge.y, edge.x};
       if (edge_cell.find(edge) != edge_cell.end()) {
-        dual_graph[c].push_back({edge_cell[edge], edge_polygon[edge]});
-        dual_graph[edge_cell[edge]].push_back({c, edge_polygon[edge]});
-      } else
-        edge_cell[edge] = c;
+        auto& [pol, ccwise]         = edge_polygon[edge];
+        auto& [rev_pol, rev_ccwise] = edge_polygon[rev_edge];
+        dual_graph[c].push_back({edge_cell[edge], pol, ccwise});
+        dual_graph[edge_cell[edge]].push_back({c, rev_pol, rev_ccwise});
+      } else {
+        // edge_cell[edge] = c;
+        edge_cell[rev_edge] = c;
+      }
     }
   }
 
@@ -420,15 +425,29 @@ inline vector<vector<edge>> compute_dual_graph(
 
     adj.erase(unique(adj.begin(), adj.end(),
                   [](auto& a, auto& b) {
-                    return ((a.point == b.point) && (a.polygon == b.polygon));
+                    return ((a.point == b.point) && (a.polygon == b.polygon) &&
+                            (a.counterclock == b.counterclock));
                   }),
         adj.end());
   }
   return dual_graph;
 }
 
+inline int compute_outer_face(const vector<vector<edge>>& dual_graph) {
+  auto face = -1;
+  for (auto f = 0; f < dual_graph.size(); f++) {
+    auto ccwise = false;
+    for (auto& adj : dual_graph[f]) ccwise = ccwise || adj.counterclock;
+    if (!ccwise) {
+      face = f;
+      break;
+    }
+  }
+  return face;
+}
+
 inline void visit_dual_graph(const vector<vector<edge>>& dual_graph,
-    vector<cell_polygon>& cells, int start, const int num_polygons) {
+    vector<cell_polygon>& cells, int start) {
   auto queue   = std::deque<int>{};
   auto visited = vector<bool>(dual_graph.size());
 
@@ -436,18 +455,22 @@ inline void visit_dual_graph(const vector<vector<edge>>& dual_graph,
   queue.push_back(start);
 
   while (!queue.empty()) {
-    auto current   = queue.front();
-    auto embedding = cells[current].embedding;
+    auto current = queue.front();
 
     queue.pop_front();
     for (auto adj : dual_graph[current]) {
       if (visited[adj.point]) continue;
+      auto embedding = cells[current].embedding;
 
       // Substitute with if (entering or exiting a polygon)
-      if (embedding[adj.polygon] == 0)
-        embedding[adj.polygon] += 1;
-      else
+      // if (embedding[adj.polygon] == 0)
+      //   embedding[adj.polygon] += 1;
+      // else
+      //   embedding[adj.polygon] -= 1;
+      if (adj.counterclock)
         embedding[adj.polygon] -= 1;
+      else
+        embedding[adj.polygon] += 1;
       cells[adj.point].embedding = embedding;
       visited[adj.point]         = true;
 
@@ -456,7 +479,8 @@ inline void visit_dual_graph(const vector<vector<edge>>& dual_graph,
   }
 
   for (auto i = 0; i < cells.size(); i++) {
-    printf("Cell: %d Embedding: %d %d\n", i, cells[i].embedding[0],
-        cells[i].embedding[1]);
+    printf("Cell: %d Emb: ", i);
+    for (auto& e : cells[i].embedding) printf("%d ", e);
+    printf("\n");
   }
 };
