@@ -328,15 +328,29 @@ inline vector<vector<int>> compute_graph(const int   nodes,
 }
 
 inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_polygon(
-    unordered_map<vec2i, vector<intersection_node>>& edge_map) {
+    unordered_map<vec2i, vector<intersection_node>>& edge_map,
+    const vector<mesh_polygon>&                      polygons) {
   auto edge_polygon = unordered_map<vec2i, std::pair<int, bool>>();
+  auto counterclock = unordered_map<int, bool>();
+
+  for (auto i = 0; i < polygons.size(); i++) {
+    auto& first  = polygons[i].edges[0].back();
+    auto& second = polygons[i].edges[1].front();
+
+    auto v          = first.end - first.start;
+    auto w          = second.end - second.start;
+    counterclock[i] = cross(v, w) > 0;
+  }
+
   for (auto& [edge, value] : edge_map) {
     for (auto v = 0; v < value.size() - 1; v++) {
-      auto& start = value[v];
-      auto& end   = value[v + 1];
+      auto& start  = value[v];
+      auto& end    = value[v + 1];
+      auto  ccwise = true;
+      if (!counterclock[start.polygon]) ccwise = !ccwise;
 
-      edge_polygon[{start.point, end.point}] = {start.polygon, true};
-      edge_polygon[{end.point, start.point}] = {start.polygon, false};
+      edge_polygon[{start.point, end.point}] = {start.polygon, ccwise};
+      edge_polygon[{end.point, start.point}] = {start.polygon, !ccwise};
     }
   }
   return edge_polygon;

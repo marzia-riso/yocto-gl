@@ -650,7 +650,7 @@ void key_input(app_state* app, const gui_input& input) {
             app->points.size(), edge_map, counterclockwise);
         print_graph(graph);
 
-        auto edge_polygon = compute_edge_polygon(edge_map);
+        auto edge_polygon = compute_edge_polygon(edge_map, app->cells);
         // for (auto& [key, value] : edge_polygon) {
         //   printf("Edge : %d %d - %d %d\n", key.x, key.y, value.first,
         //       value.second);
