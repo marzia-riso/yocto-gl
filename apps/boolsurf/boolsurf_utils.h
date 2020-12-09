@@ -342,11 +342,33 @@ inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_polygon(
     counterclock[i] = cross(v, w) > 0;
   }
 
-  for (auto& [edge, value] : edge_map) {
+  auto keys = vector<vec2i>();
+  for (auto& [key, value] : edge_map) keys.push_back(key);
+  sort(keys.begin(), keys.end(), [](auto& a, auto& b) { return a.x < b.x; });
+
+  for (auto& edge : keys) {
+    auto& value = edge_map.at(edge);
+    printf("Edge: %d %d\n", edge.x, edge.y);
     for (auto v = 0; v < value.size() - 1; v++) {
       auto& start  = value[v];
       auto& end    = value[v + 1];
       auto  ccwise = true;
+
+      // If self-intersecting
+      if (start.edges != vec2i{-1, -1}) {
+        auto& other = edge_map.at(start.edges);
+        auto  id    = -1;
+        for (int i = 0; i < other.size(); i++) {
+          if (other[i].point == start.point) {
+            id = i;
+            break;
+          }
+        }
+
+        if (start.polygon == other[id].polygon) {
+          counterclock[start.polygon] = !counterclock[start.polygon];
+        }
+      }
       if (!counterclock[start.polygon]) ccwise = !ccwise;
 
       edge_polygon[{start.point, end.point}] = {start.polygon, ccwise};
