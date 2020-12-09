@@ -334,46 +334,42 @@ inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_polygon(
   auto counterclock = unordered_map<int, bool>();
 
   for (auto i = 0; i < polygons.size(); i++) {
-    auto& first  = polygons[i].edges[0].back();
-    auto& second = polygons[i].edges[1].front();
+    auto& polygon = polygons[i];
+    auto& first   = polygon.edges[0].back();
+    auto& second  = polygon.edges[1].front();
 
-    auto v          = first.end - first.start;
-    auto w          = second.end - second.start;
-    counterclock[i] = cross(v, w) > 0;
-  }
+    auto v      = first.end - first.start;
+    auto w      = second.end - second.start;
+    auto ccwise = cross(v, w) > 0;
 
-  auto keys = vector<vec2i>();
-  for (auto& [key, value] : edge_map) keys.push_back(key);
-  sort(keys.begin(), keys.end(), [](auto& a, auto& b) { return a.x < b.x; });
+    for (auto p = 0; p < polygon.points.size() - 1; p++) {
+      auto& first  = polygon.points[p];
+      auto& second = polygon.points[p + 1];
 
-  for (auto& edge : keys) {
-    auto& value = edge_map.at(edge);
-    printf("Edge: %d %d\n", edge.x, edge.y);
-    for (auto v = 0; v < value.size() - 1; v++) {
-      auto& start  = value[v];
-      auto& end    = value[v + 1];
-      auto& ccwise = counterclock[start.polygon];
+      auto& value = edge_map.at({first, second});
+      for (auto v = 0; v < value.size() - 1; v++) {
+        auto& start = value[v];
+        auto& end   = value[v + 1];
 
-      // If self-intersecting
-      if (start.edges != vec2i{-1, -1}) {
-        auto& other = edge_map.at(start.edges);
-        auto  id    = -1;
-        for (int i = 0; i < other.size(); i++) {
-          if (other[i].point == start.point) {
-            id = i;
-            break;
+        // If self-intersecting
+        if (start.edges != vec2i{-1, -1}) {
+          auto& other = edge_map.at(start.edges);
+          auto  id    = -1;
+          for (int i = 0; i < other.size(); i++) {
+            if (other[i].point == start.point) {
+              id = i;
+              break;
+            }
           }
-        }
 
-        if (start.polygon == other[id].polygon) {
-          ccwise = !ccwise;
+          if (start.polygon == other[id].polygon) ccwise = !ccwise;
         }
+        edge_polygon[{start.point, end.point}] = {start.polygon, ccwise};
+        edge_polygon[{end.point, start.point}] = {start.polygon, !ccwise};
+        printf("Edge: %d %d -> %d\n", start.point, end.point, ccwise);
+        printf("Edge: %d %d -> %d\n", end.point, start.point, !ccwise);
       }
-
-      edge_polygon[{start.point, end.point}] = {start.polygon, ccwise};
-      edge_polygon[{end.point, start.point}] = {start.polygon, !ccwise};
-      printf("Edge: %d %d -> %d\n", start.point, end.point, ccwise);
-      printf("Edge: %d %d -> %d\n", end.point, start.point, !ccwise);
+      printf("\n");
     }
   }
   return edge_polygon;
@@ -450,7 +446,6 @@ inline vector<vector<edge>> compute_dual_graph(
         dual_graph[c].push_back({edge_cell[edge], pol, ccwise});
         dual_graph[edge_cell[edge]].push_back({c, rev_pol, rev_ccwise});
       } else {
-        // edge_cell[edge] = c;
         edge_cell[rev_edge] = c;
       }
     }
