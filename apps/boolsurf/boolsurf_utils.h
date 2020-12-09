@@ -327,10 +327,10 @@ inline vector<vector<int>> compute_graph(const int   nodes,
   return graph;
 }
 
-inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_polygon(
+inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_info(
     unordered_map<vec2i, vector<intersection_node>>& edge_map,
     const vector<mesh_polygon>&                      polygons) {
-  auto edge_polygon = unordered_map<vec2i, std::pair<int, bool>>();
+  auto edge_info    = unordered_map<vec2i, std::pair<int, bool>>();
   auto counterclock = unordered_map<int, bool>();
 
   for (auto i = 0; i < polygons.size(); i++) {
@@ -364,15 +364,16 @@ inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_polygon(
 
           if (start.polygon == other[id].polygon) ccwise = !ccwise;
         }
-        edge_polygon[{start.point, end.point}] = {start.polygon, ccwise};
-        edge_polygon[{end.point, start.point}] = {start.polygon, !ccwise};
+
+        edge_info[{start.point, end.point}] = {start.polygon, ccwise};
+        edge_info[{end.point, start.point}] = {start.polygon, !ccwise};
         printf("Edge: %d %d -> %d\n", start.point, end.point, ccwise);
         printf("Edge: %d %d -> %d\n", end.point, start.point, !ccwise);
       }
       printf("\n");
     }
   }
-  return edge_polygon;
+  return edge_info;
 }
 
 inline vector<vector<vec2i>> compute_graph_faces(

@@ -650,8 +650,8 @@ void key_input(app_state* app, const gui_input& input) {
             app->points.size(), edge_map, counterclockwise);
         print_graph(graph);
 
-        auto edge_polygon = compute_edge_polygon(edge_map, app->cells);
-        // for (auto& [key, value] : edge_polygon) {
+        auto edge_info = compute_edge_info(edge_map, app->cells);
+        // for (auto& [key, value] : edge_info) {
         //   printf("Edge : %d %d - %d %d\n", key.x, key.y, value.first,
         //       value.second);
         // }
@@ -664,13 +664,12 @@ void key_input(app_state* app, const gui_input& input) {
         draw_arrangement(app->glscene, app->mesh, app->cell_materials,
             app->points, arrangement);
 
-        auto dual_graph = compute_dual_graph(arrangement, edge_polygon);
+        auto dual_graph = compute_dual_graph(arrangement, edge_info);
         print_dual_graph(dual_graph);
 
         auto outer_face = compute_outer_face(dual_graph);
         printf("Outer face idx: %d\n", outer_face);
 
-        //(marzia) Predefined starting point (should be outer face idx)
         visit_dual_graph(dual_graph, arrangement, outer_face);
 
       } break;
