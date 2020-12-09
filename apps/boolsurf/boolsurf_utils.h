@@ -352,7 +352,7 @@ inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_polygon(
     for (auto v = 0; v < value.size() - 1; v++) {
       auto& start  = value[v];
       auto& end    = value[v + 1];
-      auto  ccwise = true;
+      auto& ccwise = counterclock[start.polygon];
 
       // If self-intersecting
       if (start.edges != vec2i{-1, -1}) {
@@ -366,13 +366,14 @@ inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_polygon(
         }
 
         if (start.polygon == other[id].polygon) {
-          counterclock[start.polygon] = !counterclock[start.polygon];
+          ccwise = !ccwise;
         }
       }
-      if (!counterclock[start.polygon]) ccwise = !ccwise;
 
       edge_polygon[{start.point, end.point}] = {start.polygon, ccwise};
       edge_polygon[{end.point, start.point}] = {start.polygon, !ccwise};
+      printf("Edge: %d %d -> %d\n", start.point, end.point, ccwise);
+      printf("Edge: %d %d -> %d\n", end.point, start.point, !ccwise);
     }
   }
   return edge_polygon;
