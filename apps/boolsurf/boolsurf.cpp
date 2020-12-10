@@ -661,8 +661,8 @@ void key_input(app_state* app, const gui_input& input) {
 
         // Remove Outer Face (?)
         auto arrangement = compute_arrangement(faces, app->cells.size());
-        draw_arrangement(app->glscene, app->mesh, app->cell_materials,
-            app->points, arrangement);
+        // draw_arrangement(app->glscene, app->mesh, app->cell_materials,
+        //     app->points, arrangement);
 
         auto dual_graph = compute_dual_graph(arrangement, edge_info);
         print_dual_graph(dual_graph);
@@ -672,6 +672,25 @@ void key_input(app_state* app, const gui_input& input) {
 
         visit_dual_graph(dual_graph, arrangement, outer_face);
 
+        // Boolean operation example
+        // auto ids = vector<int>(arrangement.size(), 0);
+        // for (auto i = 0; i < arrangement.size(); i++)
+        //   if (arrangement[i].embedding[0]) ids[i] = 1;
+
+        // for (auto& a : ids) printf(" %d ", a);
+        // polygon_and(arrangement, ids, 1);
+        // for (auto& a : ids) printf(" %d ", a);
+
+        // polygon_or(arrangement, ids, 2);
+        // for (auto& a : ids) printf(" %d ", a);
+
+        // auto result = vector<cell_polygon>();
+        // for (auto i = 0; i < ids.size(); i++)
+        //   if (ids[i]) result.push_back(arrangement[i]);
+
+        // draw_arrangement(
+        //     app->glscene, app->mesh, app->cell_materials, app->points,
+        //     result);
       } break;
       case (int)gui_key('C'): {
         app->points.clear();

@@ -520,46 +520,45 @@ inline void visit_dual_graph(const vector<vector<edge>>& dual_graph,
 }
 
 // Polygon operations
-inline vector<int> polygon_and(
-    const vector<cell_polygon>& cells, const int first, const int second) {
-  auto result = vector<int>();
-  for (auto c = 0; c < cells.size(); c++) {
-    auto& label = cells[c].embedding;
-    if (label[first] && label[second]) result.push_back(c);
+inline void polygon_and(const vector<cell_polygon>& cells,
+    vector<int>& cell_ids, const int polygon) {
+  for (auto i = 0; i < cells.size(); i++) {
+    auto& label = cells[i].embedding[polygon];
+    cell_ids[i] = cell_ids[i] && label;
   }
-  return result;
 }
 
-inline vector<int> polygon_or(
-    const vector<cell_polygon>& cells, const int first, const int second) {
+inline void polygon_or(const vector<cell_polygon>& cells, vector<int>& cell_ids,
+    const int polygon) {
   auto result = vector<int>();
-  for (auto c = 0; c < cells.size(); c++) {
-    auto& label = cells[c].embedding;
-    if (label[first] || label[second]) result.push_back(c);
+  for (auto i = 0; i < cells.size(); i++) {
+    auto& label = cells[i].embedding[polygon];
+    cell_ids[i] = cell_ids[i] || label;
   }
-  return result;
 }
 
-inline vector<int> polygon_not(
-    const vector<cell_polygon>& cells, const int first) {
-  auto result = vector<int>();
-  for (auto c = 0; c < cells.size(); c++) {
-    auto& label = cells[c].embedding;
-    if (!label[first]) result.push_back(c);
-  }
-  return result;
-}
+// inline vector<int> polygon_not(const vector<cell_polygon>& cells,
+//     vector<int>& cell_ids, const int polygon) {
+//   for (auto i = 0; i < cells.size(); i++) {
+//     auto& label = cells[i].embedding[polygon];
+//     if (!cells[i].embedding[polygon]) continue;
+//     cell_ids[i] = cell_ids[i] || label;
+//   }
+// }
 
 inline vector<int> polygon_common(
-    const vector<cell_polygon>& cells, const int num) {
+    const vector<cell_polygon>& cells, vector<int>& cell_ids, const int num) {
   auto result = vector<int>();
   if (num < 2) return result;
 
-  for (auto c = 0; c < cells.size(); c++) {
+  for (auto i = 0; i < cells.size(); i++) {
     auto  sum   = 0;
-    auto& label = cells[c].embedding;
+    auto& label = cells[i].embedding;
     for (auto& l : label) sum += l;
-    if (sum >= num) result.push_back(c);
+    if (sum >= num)
+      cell_ids[i] = 1;
+    else
+      cell_ids[i] = 0;
   }
   return result;
 }
