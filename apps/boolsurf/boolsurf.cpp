@@ -650,14 +650,14 @@ void key_input(app_state* app, const gui_input& input) {
             app->points.size(), edge_map, counterclockwise);
         print_graph(graph);
 
+        auto faces = compute_graph_faces(graph);
+        print_faces(faces);
+
         auto edge_info = compute_edge_info(edge_map, app->cells);
         // for (auto& [key, value] : edge_info) {
         //   printf("Edge : %d %d - %d %d\n", key.x, key.y, value.first,
         //       value.second);
         // }
-
-        auto faces = compute_graph_faces(graph);
-        print_faces(faces);
 
         // Remove Outer Face (?)
         auto arrangement = compute_arrangement(faces, app->cells.size());

@@ -226,7 +226,7 @@ inline vector<mesh_segment> mesh_segments(const vector<vec3i>& triangles,
 }
 
 inline void print_graph(const vector<vector<int>>& graph) {
-  printf("graph:\n");
+  printf("Graph:\n");
   for (int i = 0; i < graph.size(); i++) {
     printf("%d: [", i);
     for (int k = 0; k < graph[i].size(); k++) {
@@ -234,10 +234,11 @@ inline void print_graph(const vector<vector<int>>& graph) {
     }
     printf("]\n");
   }
+  printf("\n");
 }
 
 inline void print_dual_graph(const vector<vector<edge>>& graph) {
-  printf("graph:\n");
+  printf("Dual Graph:\n");
   for (int i = 0; i < graph.size(); i++) {
     printf("%d: [", i);
     for (int k = 0; k < graph[i].size(); k++) {
@@ -246,17 +247,19 @@ inline void print_dual_graph(const vector<vector<edge>>& graph) {
     }
     printf("]\n");
   }
+  printf("\n");
 }
 
 inline void print_faces(const vector<vector<vec2i>>& faces) {
-  printf("faces:\n");
+  printf("Faces:\n");
   for (int i = 0; i < faces.size(); i++) {
-    printf("[");
+    printf("%d: [", i);
     for (int k = 0; k < faces[i].size(); k++) {
       printf("%d ", faces[i][k].x);
     }
     printf("]\n");
   }
+  printf("\n");
 }
 
 inline vector<vector<int>> compute_graph(const int   nodes,
@@ -341,6 +344,7 @@ inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_info(
     auto v      = first.end - first.start;
     auto w      = second.end - second.start;
     auto ccwise = cross(v, w) > 0;
+    printf("Orientation: %d\n", ccwise);
 
     for (auto p = 0; p < polygon.points.size() - 1; p++) {
       auto& first  = polygon.points[p];
@@ -367,10 +371,10 @@ inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_info(
 
         edge_info[{start.point, end.point}] = {start.polygon, ccwise};
         edge_info[{end.point, start.point}] = {start.polygon, !ccwise};
-        printf("Edge: %d %d -> %d\n", start.point, end.point, ccwise);
-        printf("Edge: %d %d -> %d\n", end.point, start.point, !ccwise);
+        // printf("Edge: %d %d -> %d\n", start.point, end.point, ccwise);
+        // printf("Edge: %d %d -> %d\n", end.point, start.point, !ccwise);
       }
-      printf("\n");
+      // printf("\n");
     }
   }
   return edge_info;
@@ -495,11 +499,6 @@ inline void visit_dual_graph(const vector<vector<edge>>& dual_graph,
       if (visited[adj.point]) continue;
       auto embedding = cells[current].embedding;
 
-      // Substitute with if (entering or exiting a polygon)
-      // if (embedding[adj.polygon] == 0)
-      //   embedding[adj.polygon] += 1;
-      // else
-      //   embedding[adj.polygon] -= 1;
       if (adj.counterclock)
         embedding[adj.polygon] -= 1;
       else
@@ -511,8 +510,10 @@ inline void visit_dual_graph(const vector<vector<edge>>& dual_graph,
     }
   }
 
+  printf("\n");
+  printf("Cells: \n");
   for (auto i = 0; i < cells.size(); i++) {
-    printf("Cell: %d Emb: ", i);
+    printf("%d: Label: ", i);
     for (auto& e : cells[i].embedding) printf("%d ", e);
     printf("\n");
   }
