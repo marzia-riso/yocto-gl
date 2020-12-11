@@ -7,7 +7,7 @@
 #include <unordered_set>
 
 using namespace yocto;
-using std::unordered_set;
+using namespace std;
 
 struct bool_mesh {
   vector<vec3i>        triangles   = {};
@@ -338,11 +338,13 @@ inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_info(
 
   for (auto i = 0; i < polygons.size(); i++) {
     auto& polygon = polygons[i];
-    auto& first   = polygon.edges[0].back();
-    auto& second  = polygon.edges[1].front();
 
-    auto v      = first.end - first.start;
-    auto w      = second.end - second.start;
+    auto a = polygon.edges.back().back();
+    auto b = polygon.edges.front().front();
+
+    auto v = a.end - a.start;
+    auto w = b.end - b.start;
+
     auto ccwise = cross(v, w) > 0;
     printf("Orientation: %d\n", ccwise);
 
@@ -402,6 +404,7 @@ inline vector<vector<vec2i>> compute_graph_faces(
     auto tup       = vec2i{last_node, next_node};
 
     if (tup == path.front()) {
+      printf("\n");
       faces.push_back(path);
       path.clear();
       path.push_back(edges.back());
@@ -518,6 +521,9 @@ inline void visit_dual_graph(const vector<vector<edge>>& dual_graph,
     printf("\n");
   }
 }
+
+inline vector<int> merge_arrangements(
+    const vector<vector<int>>& graph, const vector<cell_polygon>& cells) {}
 
 // Polygon operations
 inline void polygon_and(const vector<cell_polygon>& cells,

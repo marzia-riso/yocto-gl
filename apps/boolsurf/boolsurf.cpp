@@ -622,9 +622,10 @@ void key_input(app_state* app, const gui_input& input) {
               auto ccwise = orientation > 0;
 
               // Flip orientation when self-intersecting.
-              if (segmentAB.polygon_id == segmentCD.polygon_id) {
-                ccwise = !ccwise;
-              }
+              // if (segmentAB.polygon_id == segmentCD.polygon_id) {
+              //   ccwise = !ccwise;
+              // }
+
               counterclockwise[point_id] = ccwise;
 
               //        C
@@ -672,25 +673,24 @@ void key_input(app_state* app, const gui_input& input) {
 
         visit_dual_graph(dual_graph, arrangement, outer_face);
 
-        // Boolean operation example
-        // auto ids = vector<int>(arrangement.size(), 0);
-        // for (auto i = 0; i < arrangement.size(); i++)
-        //   if (arrangement[i].embedding[0]) ids[i] = 1;
+        // // Boolean operation example
+        auto ids = vector<int>(arrangement.size(), 0);
+        for (auto i = 0; i < arrangement.size(); i++)
+          if (arrangement[i].embedding[0]) ids[i] = 1;
 
-        // for (auto& a : ids) printf(" %d ", a);
-        // polygon_and(arrangement, ids, 1);
-        // for (auto& a : ids) printf(" %d ", a);
+        polygon_and(arrangement, ids, 1);
 
-        // polygon_or(arrangement, ids, 2);
-        // for (auto& a : ids) printf(" %d ", a);
+        auto result = vector<cell_polygon>();
+        for (auto i = 0; i < ids.size(); i++) {
+          if (ids[i]) {
+            result.push_back(arrangement[i]);
+            for (auto a : arrangement[i].points) printf("%d ", a);
+          }
+          printf("\n");
+        }
 
-        // auto result = vector<cell_polygon>();
-        // for (auto i = 0; i < ids.size(); i++)
-        //   if (ids[i]) result.push_back(arrangement[i]);
-
-        // draw_arrangement(
-        //     app->glscene, app->mesh, app->cell_materials, app->points,
-        //     result);
+        draw_arrangement(
+            app->glscene, app->mesh, app->cell_materials, app->points, result);
       } break;
       case (int)gui_key('C'): {
         app->points.clear();
