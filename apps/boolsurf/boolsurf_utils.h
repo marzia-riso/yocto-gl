@@ -530,21 +530,19 @@ inline void polygon_and(const vector<cell_polygon>& cells,
 
 inline void polygon_or(const vector<cell_polygon>& cells, vector<int>& cell_ids,
     const int polygon) {
-  auto result = vector<int>();
   for (auto i = 0; i < cells.size(); i++) {
     auto& label = cells[i].embedding[polygon];
     cell_ids[i] = cell_ids[i] || label;
   }
 }
 
-// inline vector<int> polygon_not(const vector<cell_polygon>& cells,
-//     vector<int>& cell_ids, const int polygon) {
-//   for (auto i = 0; i < cells.size(); i++) {
-//     auto& label = cells[i].embedding[polygon];
-//     if (!cells[i].embedding[polygon]) continue;
-//     cell_ids[i] = cell_ids[i] || label;
-//   }
-// }
+inline void polygon_not(const vector<cell_polygon>& cells,
+    vector<int>& cell_ids, const int polygon) {
+  for (auto i = 0; i < cells.size(); i++) {
+    auto& label = cells[i].embedding[polygon];
+    cell_ids[i] = !label;
+  }
+}
 
 inline vector<int> polygon_common(
     const vector<cell_polygon>& cells, vector<int>& cell_ids, const int num) {
