@@ -544,19 +544,15 @@ inline void polygon_not(const vector<cell_polygon>& cells,
   }
 }
 
-inline vector<int> polygon_common(
+inline void polygon_common(
     const vector<cell_polygon>& cells, vector<int>& cell_ids, const int num) {
-  auto result = vector<int>();
-  if (num < 2) return result;
+  if (num < 1) return;
 
   for (auto i = 0; i < cells.size(); i++) {
     auto  sum   = 0;
     auto& label = cells[i].embedding;
     for (auto& l : label) sum += l;
-    if (sum >= num)
-      cell_ids[i] = 1;
-    else
-      cell_ids[i] = 0;
+    cell_ids[i] = sum >= num;
   }
-  return result;
+  return;
 }
