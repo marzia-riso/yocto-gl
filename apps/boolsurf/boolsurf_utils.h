@@ -473,17 +473,16 @@ inline vector<vector<edge>> compute_dual_graph(
   return dual_graph;
 }
 
-inline int compute_outer_face(const vector<vector<edge>>& dual_graph) {
-  auto face = -1;
+inline vector<int> compute_outer_faces(const vector<vector<edge>>& dual_graph) {
+  auto faces = vector<int>();
   for (auto f = 0; f < dual_graph.size(); f++) {
     auto ccwise = false;
     for (auto& adj : dual_graph[f]) ccwise = ccwise || adj.counterclock;
     if (!ccwise) {
-      face = f;
-      break;
+      faces.push_back(f);
     }
   }
-  return face;
+  return faces;
 }
 
 inline void visit_dual_graph(const vector<vector<edge>>& dual_graph,
