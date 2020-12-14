@@ -534,6 +534,12 @@ void mouse_input(app_state* app, const gui_input& input) {
       auto& polygon = app->cells.back();
       auto  point   = mesh_point{isec.element, isec.uv};
 
+      if (polygon.points.size()) {
+        auto& last_point = app->points[polygon.points.back()];
+        if ((point.face == last_point.face) && (point.uv == last_point.uv))
+          return;
+      }
+
       app->points.push_back(point);
       polygon.points.push_back(app->points.size() - 1);
 
