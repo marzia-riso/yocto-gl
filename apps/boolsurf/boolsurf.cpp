@@ -396,10 +396,10 @@ void update_camera(app_state* app, const gui_input& input) {
 
 void drop(app_state* app, const gui_input& input) {
   if (input.dropped.size()) {
-    load_shape(app, input.dropped[0]);
+    app->filename = input.dropped[0];
+    load_shape(app, app->filename);
     clear_scene(app->glscene);
     init_glscene(app, app->glscene, app->mesh, {});
-
     return;
   }
 }
@@ -684,7 +684,8 @@ void key_input(app_state* app, const gui_input& input) {
         for (auto i = 0; i < arrangement.size(); i++)
           if (arrangement[i].embedding[0]) ids[i] = 1;
 
-        polygon_and(arrangement, ids, 1);
+        polygon_or(arrangement, ids, 1);
+        // polygon_or(arrangement, ids, 2);
 
         auto result = vector<cell_polygon>();
         for (auto i = 0; i < ids.size(); i++) {
@@ -699,11 +700,14 @@ void key_input(app_state* app, const gui_input& input) {
             app->glscene, app->mesh, app->cell_materials, app->points, result);
       } break;
       case (int)gui_key('C'): {
+        auto old_camera = app->glcamera;
         app->points.clear();
         app->cells.clear();
         load_shape(app, app->filename);
         clear_scene(app->glscene);
         init_glscene(app, app->glscene, app->mesh, {});
+        app->glcamera = old_camera;
+
       } break;
 
       case (int)gui_key::enter: {
