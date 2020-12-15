@@ -73,8 +73,8 @@ struct app_state {
   // boolmesh info
   bool_mesh mesh = bool_mesh{};
 
-  vector<mesh_polygon> cells  = {};
-  vector<mesh_point>   points = {};  // Click inserted points
+  vector<mesh_polygon> polygons = {};
+  vector<mesh_point>   points   = {};  // Click inserted points
   // vector<isec_polygon> intersections = {};
 
   // rendering state
@@ -528,10 +528,11 @@ void mouse_input(app_state* app, const gui_input& input) {
       input.mouse_left.state == gui_button::state::releasing) {
     auto isec = intersect_shape(app, input);
     if (isec.hit) {
-      if (!app->cells.size()) app->cells.push_back(mesh_polygon{});
-      if (is_closed(app->cells.back())) app->cells.push_back(mesh_polygon{});
+      if (!app->polygons.size()) app->polygons.push_back(mesh_polygon{});
+      if (is_closed(app->polygons.back()))
+        app->polygons.push_back(mesh_polygon{});
 
-      auto& polygon = app->cells.back();
+      auto& polygon = app->polygons.back();
       auto  point   = mesh_point{isec.element, isec.uv};
 
       if (polygon.points.size()) {
@@ -578,12 +579,12 @@ void key_input(app_state* app, const gui_input& input) {
         auto edge_map = unordered_map<vec2i, vector<intersection_node>>();
         auto counterclockwise = unordered_map<int, bool>();
 
-        for (auto p = 0; p < app->cells.size(); p++) {
-          auto& polygon = app->cells[p];
+        for (auto p = 0; p < app->polygons.size(); p++) {
+          auto& polygon = app->polygons[p];
           for (auto e = 0; e < polygon.edges.size(); e++) {
-            auto& edge       = polygon.edges[e];
-            auto  end_points = get_edge_points(app->cells, app->points, p, e);
-            auto  end        = (int)(edge.size() - 1);
+            auto& edge      = polygon.edges[e];
+            auto end_points = get_edge_points(app->polygons, app->points, p, e);
+            auto end        = (int)(edge.size() - 1);
             edge_map[end_points].push_back(
                 {end_points.x, {-1, -1}, p, 0, 0.0f});
             edge_map[end_points].push_back(
@@ -606,9 +607,9 @@ void key_input(app_state* app, const gui_input& input) {
             for (auto j = i + 1; j < value.size(); j++) {
               auto& segmentCD = value[j];
 
-              auto AB = get_edge_points(app->cells, app->points,
+              auto AB = get_edge_points(app->polygons, app->points,
                   segmentAB.polygon_id, segmentAB.edge_id);
-              auto CD = get_edge_points(app->cells, app->points,
+              auto CD = get_edge_points(app->polygons, app->points,
                   segmentCD.polygon_id, segmentCD.edge_id);
 
               auto l = intersect_segments(segmentAB.start, segmentAB.end,
@@ -657,23 +658,21 @@ void key_input(app_state* app, const gui_input& input) {
             app->points.size(), edge_map, counterclockwise);
         // print_graph(graph);
 
-        auto edge_info  = compute_edge_info(edge_map, app->cells);
+        auto edge_info  = compute_edge_info(edge_map, app->polygons);
         auto components = compute_connected_components(graph);
         for (auto& component : components) {
-          auto faces = compute_graph_faces(component);
-          print_graph(component);
-          print_faces(faces);
-
-          // Remove Outer Face (?)
-          auto arrangement = compute_arrangement(faces, app->cells.size());
+          auto cells = compute_cells(component, app->polygons.size());
           // draw_arrangement(app->glscene, app->mesh, app->cell_materials,
           //     app->points, arrangement);
 
-          auto dual_graph = compute_dual_graph(arrangement, edge_info);
-          print_dual_graph(dual_graph);
+          print_graph(component);
+          print_cells(cells);
+
+          auto dual_graph = compute_dual_graph(cells, edge_info);
+          // print_dual_graph(dual_graph);
 
           auto outer_face = compute_outer_face(dual_graph);
-          visit_dual_graph(dual_graph, arrangement, outer_face);
+          visit_dual_graph(dual_graph, cells, outer_face);
         }
 
         // Boolean operation example
@@ -700,7 +699,7 @@ void key_input(app_state* app, const gui_input& input) {
       case (int)gui_key('C'): {
         auto old_camera = app->glcamera;
         app->points.clear();
-        app->cells.clear();
+        app->polygons.clear();
         load_shape(app, app->filename);
         clear_scene(app->glscene);
         init_glscene(app, app->glscene, app->mesh, {});
@@ -709,7 +708,7 @@ void key_input(app_state* app, const gui_input& input) {
       } break;
 
       case (int)gui_key::enter: {
-        auto& polygon = app->cells.back();
+        auto& polygon = app->polygons.back();
         if (polygon.points.size() < 3 || is_closed(polygon)) return;
 
         auto point = polygon.points.front();

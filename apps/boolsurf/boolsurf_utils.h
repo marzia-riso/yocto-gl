@@ -259,14 +259,12 @@ inline void print_dual_graph(const vector<vector<edge>>& graph) {
   printf("\n");
 }
 
-inline void print_faces(const vector<vector<vec2i>>& faces) {
-  printf("Faces:\n");
-  for (int i = 0; i < faces.size(); i++) {
-    printf("%d: [", i);
-    for (int k = 0; k < faces[i].size(); k++) {
-      printf("%d ", faces[i][k].x);
-    }
-    printf("]\n");
+inline void print_cells(const vector<cell_polygon>& cells) {
+  printf("Cells:\n");
+  for (auto& cell : cells) {
+    printf("[");
+    for (auto point : cell.points) printf("%d ", point);
+    printf("] \n");
   }
   printf("\n");
 }
@@ -409,10 +407,7 @@ inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_info(
 
         edge_info[{start.point, end.point}] = {start.polygon, ccwise};
         edge_info[{end.point, start.point}] = {start.polygon, !ccwise};
-        // printf("Edge: %d %d -> %d\n", start.point, end.point, ccwise);
-        // printf("Edge: %d %d -> %d\n", end.point, start.point, !ccwise);
       }
-      // printf("\n");
     }
   }
   return edge_info;
@@ -454,21 +449,23 @@ inline vector<vector<vec2i>> compute_graph_faces(
   return faces;
 }
 
-inline vector<cell_polygon> compute_arrangement(
-    const vector<vector<vec2i>>& cells, const int num_polygons) {
-  auto arrangement = vector<cell_polygon>(cells.size());
-  for (auto i = 0; i < cells.size(); i++) {
-    auto c = cell_polygon{};
-    c.embedding.reserve(num_polygons);
-    for (auto i = 0; i < num_polygons; i++) c.embedding.push_back(0);
+inline vector<cell_polygon> compute_cells(
+    const unordered_map<int, vector<int>>& graph, const int num_polygons) {
+  auto graph_faces = compute_graph_faces(graph);
+  auto cells       = vector<cell_polygon>(graph_faces.size());
 
-    for (auto j = 0; j < cells[i].size(); j++) {
-      c.points.push_back(cells[i][j].x);
-    }
-    c.points.push_back(c.points.front());
-    arrangement[i] = c;
+  for (auto i = 0; i < graph_faces.size(); i++) {
+    auto cell = cell_polygon{};
+    cell.embedding.reserve(num_polygons);
+    for (auto i = 0; i < num_polygons; i++) cell.embedding.push_back(0);
+
+    for (auto j = 0; j < graph_faces[i].size(); j++)
+      cell.points.push_back(graph_faces[i][j].x);
+
+    cell.points.push_back(cell.points.front());
+    cells[i] = cell;
   }
-  return arrangement;
+  return cells;
 }
 
 inline vector<vector<edge>> compute_dual_graph(
@@ -543,17 +540,14 @@ inline void visit_dual_graph(const vector<vector<edge>>& dual_graph,
     }
   }
 
-  printf("\n");
   printf("Cells: \n");
   for (auto i = 0; i < cells.size(); i++) {
     printf("%d: Label: ", i);
     for (auto& e : cells[i].embedding) printf("%d ", e);
     printf("\n");
   }
+  printf("\n");
 }
-
-inline vector<int> merge_arrangements(
-    const vector<vector<int>>& graph, const vector<cell_polygon>& cells) {}
 
 // Polygon operations
 inline void polygon_and(const vector<cell_polygon>& cells,
