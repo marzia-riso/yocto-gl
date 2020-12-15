@@ -655,33 +655,28 @@ void key_input(app_state* app, const gui_input& input) {
 
         auto graph = compute_graph(
             app->points.size(), edge_map, counterclockwise);
-        print_graph(graph);
+        // print_graph(graph);
 
-        auto faces = compute_graph_faces(graph);
-        print_faces(faces);
+        auto edge_info  = compute_edge_info(edge_map, app->cells);
+        auto components = compute_connected_components(graph);
+        for (auto& component : components) {
+          auto faces = compute_graph_faces(component);
+          print_graph(component);
+          print_faces(faces);
 
-        auto edge_info = compute_edge_info(edge_map, app->cells);
-        // for (auto& [key, value] : edge_info) {
-        //   printf("Edge : %d %d - %d %d\n", key.x, key.y, value.first,
-        //       value.second);
-        // }
+          // Remove Outer Face (?)
+          auto arrangement = compute_arrangement(faces, app->cells.size());
+          // draw_arrangement(app->glscene, app->mesh, app->cell_materials,
+          //     app->points, arrangement);
 
-        // Remove Outer Face (?)
-        auto arrangement = compute_arrangement(faces, app->cells.size());
-        // draw_arrangement(app->glscene, app->mesh, app->cell_materials,
-        //     app->points, arrangement);
+          auto dual_graph = compute_dual_graph(arrangement, edge_info);
+          print_dual_graph(dual_graph);
 
-        auto dual_graph = compute_dual_graph(arrangement, edge_info);
-        print_dual_graph(dual_graph);
-
-        auto outer_faces = compute_outer_faces(dual_graph);
-
-        for (auto& face : outer_faces) {
-          printf("Outer face idx: %d\n", face);
-          visit_dual_graph(dual_graph, arrangement, face);
+          auto outer_face = compute_outer_face(dual_graph);
+          visit_dual_graph(dual_graph, arrangement, outer_face);
         }
 
-        // // Boolean operation example
+        // Boolean operation example
         // auto ids = vector<int>(arrangement.size(), 0);
         // for (auto i = 0; i < arrangement.size(); i++)
         //   if (!arrangement[i].embedding[1]) ids[i] = 1;
@@ -693,7 +688,7 @@ void key_input(app_state* app, const gui_input& input) {
         // for (auto i = 0; i < ids.size(); i++) {
         //   if (ids[i]) {
         //     result.push_back(arrangement[i]);
-        //     // for (auto a : arrangement[i].points) printf("%d ", a);
+        //     for (auto a : arrangement[i].points) printf("%d ", a);
         //   }
         //   printf("\n");
         // }
