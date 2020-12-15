@@ -237,13 +237,22 @@ inline void print_graph(const vector<vector<int>>& graph) {
   printf("\n");
 }
 
+inline void print_graph(const unordered_map<int, vector<int>>& graph) {
+  printf("Graph:\n");
+  for (auto& [node, adjacents] : graph) {
+    printf("%d: [", node);
+    for (auto adj : adjacents) printf("%d ", adj);
+    printf("]\n");
+  }
+  printf("\n");
+}
+
 inline void print_dual_graph(const vector<vector<edge>>& graph) {
   printf("Dual Graph:\n");
   for (int i = 0; i < graph.size(); i++) {
     printf("%d: [", i);
     for (int k = 0; k < graph[i].size(); k++) {
-      printf("(%d P: %d C: %d) ", graph[i][k].point, graph[i][k].polygon,
-          graph[i][k].counterclock);
+      printf("(%d C: %d) ", graph[i][k].point, graph[i][k].counterclock);
     }
     printf("]\n");
   }
@@ -330,6 +339,34 @@ inline vector<vector<int>> compute_graph(const int   nodes,
   return graph;
 }
 
+inline vector<unordered_map<int, vector<int>>> compute_connected_components(
+    const vector<vector<int>>& graph) {
+  auto visited    = vector<bool>(graph.size(), false);
+  auto components = vector<unordered_map<int, vector<int>>>();
+  auto queue      = std::deque<int>{};
+
+  for (auto node = 0; node < graph.size(); node++) {
+    if (visited[node]) continue;
+    visited[node] = true;
+    queue.push_back(node);
+    auto component = unordered_map<int, vector<int>>();
+
+    while (!queue.empty()) {
+      auto current_node       = queue.front();
+      component[current_node] = graph[current_node];
+      queue.pop_front();
+
+      for (auto neigh : graph[current_node]) {
+        if (visited[neigh]) continue;
+        visited[neigh] = true;
+        queue.push_back(neigh);
+      }
+    }
+    components.push_back(component);
+  }
+  return components;
+}
+
 inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_info(
     unordered_map<vec2i, vector<intersection_node>>& edge_map,
     const vector<mesh_polygon>&                      polygons) {
@@ -346,7 +383,6 @@ inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_info(
     auto w = b.end - b.start;
 
     auto ccwise = cross(v, w) > 0;
-    printf("Orientation: %d\n", ccwise);
 
     for (auto p = 0; p < polygon.points.size() - 1; p++) {
       auto& first  = polygon.points[p];
@@ -383,10 +419,9 @@ inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_info(
 }
 
 inline vector<vector<vec2i>> compute_graph_faces(
-    const vector<vector<int>>& graph) {
+    const unordered_map<int, vector<int>>& graph) {
   auto edges = vector<vec2i>();
-  for (auto node = 0; node < graph.size(); node++) {
-    auto& adjacents = graph[node];
+  for (auto& [node, adjacents] : graph) {
     for (auto& adj : adjacents) edges.push_back(vec2i{node, adj});
   }
 
@@ -396,7 +431,7 @@ inline vector<vector<vec2i>> compute_graph_faces(
   edges.pop_back();
 
   while (edges.size() > 0) {
-    auto neighbors = graph[path.back().y];
+    auto neighbors = graph.at(path.back().y);
     auto last_node = path.back().y;
 
     auto idx = (find_idx(neighbors, path.back().x) + 1) % neighbors.size();
@@ -404,7 +439,6 @@ inline vector<vector<vec2i>> compute_graph_faces(
     auto tup       = vec2i{last_node, next_node};
 
     if (tup == path.front()) {
-      printf("\n");
       faces.push_back(path);
       path.clear();
       path.push_back(edges.back());
@@ -473,16 +507,13 @@ inline vector<vector<edge>> compute_dual_graph(
   return dual_graph;
 }
 
-inline vector<int> compute_outer_faces(const vector<vector<edge>>& dual_graph) {
-  auto faces = vector<int>();
+inline int compute_outer_face(const vector<vector<edge>>& dual_graph) {
   for (auto f = 0; f < dual_graph.size(); f++) {
     auto ccwise = false;
     for (auto& adj : dual_graph[f]) ccwise = ccwise || adj.counterclock;
-    if (!ccwise) {
-      faces.push_back(f);
-    }
+    if (!ccwise) return f;
   }
-  return faces;
+  return -1;
 }
 
 inline void visit_dual_graph(const vector<vector<edge>>& dual_graph,
