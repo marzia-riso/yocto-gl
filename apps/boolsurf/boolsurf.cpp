@@ -571,11 +571,7 @@ void key_input(app_state* app, const gui_input& input) {
         // Hashgrid from triangle idx to <polygon idx, edge_idx, segment idx,
         // segment start uv, segment end uv> to handle intersections and
         // self-intersections
-        // auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
-
-        // deterministic access for debug
-        auto hashgrid = vector<vector<hashgrid_entry>>(
-            app->mesh.triangles.size());
+        auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
         auto edge_map = unordered_map<vec2i, vector<intersection_node>>();
         auto counterclockwise = unordered_map<int, bool>();
 
@@ -598,9 +594,7 @@ void key_input(app_state* app, const gui_input& input) {
           }
         }
 
-        // for (auto& [face, value] : hashgrid) {
-        for (auto f = 0; f < hashgrid.size(); f++) {
-          auto& value = hashgrid[f];
+        for (auto& [face, value] : hashgrid) {
           if (value.size() < 2) continue;
           for (auto i = 0; i < value.size() - 1; i++) {
             auto& segmentAB = value[i];
@@ -620,7 +614,7 @@ void key_input(app_state* app, const gui_input& input) {
               }
 
               auto uv       = lerp(segmentCD.start, segmentCD.end, l.y);
-              auto point    = mesh_point{f, uv};
+              auto point    = mesh_point{face, uv};
               auto point_id = (int)app->points.size();
 
               auto orientation = cross(segmentAB.end - segmentAB.start,
@@ -660,8 +654,10 @@ void key_input(app_state* app, const gui_input& input) {
 
         auto edge_info  = compute_edge_info(edge_map, app->polygons);
         auto components = compute_connected_components(graph);
+
         for (auto& component : components) {
-          auto cells = compute_cells(component, app->polygons.size());
+          auto cells = compute_cells(
+              component, app->points, app->mesh, app->polygons.size());
           // draw_arrangement(app->glscene, app->mesh, app->cell_materials,
           //     app->points, arrangement);
 
@@ -670,8 +666,8 @@ void key_input(app_state* app, const gui_input& input) {
 
           auto dual_graph = compute_dual_graph(cells, edge_info);
           // print_dual_graph(dual_graph);
-
           auto outer_face = compute_outer_face(dual_graph);
+
           visit_dual_graph(dual_graph, cells, outer_face);
         }
 

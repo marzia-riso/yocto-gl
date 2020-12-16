@@ -38,8 +38,9 @@ struct mesh_polygon {
 };
 
 struct cell_polygon {
-  vector<int> points    = {};
-  vector<int> embedding = {};
+  vector<int>                  points    = {};
+  vector<vector<mesh_segment>> edges     = {};
+  vector<int>                  embedding = {};
 };
 
 struct edge {
@@ -450,19 +451,31 @@ inline vector<vector<vec2i>> compute_graph_faces(
 }
 
 inline vector<cell_polygon> compute_cells(
-    const unordered_map<int, vector<int>>& graph, const int num_polygons) {
+    const unordered_map<int, vector<int>>& graph,
+    const vector<mesh_point>& points, const bool_mesh& mesh,
+    const int num_polygons) {
   auto graph_faces = compute_graph_faces(graph);
   auto cells       = vector<cell_polygon>(graph_faces.size());
 
   for (auto i = 0; i < graph_faces.size(); i++) {
     auto cell = cell_polygon{};
-    cell.embedding.reserve(num_polygons);
-    for (auto i = 0; i < num_polygons; i++) cell.embedding.push_back(0);
-
     for (auto j = 0; j < graph_faces[i].size(); j++)
       cell.points.push_back(graph_faces[i][j].x);
-
     cell.points.push_back(cell.points.front());
+
+    cell.embedding.reserve(num_polygons);
+    cell.edges.reserve(cell.points.size() - 1);
+    for (auto j = 0; j < num_polygons; j++) cell.embedding.push_back(0);
+
+    for (auto j = 0; j < cell.points.size() - 1; j++) {
+      auto& start = points[cell.points[j]];
+      auto& end   = points[cell.points[j + 1]];
+
+      auto path     = compute_geodesic_path(mesh, start, end);
+      auto segments = mesh_segments(
+          mesh.triangles, path.strip, path.lerps, path.start, path.end);
+      cell.edges.push_back(segments);
+    }
     cells[i] = cell;
   }
   return cells;
