@@ -695,26 +695,35 @@ void do_the_thing(app_state* app) {
       auto f1 = f0 + 1;
       auto f2 = f0 + 2;
 
-      app->mesh.triangles.push_back({});
-      app->mesh.triangles.push_back({});
-      app->mesh.triangles.push_back({});
+      app->mesh.triangles.push_back({0, 0, 0});
+      app->mesh.triangles.push_back({0, 0, 0});
+      app->mesh.triangles.push_back({0, 0, 0});
 
-      {
+      abc = rotate(abc, 2);
+
+       if (!flipped) {
+               app->mesh.triangles[f0] = {vend, vstart, abc[0]};
+               app->mesh.triangles[f1] = {vstart, vend, abc[2]};
+               app->mesh.triangles[f2] = {vstart, abc[1], abc[2]};
+             }
+      if (flipped) {
         app->mesh.triangles[f0] = {vend, vstart, abc[0]};
         app->mesh.triangles[f1] = {vstart, vend, abc[2]};
         app->mesh.triangles[f2] = {vend, abc[1], abc[2]};
-
-        if (!flipped) {
-          app->polygons[value[0].polygon_id].inner_faces.push_back(f1);
-          app->polygons[value[0].polygon_id].outer_faces.push_back(f0);
-        } else {
-          std::swap(app->mesh.triangles[f0].x, app->mesh.triangles[f0].y);
-          std::swap(app->mesh.triangles[f1].x, app->mesh.triangles[f1].y);
-          app->mesh.triangles[f2].x = vstart;
-          app->polygons[value[0].polygon_id].inner_faces.push_back(f0);
-          app->polygons[value[0].polygon_id].outer_faces.push_back(f1);
-        }
       }
+
+      //         if (!flipped) {
+      //           app->polygons[value[0].polygon_id].inner_faces.push_back(f1);
+      //           app->polygons[value[0].polygon_id].outer_faces.push_back(f0);
+      //         } else {
+      //           std::swap(app->mesh.triangles[f0].x,
+      //           app->mesh.triangles[f0].y);
+      //           std::swap(app->mesh.triangles[f1].x,
+      //           app->mesh.triangles[f1].y); app->mesh.triangles[f2].x =
+      //           vstart;
+      //           app->polygons[value[0].polygon_id].inner_faces.push_back(f0);
+      //           app->polygons[value[0].polygon_id].outer_faces.push_back(f1);
+      //         }
 
       app->mesh.triangles[face] = {0, 0, 0};
     }
