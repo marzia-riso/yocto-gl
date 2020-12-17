@@ -226,7 +226,8 @@ void update_path_shape(shade_shape* shape, const bool_mesh& mesh,
   set_instances(shape, froms, tos);
 }
 
-void init_lines_and_points(app_state* app, bool thin = false) {
+void init_edges_and_vertices_shapes_and_points(
+    app_state* app, bool thin = false) {
   auto edges = get_edges(app->mesh.triangles, {});
   auto froms = vector<vec3f>();
   auto tos   = vector<vec3f>();
@@ -334,7 +335,7 @@ void init_glscene(app_state* app, shade_scene* glscene, const bool_mesh& mesh,
   add_instance(
       glscene, identity3x4f, app->vertices_shape, app->points_material, true);
 
-  init_lines_and_points(app);
+  init_edges_and_vertices_shapes_and_points(app);
 }
 
 // draw with shading
@@ -613,7 +614,7 @@ void do_the_thing(app_state* app) {
       auto start = value[0].start;
       auto end   = value[0].end;
 
-      auto abc = app->mesh.triangles[face];
+      vec3i abc = app->mesh.triangles[face];
 
       // Compute new vertices.
       vec3f abc_pos[3];
@@ -621,8 +622,11 @@ void do_the_thing(app_state* app) {
       abc_pos[1] = app->mesh.positions[abc.y];
       abc_pos[2] = app->mesh.positions[abc.z];
 
-      auto vstart     = (int)app->mesh.positions.size();
-      auto vend       = (int)app->mesh.positions.size() + 1;
+      auto vstart = (int)app->mesh.positions.size();
+      auto vend   = (int)app->mesh.positions.size() + 1;
+      app->mesh.positions.push_back({});
+      app->mesh.positions.push_back({});
+
       auto new_vertex = [&](vec2f uv) {
         if (uv.y == 0) {
           // point on edge (xy)
@@ -720,7 +724,7 @@ void do_the_thing(app_state* app) {
   set_positions(app->mesh_shape, app->mesh.positions);
   set_triangles(app->mesh_shape, app->mesh.triangles);
 
-  init_lines_and_points(app);
+  init_edges_and_vertices_shapes_and_points(app);
   //   for (auto i = 0; i < value.size() - 1; i++) {
   //     auto& segmentAB = value[i];
   //     for (auto j = i + 1; j < value.size(); j++) {
