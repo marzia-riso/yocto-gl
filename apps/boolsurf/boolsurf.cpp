@@ -321,7 +321,7 @@ void init_glscene(app_state* app, shade_scene* glscene, const bool_mesh& mesh,
   // shapes
   if (progress_cb) progress_cb("convert shape", progress.x++, progress.y);
   app->mesh_shape = add_shape(glscene, {}, {}, app->mesh.triangles, {},
-      app->mesh.positions, app->mesh.normals, {}, {}, true);
+      app->mesh.positions, app->mesh.normals, {}, {});
   if (!is_initialized(get_normals(app->mesh_shape))) {
     app->drawgl_prms.faceted = true;
   }
@@ -583,6 +583,19 @@ void mouse_input(app_state* app, const gui_input& input) {
   }
 }
 
+void set_patch_shape(
+    shade_shape* shape, const bool_mesh& mesh, const vector<int>& faces) {
+  auto positions = vector<vec3f>(faces.size() * 3);
+  for (int i = 0; i < faces.size(); i++) {
+    positions[3 * i + 0] = mesh.positions[mesh.triangles[faces[i]].x];
+    positions[3 * i + 1] = mesh.positions[mesh.triangles[faces[i]].y];
+    positions[3 * i + 2] = mesh.positions[mesh.triangles[faces[i]].z];
+  }
+  set_positions(shape, positions);
+  set_instances(shape, {});
+  shape->shape->elements = ogl_element_type::triangles;
+}
+
 void do_the_thing(app_state* app) {
   // Hashgrid from triangle idx to <polygon idx, edge_idx, segment idx,
   // segment start uv, segment end uv> to handle intersections and
@@ -724,10 +737,28 @@ void do_the_thing(app_state* app) {
   }
 
   app->mesh.normals = compute_normals(app->mesh.triangles, app->mesh.positions);
-  set_positions(app->mesh_shape, app->mesh.positions);
-  set_triangles(app->mesh_shape, app->mesh.triangles);
+  set_positions(app->mesh_shape, {});  // app->mesh.positions);
+  set_triangles(app->mesh_shape, {});  // app->mesh.triangles);
 
   init_edges_and_vertices_shapes_and_points(app);
+
+  {
+    auto patch_shape = add_shape(
+        app->glscene, {}, {}, {}, {}, {}, {}, {}, {});
+    auto patch_material = add_material(
+        app->glscene, {0, 0, 0}, {1, 0, 0}, 1, 0, 0.4);
+    add_instance(app->glscene, identity3x4f, patch_shape, patch_material);
+    set_patch_shape(patch_shape, app->mesh, app->polygons[0].inner_faces);
+  }
+  {
+    auto patch_shape = add_shape(
+        app->glscene, {}, {}, {}, {}, {}, {}, {}, {});
+    auto patch_material = add_material(
+        app->glscene, {0, 0, 0}, {0, 0, 1}, 1, 0, 0.4);
+    add_instance(app->glscene, identity3x4f, patch_shape, patch_material);
+    set_patch_shape(patch_shape, app->mesh, app->polygons[0].outer_faces);
+  }
+
   //   for (auto i = 0; i < value.size() - 1; i++) {
   //     auto& segmentAB = value[i];
   //     for (auto j = i + 1; j < value.size(); j++) {
