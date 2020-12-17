@@ -242,7 +242,7 @@ void init_edges_and_vertices_shapes_and_points(
     avg_edge_length += length(from - to);
   }
   avg_edge_length /= edges.size();
-  auto cylinder_radius = 0.05f * avg_edge_length;
+  auto cylinder_radius = 0.01f * avg_edge_length;
 
   if (thin) {
     set_quads(app->edges_shape, {});
