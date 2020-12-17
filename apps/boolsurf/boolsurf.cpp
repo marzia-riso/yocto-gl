@@ -80,6 +80,9 @@ struct app_state {
   // rendering state
   shade_scene*            glscene         = new shade_scene{};
   shade_camera*           glcamera        = nullptr;
+  shade_shape*            mesh_shape      = nullptr;
+  shade_shape*            edges_shape     = nullptr;
+  shade_shape*            vertices_shape  = nullptr;
   shade_material*         mesh_material   = nullptr;
   shade_material*         edges_material  = nullptr;
   shade_material*         points_material = nullptr;
@@ -223,6 +226,53 @@ void update_path_shape(shade_shape* shape, const bool_mesh& mesh,
   set_instances(shape, froms, tos);
 }
 
+void init_lines_and_points(app_state* app, bool thin = false) {
+  auto edges = get_edges(app->mesh.triangles, {});
+  auto froms = vector<vec3f>();
+  auto tos   = vector<vec3f>();
+  froms.reserve(edges.size());
+  tos.reserve(edges.size());
+  float avg_edge_length = 0;
+  for (auto& edge : edges) {
+    auto from = app->mesh.positions[edge.x];
+    auto to   = app->mesh.positions[edge.y];
+    froms.push_back(from);
+    tos.push_back(to);
+    avg_edge_length += length(from - to);
+  }
+  avg_edge_length /= edges.size();
+  auto cylinder_radius = 0.05f * avg_edge_length;
+
+  if (thin) {
+    set_quads(app->edges_shape, {});
+    set_positions(app->edges_shape, {{0, 0, -0.5}, {0, 0, 0.5}});
+    set_lines(app->edges_shape, {{0, 1}});
+    set_normals(app->edges_shape, {});
+    set_texcoords(app->edges_shape, {});
+  } else {
+    auto cylinder = make_uvcylinder({8, 1, 1}, {cylinder_radius, 1});
+    for (auto& p : cylinder.positions) {
+      p.z = p.z * 0.5 + 0.5;
+    }
+    set_quads(app->edges_shape, cylinder.quads);
+    set_positions(app->edges_shape, cylinder.positions);
+    set_normals(app->edges_shape, cylinder.normals);
+    set_texcoords(app->edges_shape, cylinder.texcoords);
+  }
+  set_instances(app->edges_shape, froms, tos);
+
+  auto vertices_radius = 3.0f * cylinder_radius;
+  auto vertices        = make_sphere(3, vertices_radius);
+  set_quads(app->vertices_shape, vertices.quads);
+  set_positions(app->vertices_shape, vertices.positions);
+  set_normals(app->vertices_shape, vertices.normals);
+  set_texcoords(app->vertices_shape, vertices.texcoords);
+  set_instances(app->vertices_shape, app->mesh.positions);
+  // app->vertices_shape  = add_shape(glscene, {}, {}, {}, vertices.quads,
+  //     vertices.positions, vertices.normals, vertices.texcoords, {});
+  // set_instances(vertices_shape, app->mesh.positions);
+}
+
 void init_glscene(app_state* app, shade_scene* glscene, const bool_mesh& mesh,
     progress_callback progress_cb) {
   // handle progress
@@ -269,51 +319,22 @@ void init_glscene(app_state* app, shade_scene* glscene, const bool_mesh& mesh,
 
   // shapes
   if (progress_cb) progress_cb("convert shape", progress.x++, progress.y);
-  auto mesh_shape = add_shape(glscene, {}, {}, app->mesh.triangles, {},
+  app->mesh_shape = add_shape(glscene, {}, {}, app->mesh.triangles, {},
       app->mesh.positions, app->mesh.normals, {}, {}, true);
-  if (!is_initialized(get_normals(mesh_shape))) {
+  if (!is_initialized(get_normals(app->mesh_shape))) {
     app->drawgl_prms.faceted = true;
   }
-  set_instances(mesh_shape, {}, {});
+  set_instances(app->mesh_shape, {}, {});
 
-  auto edges = get_edges(app->mesh.triangles, {});
-  auto froms = vector<vec3f>();
-  auto tos   = vector<vec3f>();
-  froms.reserve(edges.size());
-  tos.reserve(edges.size());
-  float avg_edge_length = 0;
-  for (auto& edge : edges) {
-    auto from = app->mesh.positions[edge.x];
-    auto to   = app->mesh.positions[edge.y];
-    froms.push_back(from);
-    tos.push_back(to);
-    avg_edge_length += length(from - to);
-  }
-  avg_edge_length /= edges.size();
-  auto cylinder_radius = 0.05f * avg_edge_length;
-  auto cylinder        = make_uvcylinder({8, 1, 1}, {cylinder_radius, 1});
-  for (auto& p : cylinder.positions) {
-    p.z = p.z * 0.5 + 0.5;
-  }
-  auto edges_shape = add_shape(glscene, {}, {}, {}, cylinder.quads,
-      cylinder.positions, cylinder.normals, cylinder.texcoords, {});
-  set_instances(edges_shape, froms, tos);
-
-  auto vertices_radius = 3.0f * cylinder_radius;
-  auto vertices        = make_sphere(3, vertices_radius);
-  auto vertices_shape  = add_shape(glscene, {}, {}, {}, vertices.quads,
-      vertices.positions, vertices.normals, vertices.texcoords, {});
-  set_instances(vertices_shape, app->mesh.positions);
-
-  // shapes
-  if (progress_cb) progress_cb("convert instance", progress.x++, progress.y);
-  add_instance(glscene, identity3x4f, mesh_shape, app->mesh_material);
-  add_instance(glscene, identity3x4f, edges_shape, app->edges_material, true);
+  app->edges_shape    = add_shape(glscene);
+  app->vertices_shape = add_shape(glscene);
+  add_instance(glscene, identity3x4f, app->mesh_shape, app->mesh_material);
   add_instance(
-      glscene, identity3x4f, vertices_shape, app->points_material, true);
+      glscene, identity3x4f, app->edges_shape, app->edges_material, true);
+  add_instance(
+      glscene, identity3x4f, app->vertices_shape, app->points_material, true);
 
-  // done
-  if (progress_cb) progress_cb("convert done", progress.x++, progress.y);
+  init_lines_and_points(app);
 }
 
 // draw with shading
@@ -561,6 +582,244 @@ void mouse_input(app_state* app, const gui_input& input) {
   }
 }
 
+void do_the_thing(app_state* app) {
+  // Hashgrid from triangle idx to <polygon idx, edge_idx, segment idx,
+  // segment start uv, segment end uv> to handle intersections and
+  // self-intersections
+  auto hashgrid         = unordered_map<int, vector<hashgrid_entry>>();
+  auto edge_map         = unordered_map<vec2i, vector<intersection_node>>();
+  auto counterclockwise = unordered_map<int, bool>();
+
+  for (auto p = 0; p < app->polygons.size(); p++) {
+    auto& polygon = app->polygons[p];
+    for (auto e = 0; e < polygon.edges.size(); e++) {
+      auto& edge       = polygon.edges[e];
+      auto  end_points = get_edge_points(app->polygons, app->points, p, e);
+      auto  end        = (int)(edge.size() - 1);
+      edge_map[end_points].push_back({end_points.x, {-1, -1}, p, 0, 0.0f});
+      edge_map[end_points].push_back({end_points.y, {-1, -1}, p, end, 1.0f});
+
+      for (auto s = 0; s < edge.size(); s++) {
+        auto& segment = edge[s];
+        hashgrid[segment.face].push_back({p, e, s, segment.start, segment.end});
+      }
+    }
+  }
+
+  for (auto& [face, value] : hashgrid) {
+    assert(value.size() <= 2);
+
+    if (value.size() == 1) {
+      auto start = value[0].start;
+      auto end   = value[0].end;
+
+      auto abc = app->mesh.triangles[face];
+
+      // Compute new vertices.
+      vec3f abc_pos[3];
+      abc_pos[0] = app->mesh.positions[abc.x];
+      abc_pos[1] = app->mesh.positions[abc.y];
+      abc_pos[2] = app->mesh.positions[abc.z];
+
+      auto vstart     = (int)app->mesh.positions.size();
+      auto vend       = (int)app->mesh.positions.size() + 1;
+      auto new_vertex = [&](vec2f uv) {
+        if (uv.y == 0) {
+          // point on edge (xy)
+          return lerp(abc_pos[0], abc_pos[1], uv.x);
+        } else if (uv.x == 0) {
+          // point on edge (xz)
+          return lerp(abc_pos[0], abc_pos[2], uv.y);
+        } else {
+          auto l = 1 - uv.x - uv.y;
+          assert(fabs(l) < 0.001);
+          return lerp(abc_pos[1], abc_pos[2], 1 - uv.x);
+        }
+      };
+      app->mesh.positions[vstart] = new_vertex(start);
+      app->mesh.positions[vend]   = new_vertex(end);
+
+      auto get_edge_index = [](vec2f uv) {
+        if (uv.y == 0) {
+          // point on edge (xy)
+          return 0;
+        } else if (uv.x == 0) {
+          // point on edge (xz)
+          return 1;
+        } else {
+          auto l = 1 - uv.x - uv.y;
+          assert(fabs(l) < 0.001);
+          return 2;
+        }
+      };
+
+      auto start_k = get_edge_index(start);
+      auto end_k   = get_edge_index(end);
+
+      auto rotate = [](const vec3i& v, int k) {
+        if (k == 0)
+          return v;
+        else if (k == 1)
+          return vec3i{v.z, v.x, v.y};
+        else
+          return vec3i{v.y, v.z, v.x};
+      };
+
+      bool flipped = false;
+      if (start_k == 2 && end_k == 0) {
+        // pass
+      }
+      if (start_k == 1 && end_k == 2) {
+        abc = rotate(abc, 2);
+      }
+      if (start_k == 0 && end_k == 1) {
+        abc = rotate(abc, 1);
+      }
+      if (start_k == 0 && end_k == 2) {
+        flipped = true;
+      }
+      if (start_k == 2 && end_k == 1) {
+        flipped = true;
+        abc     = rotate(abc, 2);
+      }
+      if (start_k == 1 && end_k == 0) {
+        flipped = true;
+        abc     = rotate(abc, 1);
+      }
+
+      auto f0 = (int)app->mesh.triangles.size();
+      auto f1 = f0 + 1;
+      auto f2 = f0 + 2;
+
+      app->mesh.triangles.push_back({});
+      app->mesh.triangles.push_back({});
+      app->mesh.triangles.push_back({});
+
+      {
+        app->mesh.triangles[f0] = {vend, vstart, abc[0]};
+        app->mesh.triangles[f1] = {vstart, vend, abc[2]};
+        app->mesh.triangles[f2] = {vend, abc[1], abc[2]};
+
+        if (!flipped) {
+          app->polygons[value[0].polygon_id].inner_faces.push_back(f1);
+          app->polygons[value[0].polygon_id].outer_faces.push_back(f0);
+        } else {
+          std::swap(app->mesh.triangles[f0].x, app->mesh.triangles[f0].y);
+          std::swap(app->mesh.triangles[f1].x, app->mesh.triangles[f1].y);
+          app->mesh.triangles[f2].x = vstart;
+          app->polygons[value[0].polygon_id].inner_faces.push_back(f0);
+          app->polygons[value[0].polygon_id].outer_faces.push_back(f1);
+        }
+      }
+
+      app->mesh.triangles[face] = {0, 0, 0};
+    }
+  }
+
+  app->mesh.normals = compute_normals(app->mesh.triangles, app->mesh.positions);
+  set_positions(app->mesh_shape, app->mesh.positions);
+  set_triangles(app->mesh_shape, app->mesh.triangles);
+
+  init_lines_and_points(app);
+  //   for (auto i = 0; i < value.size() - 1; i++) {
+  //     auto& segmentAB = value[i];
+  //     for (auto j = i + 1; j < value.size(); j++) {
+  //       auto& segmentCD = value[j];
+
+  //       auto AB = get_edge_points(app->polygons, app->points,
+  //           segmentAB.polygon_id, segmentAB.edge_id);
+  //       auto CD = get_edge_points(app->polygons, app->points,
+  //           segmentCD.polygon_id, segmentCD.edge_id);
+
+  //       auto l = intersect_segments(segmentAB.start, segmentAB.end,
+  //           segmentCD.start, segmentCD.end);
+
+  //       if (l.x <= 0.0f || l.x >= 1.0f || l.y <= 0.0f || l.y >= 1.0f)
+  //       {
+  //         continue;
+  //       }
+
+  //       auto uv       = lerp(segmentCD.start, segmentCD.end, l.y);
+  //       auto point    = mesh_point{face, uv};
+  //       auto point_id = (int)app->points.size();
+
+  //       auto orientation = cross(segmentAB.end - segmentAB.start,
+  //           segmentCD.end - segmentCD.start);
+  //       assert(orientation != 0);
+  //       auto ccwise = orientation > 0;
+
+  //       // Flip orientation when self-intersecting.
+  //       // if (segmentAB.polygon_id == segmentCD.polygon_id) {
+  //       //   ccwise = !ccwise;
+  //       // }
+
+  //       counterclockwise[point_id] = ccwise;
+
+  //       //        C
+  //       //        |
+  //       // A -- point -- B
+  //       //        |
+  //       //        D
+
+  //       edge_map[AB].push_back({point_id, CD, segmentAB.polygon_id,
+  //           segmentAB.segment_id, l.x});
+  //       edge_map[CD].push_back({point_id, AB, segmentCD.polygon_id,
+  //           segmentCD.segment_id, l.y});
+
+  //       app->points.push_back(point);
+
+  //       draw_mesh_point(
+  //           app->glscene, app->mesh, app->isecs_material, point,
+  //           0.0020f);
+  //     }
+  //   }
+  // }
+
+  // auto graph = compute_graph(
+  //     app->points.size(), edge_map, counterclockwise);
+  // // print_graph(graph);
+
+  // auto edge_info  = compute_edge_info(edge_map, app->polygons);
+  // auto components = compute_connected_components(graph);
+
+  // for (auto& component : components) {
+  //   auto cells = compute_cells(
+  //       component, app->points, app->mesh, app->polygons.size());
+  //   // draw_arrangement(app->glscene, app->mesh, app->cell_materials,
+  //   //     app->points, arrangement);
+
+  //   print_graph(component);
+  //   print_cells(cells);
+
+  //   auto dual_graph = compute_dual_graph(cells, edge_info);
+  //   // print_dual_graph(dual_graph);
+  //   auto outer_face = compute_outer_face(dual_graph);
+
+  //   visit_dual_graph(dual_graph, cells, outer_face);
+  // }
+
+  // Boolean operation example
+  // auto ids = vector<int>(arrangement.size(), 0);
+  // for (auto i = 0; i < arrangement.size(); i++)
+  //   if (!arrangement[i].embedding[1]) ids[i] = 1;
+
+  // polygon_and(arrangement, ids, 0);
+  // // polygon_or(arrangement, ids, 2);
+
+  // auto result = vector<cell_polygon>();
+  // for (auto i = 0; i < ids.size(); i++) {
+  //   if (ids[i]) {
+  //     result.push_back(arrangement[i]);
+  //     for (auto a : arrangement[i].points) printf("%d ", a);
+  //   }
+  //   printf("\n");
+  // }
+
+  // draw_arrangement(
+  //     app->glscene, app->mesh, app->cell_materials, app->points,
+  //     result);
+}
+
 void key_input(app_state* app, const gui_input& input) {
   for (auto idx = 0; idx < input.key_buttons.size(); idx++) {
     auto button = input.key_buttons[idx];
@@ -568,129 +827,7 @@ void key_input(app_state* app, const gui_input& input) {
 
     switch (idx) {
       case (int)gui_key('I'): {
-        // Hashgrid from triangle idx to <polygon idx, edge_idx, segment idx,
-        // segment start uv, segment end uv> to handle intersections and
-        // self-intersections
-        auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
-        auto edge_map = unordered_map<vec2i, vector<intersection_node>>();
-        auto counterclockwise = unordered_map<int, bool>();
-
-        for (auto p = 0; p < app->polygons.size(); p++) {
-          auto& polygon = app->polygons[p];
-          for (auto e = 0; e < polygon.edges.size(); e++) {
-            auto& edge      = polygon.edges[e];
-            auto end_points = get_edge_points(app->polygons, app->points, p, e);
-            auto end        = (int)(edge.size() - 1);
-            edge_map[end_points].push_back(
-                {end_points.x, {-1, -1}, p, 0, 0.0f});
-            edge_map[end_points].push_back(
-                {end_points.y, {-1, -1}, p, end, 1.0f});
-
-            for (auto s = 0; s < edge.size(); s++) {
-              auto& segment = edge[s];
-              hashgrid[segment.face].push_back(
-                  {p, e, s, segment.start, segment.end});
-            }
-          }
-        }
-
-        for (auto& [face, value] : hashgrid) {
-          if (value.size() < 2) continue;
-          for (auto i = 0; i < value.size() - 1; i++) {
-            auto& segmentAB = value[i];
-            for (auto j = i + 1; j < value.size(); j++) {
-              auto& segmentCD = value[j];
-
-              auto AB = get_edge_points(app->polygons, app->points,
-                  segmentAB.polygon_id, segmentAB.edge_id);
-              auto CD = get_edge_points(app->polygons, app->points,
-                  segmentCD.polygon_id, segmentCD.edge_id);
-
-              auto l = intersect_segments(segmentAB.start, segmentAB.end,
-                  segmentCD.start, segmentCD.end);
-
-              if (l.x <= 0.0f || l.x >= 1.0f || l.y <= 0.0f || l.y >= 1.0f) {
-                continue;
-              }
-
-              auto uv       = lerp(segmentCD.start, segmentCD.end, l.y);
-              auto point    = mesh_point{face, uv};
-              auto point_id = (int)app->points.size();
-
-              auto orientation = cross(segmentAB.end - segmentAB.start,
-                  segmentCD.end - segmentCD.start);
-              assert(orientation != 0);
-              auto ccwise = orientation > 0;
-
-              // Flip orientation when self-intersecting.
-              // if (segmentAB.polygon_id == segmentCD.polygon_id) {
-              //   ccwise = !ccwise;
-              // }
-
-              counterclockwise[point_id] = ccwise;
-
-              //        C
-              //        |
-              // A -- point -- B
-              //        |
-              //        D
-
-              edge_map[AB].push_back({point_id, CD, segmentAB.polygon_id,
-                  segmentAB.segment_id, l.x});
-              edge_map[CD].push_back({point_id, AB, segmentCD.polygon_id,
-                  segmentCD.segment_id, l.y});
-
-              app->points.push_back(point);
-
-              draw_mesh_point(
-                  app->glscene, app->mesh, app->isecs_material, point, 0.0020f);
-            }
-          }
-        }
-
-        auto graph = compute_graph(
-            app->points.size(), edge_map, counterclockwise);
-        // print_graph(graph);
-
-        auto edge_info  = compute_edge_info(edge_map, app->polygons);
-        auto components = compute_connected_components(graph);
-
-        for (auto& component : components) {
-          auto cells = compute_cells(
-              component, app->points, app->mesh, app->polygons.size());
-          // draw_arrangement(app->glscene, app->mesh, app->cell_materials,
-          //     app->points, arrangement);
-
-          print_graph(component);
-          print_cells(cells);
-
-          auto dual_graph = compute_dual_graph(cells, edge_info);
-          // print_dual_graph(dual_graph);
-          auto outer_face = compute_outer_face(dual_graph);
-
-          visit_dual_graph(dual_graph, cells, outer_face);
-        }
-
-        // Boolean operation example
-        // auto ids = vector<int>(arrangement.size(), 0);
-        // for (auto i = 0; i < arrangement.size(); i++)
-        //   if (!arrangement[i].embedding[1]) ids[i] = 1;
-
-        // polygon_and(arrangement, ids, 0);
-        // // polygon_or(arrangement, ids, 2);
-
-        // auto result = vector<cell_polygon>();
-        // for (auto i = 0; i < ids.size(); i++) {
-        //   if (ids[i]) {
-        //     result.push_back(arrangement[i]);
-        //     for (auto a : arrangement[i].points) printf("%d ", a);
-        //   }
-        //   printf("\n");
-        // }
-
-        // draw_arrangement(
-        //     app->glscene, app->mesh, app->cell_materials, app->points,
-        //     result);
+        do_the_thing(app);
       } break;
       case (int)gui_key('C'): {
         auto old_camera = app->glcamera;
