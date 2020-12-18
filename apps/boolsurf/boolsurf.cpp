@@ -290,11 +290,12 @@ void init_glscene(app_state* app, shade_scene* glscene, const bool_mesh& mesh,
     avg_edge_length += length(from - to);
   }
   avg_edge_length /= edges.size();
-  auto cylinder_radius = 0.05f * avg_edge_length;
+  auto cylinder_radius = 0.01f * avg_edge_length;
   auto cylinder        = make_uvcylinder({8, 1, 1}, {cylinder_radius, 1});
   for (auto& p : cylinder.positions) {
     p.z = p.z * 0.5 + 0.5;
   }
+
   auto edges_shape = add_shape(glscene, {}, {}, {}, cylinder.quads,
       cylinder.positions, cylinder.normals, cylinder.texcoords, {});
   set_instances(edges_shape, froms, tos);
@@ -574,6 +575,9 @@ void key_input(app_state* app, const gui_input& input) {
         auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
         auto edge_map = unordered_map<vec2i, vector<intersection_node>>();
         auto counterclockwise = unordered_map<int, bool>();
+        auto control = unordered_map<int, vector<pair<vec2f, vec2f>>>();
+        // for (auto& point : app->points)
+        // control[point.face].push_back(point.uv);
 
         for (auto p = 0; p < app->polygons.size(); p++) {
           auto& polygon = app->polygons[p];
@@ -590,6 +594,7 @@ void key_input(app_state* app, const gui_input& input) {
               auto& segment = edge[s];
               hashgrid[segment.face].push_back(
                   {p, e, s, segment.start, segment.end});
+              control[segment.face].push_back({segment.start, segment.end});
             }
           }
         }
@@ -613,7 +618,13 @@ void key_input(app_state* app, const gui_input& input) {
                 continue;
               }
 
-              auto uv       = lerp(segmentCD.start, segmentCD.end, l.y);
+              // Detected Intersection
+              auto uv = lerp(segmentCD.start, segmentCD.end, l.y);
+              // control[face].push_back({segmentAB.start, uv});
+              // control[face].push_back({uv, segmentAB.end});
+              // control[face].push_back({segmentCD.start, uv});
+              // control[face].push_back({uv, segmentCD.end});
+
               auto point    = mesh_point{face, uv};
               auto point_id = (int)app->points.size();
 
@@ -648,28 +659,125 @@ void key_input(app_state* app, const gui_input& input) {
           }
         }
 
-        auto graph = compute_graph(
-            app->points.size(), edge_map, counterclockwise);
-        // print_graph(graph);
+        // Triangles to be divided are inside control_map
+        // First attempt with single triangle
 
-        auto edge_info  = compute_edge_info(edge_map, app->polygons);
-        auto components = compute_connected_components(graph);
+        using Coord = float;
+        using N     = int;
+        using Point = std::array<Coord, 3>;
 
-        for (auto& component : components) {
-          auto cells = compute_cells(
-              component, app->points, app->mesh, app->polygons.size());
-          // draw_arrangement(app->glscene, app->mesh, app->cell_materials,
-          //     app->points, arrangement);
+        for (auto& [face, isecs] : control) {
+          printf("Face: %d - ", face);
+          for (auto& [start, end] : isecs)
+            printf("( %f %f ) - ( %f %f )\n", start.x, start.y, end.x, end.y);
+          printf("\n");
 
-          print_graph(component);
-          print_cells(cells);
+          auto abc = app->mesh.triangles[face];
 
-          auto dual_graph = compute_dual_graph(cells, edge_info);
-          // print_dual_graph(dual_graph);
-          auto outer_face = compute_outer_face(dual_graph);
+          vec3f abc_pos[3];
+          abc_pos[0] = app->mesh.positions[abc.x];
+          abc_pos[1] = app->mesh.positions[abc.y];
+          abc_pos[2] = app->mesh.positions[abc.z];
 
-          visit_dual_graph(dual_graph, cells, outer_face);
+          auto a_point = Point{abc_pos[0].x, abc_pos[0].y, abc_pos[0].z};
+          auto b_point = Point{abc_pos[1].x, abc_pos[1].y, abc_pos[1].z};
+          auto c_point = Point{abc_pos[2].x, abc_pos[2].y, abc_pos[2].z};
+
+          auto polygon  = vector<vector<Point>>();
+          auto elements = vector<vec3f>();
+          elements.push_back(abc_pos[0]);
+          elements.push_back(abc_pos[1]);
+          elements.push_back(abc_pos[2]);
+
+          polygon.push_back({a_point, b_point, c_point});
+          for (auto& [start, end] : isecs) {
+            auto start_pos = eval_position(
+                app->mesh.triangles, app->mesh.positions, {face, start});
+            auto end_pos = eval_position(
+                app->mesh.triangles, app->mesh.positions, {face, start});
+
+            auto start_point = Point{start_pos.x, start_pos.y, start_pos.z};
+            auto end_point   = Point{end_pos.x, end_pos.y, end_pos.z};
+            elements.push_back(start_pos);
+            elements.push_back(end_pos);
+
+            polygon.push_back({start_point, end_point});
+            draw_mesh_point(app->glscene, app->mesh, app->points_material,
+                mesh_point{face, start}, 0.0020f);
+            draw_mesh_point(app->glscene, app->mesh, app->points_material,
+                mesh_point{face, end}, 0.0020f);
+          }
+
+          printf("Polygon size: %d\n", polygon.size());
+          for (auto& p : polygon) {
+            for (auto& v : p) {
+              printf("%f %f\n", v[0], v[1]);
+            }
+          }
+
+          vector<N> indices = mapbox::earcut<N>(polygon);
+          printf("Detected triangles: %d\n", indices.size());
+          for (int i = 0; i < indices.size() - 2; i += 3) {
+            auto edge1 = vec2i{indices[int(i)], indices[int(i + 1)]};
+            auto edge2 = vec2i{indices[int(i + 1)], indices[int(i + 2)]};
+            auto edge3 = vec2i{indices[int(i + 2)], indices[int(i)]};
+            printf("Triangle: %d ", indices[i]);
+            printf("%d ", indices[i + 1]);
+            printf("%d\n", indices[i + 2]);
+
+            auto edges = vector<vec2i>({edge1, edge2, edge3});
+            auto froms = vector<vec3f>();
+            auto tos   = vector<vec3f>();
+            froms.reserve(edges.size());
+            tos.reserve(edges.size());
+
+            for (auto& edge : edges) {
+              auto from = elements[edge.x];
+              auto to   = elements[edge.y];
+              froms.push_back(from);
+              tos.push_back(to);
+            }
+
+            auto radius   = 0.0010f;
+            auto cylinder = make_uvcylinder({4, 1, 1}, {radius, 1});
+            for (auto& p : cylinder.positions) {
+              p.z = p.z * 0.5 + 0.5;
+            }
+
+            auto shape = add_shape(app->glscene);
+            add_instance(
+                app->glscene, identity3x4f, shape, app->points_material, false);
+            set_quads(shape, cylinder.quads);
+            set_positions(shape, cylinder.positions);
+            set_normals(shape, cylinder.normals);
+            set_texcoords(shape, cylinder.texcoords);
+            set_instances(shape, froms, tos);
+          }
         }
+        break;
+
+        // auto graph = compute_graph(
+        //     app->points.size(), edge_map, counterclockwise);
+        // // print_graph(graph);
+
+        // auto edge_info  = compute_edge_info(edge_map, app->polygons);
+        // auto components = compute_connected_components(graph);
+
+        // for (auto& component : components) {
+        //   auto cells = compute_cells(
+        //       component, app->points, app->mesh, app->polygons.size());
+        //   // draw_arrangement(app->glscene, app->mesh, app->cell_materials,
+        //   //     app->points, arrangement);
+
+        //   print_graph(component);
+        //   print_cells(cells);
+
+        //   auto dual_graph = compute_dual_graph(cells, edge_info);
+        //   // print_dual_graph(dual_graph);
+        //   auto outer_face = compute_outer_face(dual_graph);
+
+        //   visit_dual_graph(dual_graph, cells, outer_face);
+        // }
 
         // Boolean operation example
         // auto ids = vector<int>(arrangement.size(), 0);

@@ -6,6 +6,8 @@
 #include <cassert>
 #include <unordered_set>
 
+#include "ext/earcut.hpp"
+
 using namespace yocto;
 using namespace std;
 
@@ -74,38 +76,6 @@ inline void update_mesh_polygon(
     mesh_polygon& polygon, const vector<mesh_segment>& segments) {
   polygon.edges.push_back(segments);
 }
-
-// (marzia) Not used
-// inline vector<int> strip_intersection(
-//     const mesh_polygon& left, const mesh_polygon& right) {
-//   auto left_faces  = polygon_strip(left);
-//   auto right_faces = polygon_strip(right);
-
-//   std::sort(left_faces.begin(), left_faces.end());
-//   std::sort(right_faces.begin(), right_faces.end());
-
-//   auto intersections = vector<int>();
-
-//   auto i = 0;
-//   auto j = 0;
-//   while (i < left_faces.size() && j < right_faces.size()) {
-//     if (left_faces[i] == right_faces[j]) {
-//       intersections.push_back(left_faces[i]);
-//       i++;
-//       j++;
-//     } else if (left_faces[i] < right_faces[j])
-//       i++;
-//     else
-//       j++;
-//   }
-
-//   std::sort(intersections.begin(), intersections.end());
-//   intersections.erase(std::unique(intersections.begin(),
-//   intersections.end()),
-//       intersections.end());
-
-//   return intersections;
-// }
 
 inline bool_mesh init_mesh(const generic_shape* shape) {
   auto mesh        = bool_mesh{};
