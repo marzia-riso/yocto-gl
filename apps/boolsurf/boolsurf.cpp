@@ -658,9 +658,7 @@ void key_input(app_state* app, const gui_input& input) {
         // Triangles to be divided are inside control_map
         // First attempt with single triangle
 
-        using Coord = float;
-        using N     = int;
-        using Point = std::array<Coord, 3>;
+        using Point = std::array<float, 3>;
 
         for (auto& [face, infos] : hashgrid) {
           auto abc = app->mesh.triangles[face];
@@ -706,12 +704,12 @@ void key_input(app_state* app, const gui_input& input) {
             }
           }
 
-          vector<N> indices = mapbox::earcut<N>(polygon);
-          printf("Detected triangles: %d\n", indices.size());
+          vector<int> indices = mapbox::earcut<int>(polygon);
+          printf("Detected triangles: %d\n", (int)(indices.size() / 3));
           for (int i = 0; i < indices.size() - 2; i += 3) {
-            auto edge1 = vec2i{indices[int(i)], indices[int(i + 1)]};
-            auto edge2 = vec2i{indices[int(i + 1)], indices[int(i + 2)]};
-            auto edge3 = vec2i{indices[int(i + 2)], indices[int(i)]};
+            auto edge1 = vec2i{indices[i], indices[i + 1]};
+            auto edge2 = vec2i{indices[i + 1], indices[i + 2]};
+            auto edge3 = vec2i{indices[i + 2], indices[i]};
             printf("Triangle: %d ", indices[i]);
             printf("%d ", indices[i + 1]);
             printf("%d\n", indices[i + 2]);
