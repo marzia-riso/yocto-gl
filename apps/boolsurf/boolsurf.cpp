@@ -671,24 +671,25 @@ void do_the_thing(app_state* app) {
 
       bool flipped = false;
       if (start_k == 2 && end_k == 0) {
-        // pass
-      }
-      if (start_k == 1 && end_k == 2) {
         abc = rotate(abc, 2);
       }
-      if (start_k == 0 && end_k == 1) {
+      if (start_k == 1 && end_k == 2) {
         abc = rotate(abc, 1);
+      }
+      if (start_k == 0 && end_k == 1) {
+        abc = rotate(abc, 0);
       }
       if (start_k == 0 && end_k == 2) {
         flipped = true;
+        abc     = rotate(abc, 2);
       }
       if (start_k == 2 && end_k == 1) {
         flipped = true;
-        abc     = rotate(abc, 2);
+        abc     = rotate(abc, 1);
       }
       if (start_k == 1 && end_k == 0) {
         flipped = true;
-        abc     = rotate(abc, 1);
+        abc     = rotate(abc, 0);
       }
 
       auto f0 = (int)app->mesh.triangles.size();
@@ -699,10 +700,12 @@ void do_the_thing(app_state* app) {
       app->mesh.triangles.push_back({0, 0, 0});
       app->mesh.triangles.push_back({0, 0, 0});
 
-      abc = rotate(abc, 2);
+      // abc = rotate(abc, 2);
+      // auto outer = f0;
+      // auto inner = f1;
 
-      auto outer = f0;
-      auto inner = f1;
+      auto outer = f1;
+      auto inner = f0;
 
       if (!flipped) {
         app->mesh.triangles[f0] = {vend, vstart, abc[0]};
