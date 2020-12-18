@@ -631,6 +631,14 @@ void do_the_thing(app_state* app) {
     }
   }
 
+  auto vertex_edgemap = unordered_map<vec2i, int>{};
+  auto make_key       = [](vec2i edge) {
+    if (edge.x < edge.y)
+      return edge;
+    else
+      return vec2i{edge.y, edge.x};
+  };
+
   for (auto& [face, value] : hashgrid) {
     assert(value.size() <= 2);
 
@@ -646,26 +654,53 @@ void do_the_thing(app_state* app) {
       abc_pos[1] = app->mesh.positions[abc.y];
       abc_pos[2] = app->mesh.positions[abc.z];
 
-      auto vstart = (int)app->mesh.positions.size();
-      auto vend   = (int)app->mesh.positions.size() + 1;
-      app->mesh.positions.push_back({});
-      app->mesh.positions.push_back({});
+      // auto vstart = (int)app->mesh.positions.size();
+      // auto vend   = (int)app->mesh.positions.size() + 1;
+      // app->mesh.positions.push_back({});
+      // app->mesh.positions.push_back({});
 
-      auto new_vertex = [&](vec2f uv) {
+      auto new_vertex = [&](vec2f uv) -> std::pair<vec3f, vec2i> {
         if (uv.y == 0) {
           // point on edge (xy)
-          return lerp(abc_pos[0], abc_pos[1], uv.x);
+          auto edge = make_key({abc[0], abc[1]});
+          auto pos  = lerp(abc_pos[0], abc_pos[1], uv.x);
+          return {pos, edge};
         } else if (uv.x == 0) {
           // point on edge (xz)
-          return lerp(abc_pos[0], abc_pos[2], uv.y);
+          auto edge = make_key({abc[2], abc[0]});
+          auto pos  = lerp(abc_pos[0], abc_pos[2], uv.y);
+          return {pos, edge};
         } else {
+          // point on edge (yz)
           auto l = 1 - uv.x - uv.y;
           assert(fabs(l) < 0.001);
-          return lerp(abc_pos[1], abc_pos[2], 1 - uv.x);
+          auto edge = make_key({abc[1], abc[2]});
+          auto pos  = lerp(abc_pos[1], abc_pos[2], 1 - uv.x);
+          return {pos, edge};
         }
       };
-      app->mesh.positions[vstart] = new_vertex(start);
-      app->mesh.positions[vend]   = new_vertex(end);
+      auto [start_pos, start_key] = new_vertex(start);
+      auto [end_pos, end_key]     = new_vertex(end);
+
+      // TODO(giacomo): slow
+      int vstart = -1;
+      if (vertex_edgemap.count(start_key) == 0) {
+        vertex_edgemap[start_key]     = app->mesh.positions.size();
+        vstart                        = app->mesh.positions.size();
+        app->mesh.positions.push_back(start_pos);
+      } else {
+        vstart = vertex_edgemap.at(start_key);
+      }
+
+      // TODO(giacomo): slow
+      int vend = -1;
+      if (vertex_edgemap.count(end_key) == 0) {
+        vertex_edgemap[end_key]       = app->mesh.positions.size();
+        vend                          = app->mesh.positions.size();
+        app->mesh.positions.push_back(end_pos);
+      } else {
+        vend = vertex_edgemap.at(end_key);
+      }
 
       auto get_edge_index = [](vec2f uv) {
         if (uv.y == 0) {
