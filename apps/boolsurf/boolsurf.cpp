@@ -463,21 +463,7 @@ void draw_intersections(shade_scene* scene, const bool_mesh& mesh,
 }
 
 void draw_segment(shade_scene* scene, const bool_mesh& mesh,
-    shade_material* material, const mesh_segment& segment) {
-  auto start = mesh_point{segment.face, segment.start};
-  auto end   = mesh_point{segment.face, segment.end};
-
-  draw_mesh_point(scene, mesh, material, start, 0.0016f);
-  draw_mesh_point(scene, mesh, material, end, 0.0016f);
-
-  auto pos_start = eval_position(mesh.triangles, mesh.positions, start);
-  auto pos_end   = eval_position(mesh.triangles, mesh.positions, end);
-
-  auto froms = vector<vec3f>();
-  froms.push_back(pos_start);
-  auto tos = vector<vec3f>();
-  tos.push_back(pos_end);
-
+    shade_material* material, const vec3f& start, const vec3f& end) {
   auto radius   = 0.0010f;
   auto cylinder = make_uvcylinder({4, 1, 1}, {radius, 1});
   for (auto& p : cylinder.positions) {
@@ -490,7 +476,21 @@ void draw_segment(shade_scene* scene, const bool_mesh& mesh,
   set_positions(shape, cylinder.positions);
   set_normals(shape, cylinder.normals);
   set_texcoords(shape, cylinder.texcoords);
-  set_instances(shape, froms, tos);
+  set_instances(shape, {start}, {end});
+}
+
+void draw_mesh_segment(shade_scene* scene, const bool_mesh& mesh,
+    shade_material* material, const mesh_segment& segment) {
+  auto start = mesh_point{segment.face, segment.start};
+  auto end   = mesh_point{segment.face, segment.end};
+
+  draw_mesh_point(scene, mesh, material, start, 0.0016f);
+  draw_mesh_point(scene, mesh, material, end, 0.0016f);
+
+  auto pos_start = eval_position(mesh.triangles, mesh.positions, start);
+  auto pos_end   = eval_position(mesh.triangles, mesh.positions, end);
+
+  draw_segment(scene, mesh, material, pos_start, pos_end);
 }
 
 void draw_arrangement(shade_scene* scene, const bool_mesh& mesh,
@@ -717,32 +717,10 @@ void key_input(app_state* app, const gui_input& input) {
             printf("%d\n", indices[i + 2]);
 
             auto edges = vector<vec2i>({edge1, edge2, edge3});
-            auto froms = vector<vec3f>();
-            auto tos   = vector<vec3f>();
-            froms.reserve(edges.size());
-            tos.reserve(edges.size());
-
             for (auto& edge : edges) {
-              auto from = elements[edge.x];
-              auto to   = elements[edge.y];
-              froms.push_back(from);
-              tos.push_back(to);
+              draw_segment(app->glscene, app->mesh, app->points_material,
+                  elements[edge.x], elements[edge.y]);
             }
-
-            auto radius   = 0.0010f;
-            auto cylinder = make_uvcylinder({4, 1, 1}, {radius, 1});
-            for (auto& p : cylinder.positions) {
-              p.z = p.z * 0.5 + 0.5;
-            }
-
-            auto shape = add_shape(app->glscene);
-            add_instance(
-                app->glscene, identity3x4f, shape, app->points_material, false);
-            set_quads(shape, cylinder.quads);
-            set_positions(shape, cylinder.positions);
-            set_normals(shape, cylinder.normals);
-            set_texcoords(shape, cylinder.texcoords);
-            set_instances(shape, froms, tos);
           }
         }
         break;
