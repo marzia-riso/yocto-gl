@@ -762,14 +762,14 @@ void do_the_thing(app_state* app) {
       auto inner = f0;
 
       if (!flipped) {
-        app->mesh.triangles[f0] = {vend, vstart, abc[0]};
-        app->mesh.triangles[f1] = {vstart, vend, abc[2]};
-        app->mesh.triangles[f2] = {vstart, abc[1], abc[2]};
+        app->mesh.triangles[f0] = {vstart, vend, abc.x};
+        app->mesh.triangles[f1] = {vend, vstart, abc.y};
+        app->mesh.triangles[f2] = {vend, abc.z, abc.x};
       }
       if (flipped) {
-        app->mesh.triangles[f0] = {vend, vstart, abc[0]};
-        app->mesh.triangles[f1] = {vstart, vend, abc[2]};
-        app->mesh.triangles[f2] = {vend, abc[1], abc[2]};
+        app->mesh.triangles[f0] = {vend, vstart, abc.x};
+        app->mesh.triangles[f1] = {vstart, vend, abc.y};
+        app->mesh.triangles[f2] = {vstart, abc.z, abc.x};
         std::swap(outer, inner);
       }
 
