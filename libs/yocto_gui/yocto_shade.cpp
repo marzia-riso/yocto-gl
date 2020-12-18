@@ -372,7 +372,7 @@ shade_shape* add_shape(shade_scene* scene, const vector<int>& points,
     const vector<vec2i>& lines, const vector<vec3i>& triangles,
     const vector<vec4i>& quads, const vector<vec3f>& positions,
     const vector<vec3f>& normals, const vector<vec2f>& texcoords,
-    const vector<vec4f>& colors, bool edges) {
+    const vector<vec4f>& colors) {
   auto shape = add_shape(scene);
   if (points.size() != 0) {
     set_points(shape, points);
