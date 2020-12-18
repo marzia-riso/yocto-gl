@@ -654,11 +654,6 @@ void do_the_thing(app_state* app) {
       abc_pos[1] = app->mesh.positions[abc.y];
       abc_pos[2] = app->mesh.positions[abc.z];
 
-      // auto vstart = (int)app->mesh.positions.size();
-      // auto vend   = (int)app->mesh.positions.size() + 1;
-      // app->mesh.positions.push_back({});
-      // app->mesh.positions.push_back({});
-
       auto new_vertex = [&](vec2f uv) -> std::pair<vec3f, vec2i> {
         if (uv.y == 0) {
           // point on edge (xy)
@@ -685,8 +680,8 @@ void do_the_thing(app_state* app) {
       // TODO(giacomo): slow
       int vstart = -1;
       if (vertex_edgemap.count(start_key) == 0) {
-        vertex_edgemap[start_key]     = app->mesh.positions.size();
-        vstart                        = app->mesh.positions.size();
+        vstart                    = app->mesh.positions.size();
+        vertex_edgemap[start_key] = vstart;
         app->mesh.positions.push_back(start_pos);
       } else {
         vstart = vertex_edgemap.at(start_key);
@@ -695,8 +690,8 @@ void do_the_thing(app_state* app) {
       // TODO(giacomo): slow
       int vend = -1;
       if (vertex_edgemap.count(end_key) == 0) {
-        vertex_edgemap[end_key]       = app->mesh.positions.size();
-        vend                          = app->mesh.positions.size();
+        vend                    = app->mesh.positions.size();
+        vertex_edgemap[end_key] = vend;
         app->mesh.positions.push_back(end_pos);
       } else {
         vend = vertex_edgemap.at(end_key);
