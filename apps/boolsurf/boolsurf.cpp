@@ -575,9 +575,6 @@ void key_input(app_state* app, const gui_input& input) {
         auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
         auto edge_map = unordered_map<vec2i, vector<intersection_node>>();
         auto counterclockwise = unordered_map<int, bool>();
-        auto control = unordered_map<int, vector<pair<vec2f, vec2f>>>();
-        // for (auto& point : app->points)
-        // control[point.face].push_back(point.uv);
 
         for (auto p = 0; p < app->polygons.size(); p++) {
           auto& polygon = app->polygons[p];
@@ -594,7 +591,6 @@ void key_input(app_state* app, const gui_input& input) {
               auto& segment = edge[s];
               hashgrid[segment.face].push_back(
                   {p, e, s, segment.start, segment.end});
-              control[segment.face].push_back({segment.start, segment.end});
             }
           }
         }
@@ -666,12 +662,7 @@ void key_input(app_state* app, const gui_input& input) {
         using N     = int;
         using Point = std::array<Coord, 3>;
 
-        for (auto& [face, isecs] : control) {
-          printf("Face: %d - ", face);
-          for (auto& [start, end] : isecs)
-            printf("( %f %f ) - ( %f %f )\n", start.x, start.y, end.x, end.y);
-          printf("\n");
-
+        for (auto& [face, infos] : hashgrid) {
           auto abc = app->mesh.triangles[face];
 
           vec3f abc_pos[3];
@@ -690,11 +681,11 @@ void key_input(app_state* app, const gui_input& input) {
           elements.push_back(abc_pos[2]);
 
           polygon.push_back({a_point, b_point, c_point});
-          for (auto& [start, end] : isecs) {
+          for (auto& info : infos) {
             auto start_pos = eval_position(
-                app->mesh.triangles, app->mesh.positions, {face, start});
+                app->mesh.triangles, app->mesh.positions, {face, info.start});
             auto end_pos = eval_position(
-                app->mesh.triangles, app->mesh.positions, {face, start});
+                app->mesh.triangles, app->mesh.positions, {face, info.end});
 
             auto start_point = Point{start_pos.x, start_pos.y, start_pos.z};
             auto end_point   = Point{end_pos.x, end_pos.y, end_pos.z};
@@ -703,9 +694,9 @@ void key_input(app_state* app, const gui_input& input) {
 
             polygon.push_back({start_point, end_point});
             draw_mesh_point(app->glscene, app->mesh, app->points_material,
-                mesh_point{face, start}, 0.0020f);
+                mesh_point{face, info.start}, 0.0020f);
             draw_mesh_point(app->glscene, app->mesh, app->points_material,
-                mesh_point{face, end}, 0.0020f);
+                mesh_point{face, info.end}, 0.0020f);
           }
 
           printf("Polygon size: %d\n", polygon.size());
