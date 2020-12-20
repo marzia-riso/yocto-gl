@@ -89,6 +89,7 @@ struct app_state {
   shade_material*         paths_material  = nullptr;
   shade_material*         isecs_material  = nullptr;
   vector<shade_material*> cell_materials  = {};
+  vector<shade_instance*> instances       = {};
 
   gui_widgets widgets = {};
 
@@ -464,11 +465,11 @@ geodesic_path compute_path(const mesh_polygon& polygon,
   return path;
 }
 
-void draw_path(shade_scene* scene, const bool_mesh& mesh,
+shade_instance* draw_path(shade_scene* scene, const bool_mesh& mesh,
     shade_material* material, const geodesic_path& path, float radius) {
   auto shape = add_shape(scene);
   update_path_shape(shape, mesh, path, radius);
-  add_instance(scene, identity3x4f, shape, material, false);
+  return add_instance(scene, identity3x4f, shape, material, false);
 }
 
 void draw_intersections(shade_scene* scene, const bool_mesh& mesh,
@@ -571,8 +572,9 @@ void mouse_input(app_state* app, const gui_input& input) {
 
       if (polygon.points.size() > 1) {
         auto geo_path = compute_path(polygon, app->points, app->mesh);
-        draw_path(
+        auto instance = draw_path(
             app->glscene, app->mesh, app->paths_material, geo_path, 0.0005f);
+        app->instances.push_back(instance);
 
         auto segments = mesh_segments(app->mesh.triangles, geo_path.strip,
             geo_path.lerps, geo_path.start, geo_path.end);
@@ -657,25 +659,28 @@ void do_the_thing(app_state* app) {
       auto new_vertex = [&](vec2f uv) -> std::pair<vec3f, vec2i> {
         if (uv.y == 0) {
           // point on edge (xy)
-          auto edge = make_key({abc[0], abc[1]});
+          auto edge = vec2i{abc.x, abc.y};
           auto pos  = lerp(abc_pos[0], abc_pos[1], uv.x);
           return {pos, edge};
         } else if (uv.x == 0) {
           // point on edge (xz)
-          auto edge = make_key({abc[2], abc[0]});
+          auto edge = vec2i{abc.z, abc.x};
           auto pos  = lerp(abc_pos[0], abc_pos[2], uv.y);
           return {pos, edge};
         } else {
           // point on edge (yz)
           auto l = 1 - uv.x - uv.y;
           assert(fabs(l) < 0.001);
-          auto edge = make_key({abc[1], abc[2]});
+          auto edge = vec2i{abc.y, abc.z};
           auto pos  = lerp(abc_pos[1], abc_pos[2], 1 - uv.x);
           return {pos, edge};
         }
       };
-      auto [start_pos, start_key] = new_vertex(start);
-      auto [end_pos, end_key]     = new_vertex(end);
+      auto [start_pos, start_edge] = new_vertex(start);
+      auto [end_pos, end_edge]     = new_vertex(end);
+
+      auto start_key = make_key(start_edge);
+      auto end_key   = make_key(end_edge);
 
       // TODO(giacomo): slow
       int vstart = -1;
@@ -697,104 +702,53 @@ void do_the_thing(app_state* app) {
         vend = vertex_edgemap.at(end_key);
       }
 
-      auto get_edge_index = [](vec2f uv) {
-        if (uv.y == 0) {
-          // point on edge (xy)
-          return 0;
-        } else if (uv.x == 0) {
-          // point on edge (xz)
-          return 1;
-        } else {
-          auto l = 1 - uv.x - uv.y;
-          assert(fabs(l) < 0.001);
-          return 2;
-        }
-      };
-
-      auto start_k = get_edge_index(start);
-      auto end_k   = get_edge_index(end);
-
-      auto rotate = [](const vec3i& v, int k) {
-        if (k == 0)
-          return v;
-        else if (k == 1)
-          return vec3i{v.z, v.x, v.y};
-        else
-          return vec3i{v.y, v.z, v.x};
-      };
-
-      bool flipped = false;
-      if (start_k == 0 && end_k == 1) {
-        abc = rotate(abc, 0);
-      }
-      if (start_k == 2 && end_k == 0) {
-        abc = rotate(abc, 2);
-      }
-      if (start_k == 1 && end_k == 2) {
-        abc = rotate(abc, 1);
-      }
-      if (start_k == 1 && end_k == 0) {
-        flipped = true;
-        abc     = rotate(abc, 0);
-      }
-      if (start_k == 0 && end_k == 2) {
-        flipped = true;
-        abc     = rotate(abc, 2);
-      }
-      if (start_k == 2 && end_k == 1) {
-        flipped = true;
-        abc     = rotate(abc, 1);
-      }
-
       auto f0 = (int)app->mesh.triangles.size();
       auto f1 = f0 + 1;
       auto f2 = f0 + 2;
-
       app->mesh.triangles.push_back({0, 0, 0});
       app->mesh.triangles.push_back({0, 0, 0});
       app->mesh.triangles.push_back({0, 0, 0});
 
-      // abc = rotate(abc, 2);
-      // auto outer = f0;
-      // auto inner = f1;
-
-      auto outer = f1;
-      auto inner = f0;
-
-      auto [a, b, c] = abc;
-
-      auto check_triangle = [&](vec3i tr) -> bool {
-        auto [a, b, c] = tr;
-        return (a != b) && (b != c) && (c != a);
-      };
-
-      vec3i tr0, tr1, tr2 = {};
-      if (!flipped) {
-        tr0 = {vstart, vend, a};
-        // tr1 = {vend, vstart, b};
-        // tr2 = {vend, c, a};
+      auto  go_right = true;
+      int   outer, inner;
+      vec3i tr0, tr1, tr2;
+      if (start_edge.y == end_edge.x) {
+        go_right = true;
+        int x    = start_edge.x;
+        int y    = start_edge.y;
+        int z    = end_edge.y;
+        outer    = f2;
+        inner    = f1;
+        tr0      = {x, vstart, z};
+        tr1      = {vstart, vend, z};
+        tr2      = {vstart, y, vend};
+      } else if (start_edge.x == end_edge.y) {
+        go_right = false;
+        int x    = start_edge.x;
+        int y    = start_edge.y;
+        int z    = end_edge.x;
+        outer    = f1;
+        inner    = f0;
+        tr0      = {x, vstart, vend};
+        tr1      = {vstart, z, vend};
+        tr2      = {vstart, y, z};
+      } else {
+        assert(0);
       }
-      if (flipped) {
-        tr0 = {vend, vstart, a};
-        // tr1 = {vstart, vend, b};
-        // tr2 = {vend, c, a};
-        std::swap(outer, inner);
-      }
+
       app->mesh.triangles[f0] = tr0;
       app->mesh.triangles[f1] = tr1;
       app->mesh.triangles[f2] = tr2;
 
-      assert(check_triangle(tr0));
-//      assert(check_triangle(tr1));
-//      assert(check_triangle(tr2));
-
       app->polygons[value[0].polygon_id].inner_faces.push_back(inner);
       app->polygons[value[0].polygon_id].outer_faces.push_back(outer);
-
       app->mesh.triangles[face] = {0, 0, 0};
     }
   }
 
+  for (auto& ist : app->instances) {
+    ist->hidden = true;
+  }
   app->mesh.normals = compute_normals(app->mesh.triangles, app->mesh.positions);
   app->mesh.adjacencies = face_adjacencies(app->mesh.triangles);
 
