@@ -771,13 +771,13 @@ void do_the_thing(app_state* app) {
       vec3i tr0, tr1, tr2 = {};
       if (!flipped) {
         tr0 = {vstart, vend, a};
-        tr1 = {vend, vstart, b};
-        tr2 = {vend, c, a};
+        // tr1 = {vend, vstart, b};
+        // tr2 = {vend, c, a};
       }
       if (flipped) {
         tr0 = {vend, vstart, a};
-        tr1 = {vstart, vend, b};
-        tr2 = {vstart, c, a};
+        // tr1 = {vstart, vend, b};
+        // tr2 = {vend, c, a};
         std::swap(outer, inner);
       }
       app->mesh.triangles[f0] = tr0;
@@ -785,8 +785,8 @@ void do_the_thing(app_state* app) {
       app->mesh.triangles[f2] = tr2;
 
       assert(check_triangle(tr0));
-      assert(check_triangle(tr1));
-      assert(check_triangle(tr2));
+//      assert(check_triangle(tr1));
+//      assert(check_triangle(tr2));
 
       app->polygons[value[0].polygon_id].inner_faces.push_back(inner);
       app->polygons[value[0].polygon_id].outer_faces.push_back(outer);
