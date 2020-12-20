@@ -724,14 +724,18 @@ void do_the_thing(app_state* app) {
       };
 
       bool flipped = false;
+      if (start_k == 0 && end_k == 1) {
+        abc = rotate(abc, 0);
+      }
       if (start_k == 2 && end_k == 0) {
         abc = rotate(abc, 2);
       }
       if (start_k == 1 && end_k == 2) {
         abc = rotate(abc, 1);
       }
-      if (start_k == 0 && end_k == 1) {
-        abc = rotate(abc, 0);
+      if (start_k == 1 && end_k == 0) {
+        flipped = true;
+        abc     = rotate(abc, 0);
       }
       if (start_k == 0 && end_k == 2) {
         flipped = true;
@@ -740,10 +744,6 @@ void do_the_thing(app_state* app) {
       if (start_k == 2 && end_k == 1) {
         flipped = true;
         abc     = rotate(abc, 1);
-      }
-      if (start_k == 1 && end_k == 0) {
-        flipped = true;
-        abc     = rotate(abc, 0);
       }
 
       auto f0 = (int)app->mesh.triangles.size();
@@ -761,17 +761,32 @@ void do_the_thing(app_state* app) {
       auto outer = f1;
       auto inner = f0;
 
+      auto [a, b, c] = abc;
+
+      auto check_triangle = [&](vec3i tr) -> bool {
+        auto [a, b, c] = tr;
+        return (a != b) && (b != c) && (c != a);
+      };
+
+      vec3i tr0, tr1, tr2 = {};
       if (!flipped) {
-        app->mesh.triangles[f0] = {vstart, vend, abc.x};
-        app->mesh.triangles[f1] = {vend, vstart, abc.y};
-        app->mesh.triangles[f2] = {vend, abc.z, abc.x};
+        tr0 = {vstart, vend, a};
+        tr1 = {vend, vstart, b};
+        tr2 = {vend, c, a};
       }
       if (flipped) {
-        app->mesh.triangles[f0] = {vend, vstart, abc.x};
-        app->mesh.triangles[f1] = {vstart, vend, abc.y};
-        app->mesh.triangles[f2] = {vstart, abc.z, abc.x};
+        tr0 = {vend, vstart, a};
+        tr1 = {vstart, vend, b};
+        tr2 = {vstart, c, a};
         std::swap(outer, inner);
       }
+      app->mesh.triangles[f0] = tr0;
+      app->mesh.triangles[f1] = tr1;
+      app->mesh.triangles[f2] = tr2;
+
+      assert(check_triangle(tr0));
+      assert(check_triangle(tr1));
+      assert(check_triangle(tr2));
 
       app->polygons[value[0].polygon_id].inner_faces.push_back(inner);
       app->polygons[value[0].polygon_id].outer_faces.push_back(outer);
@@ -781,15 +796,18 @@ void do_the_thing(app_state* app) {
   }
 
   app->mesh.normals = compute_normals(app->mesh.triangles, app->mesh.positions);
+  app->mesh.adjacencies = face_adjacencies(app->mesh.triangles);
+
   set_positions(app->mesh_shape, app->mesh.positions);
   set_triangles(app->mesh_shape, app->mesh.triangles);
 
   init_edges_and_vertices_shapes_and_points(app);
 
   for (auto& polygon : app->polygons) {
-    add_patch_shape(app, polygon.inner_faces, {1, 0, 0});
-    add_patch_shape(app, polygon.outer_faces, {0, 0, 1});
+    // add_patch_shape(app, polygon.inner_faces, {1, 0, 0});
+    // add_patch_shape(app, polygon.outer_faces, {0, 0, 1});
   }
+
   // {
   //   auto patch_shape = add_shape(app->glscene, {}, {}, {}, {}, {}, {}, {},
   //   {}); auto patch_material = add_material(
