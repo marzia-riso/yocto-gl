@@ -41,6 +41,7 @@
 #include <yocto_gui/yocto_window.h>
 
 #include <unordered_map>
+#include <unordered_set>
 
 #include "boolsurf_utils.h"
 
@@ -464,7 +465,7 @@ void draw_intersections(shade_scene* scene, const bool_mesh& mesh,
 
 void draw_segment(shade_scene* scene, const bool_mesh& mesh,
     shade_material* material, const vec3f& start, const vec3f& end) {
-  auto radius   = 0.0010f;
+  auto radius   = 0.0006f;
   auto cylinder = make_uvcylinder({4, 1, 1}, {radius, 1});
   for (auto& p : cylinder.positions) {
     p.z = p.z * 0.5 + 0.5;
@@ -572,8 +573,9 @@ void key_input(app_state* app, const gui_input& input) {
         // Hashgrid from triangle idx to <polygon idx, edge_idx, segment idx,
         // segment start uv, segment end uv> to handle intersections and
         // self-intersections
-        auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
-        auto edge_map = unordered_map<vec2i, vector<intersection_node>>();
+        auto hashgrid      = unordered_map<int, vector<hashgrid_entry>>();
+        auto intersections = unordered_map<int, vector<vec2f>>();
+        auto edge_map      = unordered_map<vec2i, vector<intersection_node>>();
         auto counterclockwise = unordered_map<int, bool>();
 
         for (auto p = 0; p < app->polygons.size(); p++) {
@@ -595,75 +597,74 @@ void key_input(app_state* app, const gui_input& input) {
           }
         }
 
-        // for (auto& [face, value] : hashgrid) {
-        //   if (value.size() < 2) continue;
-        //   for (auto i = 0; i < value.size() - 1; i++) {
-        //     auto& segmentAB = value[i];
-        //     for (auto j = i + 1; j < value.size(); j++) {
-        //       auto& segmentCD = value[j];
+        for (auto& [face, value] : hashgrid) {
+          if (value.size() < 2) continue;
+          for (auto i = 0; i < value.size() - 1; i++) {
+            auto& segmentAB = value[i];
+            for (auto j = i + 1; j < value.size(); j++) {
+              auto& segmentCD = value[j];
 
-        //       auto AB = get_edge_points(app->polygons, app->points,
-        //           segmentAB.polygon_id, segmentAB.edge_id);
-        //       auto CD = get_edge_points(app->polygons, app->points,
-        //           segmentCD.polygon_id, segmentCD.edge_id);
+              auto AB = get_edge_points(app->polygons, app->points,
+                  segmentAB.polygon_id, segmentAB.edge_id);
+              auto CD = get_edge_points(app->polygons, app->points,
+                  segmentCD.polygon_id, segmentCD.edge_id);
 
-        //       auto l = intersect_segments(segmentAB.start, segmentAB.end,
-        //           segmentCD.start, segmentCD.end);
+              auto l = intersect_segments(segmentAB.start, segmentAB.end,
+                  segmentCD.start, segmentCD.end);
 
-        //       if (l.x <= 0.0f || l.x >= 1.0f || l.y <= 0.0f || l.y >= 1.0f) {
-        //         continue;
-        //       }
+              if (l.x <= 0.0f || l.x >= 1.0f || l.y <= 0.0f || l.y >= 1.0f) {
+                continue;
+              }
 
-        //       // Detected Intersection
-        //       auto uv = lerp(segmentCD.start, segmentCD.end, l.y);
-        //       // control[face].push_back({segmentAB.start, uv});
-        //       // control[face].push_back({uv, segmentAB.end});
-        //       // control[face].push_back({segmentCD.start, uv});
-        //       // control[face].push_back({uv, segmentCD.end});
+              // Detected Intersection
+              auto uv = lerp(segmentCD.start, segmentCD.end, l.y);
+              intersections[face].push_back(uv);
 
-        //       auto point    = mesh_point{face, uv};
-        //       auto point_id = (int)app->points.size();
+              auto point    = mesh_point{face, uv};
+              auto point_id = (int)app->points.size();
 
-        //       auto orientation = cross(segmentAB.end - segmentAB.start,
-        //           segmentCD.end - segmentCD.start);
-        //       assert(orientation != 0);
-        //       auto ccwise = orientation > 0;
+              auto orientation = cross(segmentAB.end - segmentAB.start,
+                  segmentCD.end - segmentCD.start);
+              assert(orientation != 0);
+              auto ccwise = orientation > 0;
 
-        //       // Flip orientation when self-intersecting.
-        //       // if (segmentAB.polygon_id == segmentCD.polygon_id) {
-        //       //   ccwise = !ccwise;
-        //       // }
+              // Flip orientation when self-intersecting.
+              // if (segmentAB.polygon_id == segmentCD.polygon_id) {
+              //   ccwise = !ccwise;
+              // }
 
-        //       counterclockwise[point_id] = ccwise;
+              counterclockwise[point_id] = ccwise;
 
-        //       //        C
-        //       //        |
-        //       // A -- point -- B
-        //       //        |
-        //       //        D
+              //        C
+              //        |
+              // A -- point -- B
+              //        |
+              //        D
 
-        //       edge_map[AB].push_back({point_id, CD, segmentAB.polygon_id,
-        //           segmentAB.segment_id, l.x});
-        //       edge_map[CD].push_back({point_id, AB, segmentCD.polygon_id,
-        //           segmentCD.segment_id, l.y});
+              edge_map[AB].push_back({point_id, CD, segmentAB.polygon_id,
+                  segmentAB.segment_id, l.x});
+              edge_map[CD].push_back({point_id, AB, segmentCD.polygon_id,
+                  segmentCD.segment_id, l.y});
 
-        //       app->points.push_back(point);
+              app->points.push_back(point);
 
-        //       draw_mesh_point(
-        //           app->glscene, app->mesh, app->isecs_material, point,
-        //           0.0020f);
-        //     }
-        //   }
-        // }
+              // draw_mesh_point(
+              //     app->glscene, app->mesh, app->isecs_material, point,
+              //     0.0020f);
+            }
+          }
+        }
 
         using Point = std::array<float, 2>;
 
         for (auto& [face, infos] : hashgrid) {
-          if (infos.size() > 1) continue;
+          if (infos.size() != 2) continue;
           auto abc = app->mesh.triangles[face];
 
-          vec2f abc_pos[3] = {{0, 0}, {1, 0}, {0, 1}};  // Not so sure
-          auto elements    = vector<vec2f>();
+          vec2f abc_pos[3] = {{0, 0}, {0, 1}, {1, 0}};  // Not so sure
+          auto  point2edge = unordered_map<int, vector<vec2f>>();
+
+          auto elements = vector<vec2f>();
           elements.push_back(abc_pos[0]);
           elements.push_back(abc_pos[1]);
           elements.push_back(abc_pos[2]);
@@ -674,17 +675,28 @@ void key_input(app_state* app, const gui_input& input) {
           auto c_point = Point{abc_pos[2].x, abc_pos[2].y};
           polygon.push_back({a_point, b_point, c_point});
 
+          auto nodes = vector<vec2f>{};
           for (auto& info : infos) {
-            auto start_pos = info.start;
-            auto end_pos   = info.end;
+            // Horror
+            if (find_idx(nodes, info.start) == -1) nodes.push_back(info.start);
+            if (find_idx(nodes, info.end) == -1) nodes.push_back(info.end);
 
-            auto start_point = Point{start_pos.x, start_pos.y};
-            auto end_point   = Point{end_pos.x, end_pos.y};
-            elements.push_back(start_pos);
-            elements.push_back(end_pos);
+            draw_mesh_point(app->glscene, app->mesh, app->isecs_material,
+                {face, info.start}, 0.0015f);
+            draw_mesh_point(app->glscene, app->mesh, app->isecs_material,
+                {face, info.end}, 0.0015f);
+          }
 
-            polygon.push_back({start_point});
-            polygon.push_back({end_point});
+          for (auto& isec : intersections[face]) {
+            if (find_idx(nodes, isec) == -1) nodes.push_back(isec);
+          }
+
+          // if (nodes.size() == 4) continue;
+
+          for (auto& node : nodes) {
+            elements.push_back(node);
+            auto control_point = Point{node.x, node.y};
+            polygon.push_back({control_point});
           }
 
           printf("Polygon size: %d\n", polygon.size());
@@ -695,15 +707,17 @@ void key_input(app_state* app, const gui_input& input) {
             printf("\n");
           }
 
-          vector<int> indices = mapbox::earcut<int>(polygon);
-          printf("Detected triangles: %d\n", (int)(indices.size() / 3));
-          for (int i = 0; i < indices.size() - 2; i += 3) {
-            auto edge1 = vec2i{indices[i], indices[i + 1]};
-            auto edge2 = vec2i{indices[i + 1], indices[i + 2]};
-            auto edge3 = vec2i{indices[i + 2], indices[i]};
-            printf("Triangle: %d ", indices[i]);
-            printf("%d ", indices[i + 1]);
-            printf("%d\n", indices[i + 2]);
+          vector<int> idx = mapbox::earcut<int>(polygon);
+          printf("Detected triangles: %d\n", (int)(idx.size() / 3));
+          for (auto i : idx) printf("%d ", i);
+          printf("\n");
+          for (int i = 0; i < idx.size() - 2; i += 3) {
+            auto edge1 = vec2i{idx[i], idx[i + 1]};
+            auto edge2 = vec2i{idx[i + 1], idx[i + 2]};
+            auto edge3 = vec2i{idx[i + 2], idx[i]};
+            printf("Triangle: %d ", idx[i]);
+            printf("%d ", idx[i + 1]);
+            printf("%d\n", idx[i + 2]);
 
             auto edges = vector<vec2i>({edge1, edge2, edge3});
             for (auto& edge : edges) {
