@@ -595,113 +595,104 @@ void key_input(app_state* app, const gui_input& input) {
           }
         }
 
-        for (auto& [face, value] : hashgrid) {
-          if (value.size() < 2) continue;
-          for (auto i = 0; i < value.size() - 1; i++) {
-            auto& segmentAB = value[i];
-            for (auto j = i + 1; j < value.size(); j++) {
-              auto& segmentCD = value[j];
+        // for (auto& [face, value] : hashgrid) {
+        //   if (value.size() < 2) continue;
+        //   for (auto i = 0; i < value.size() - 1; i++) {
+        //     auto& segmentAB = value[i];
+        //     for (auto j = i + 1; j < value.size(); j++) {
+        //       auto& segmentCD = value[j];
 
-              auto AB = get_edge_points(app->polygons, app->points,
-                  segmentAB.polygon_id, segmentAB.edge_id);
-              auto CD = get_edge_points(app->polygons, app->points,
-                  segmentCD.polygon_id, segmentCD.edge_id);
+        //       auto AB = get_edge_points(app->polygons, app->points,
+        //           segmentAB.polygon_id, segmentAB.edge_id);
+        //       auto CD = get_edge_points(app->polygons, app->points,
+        //           segmentCD.polygon_id, segmentCD.edge_id);
 
-              auto l = intersect_segments(segmentAB.start, segmentAB.end,
-                  segmentCD.start, segmentCD.end);
+        //       auto l = intersect_segments(segmentAB.start, segmentAB.end,
+        //           segmentCD.start, segmentCD.end);
 
-              if (l.x <= 0.0f || l.x >= 1.0f || l.y <= 0.0f || l.y >= 1.0f) {
-                continue;
-              }
+        //       if (l.x <= 0.0f || l.x >= 1.0f || l.y <= 0.0f || l.y >= 1.0f) {
+        //         continue;
+        //       }
 
-              // Detected Intersection
-              auto uv = lerp(segmentCD.start, segmentCD.end, l.y);
-              // control[face].push_back({segmentAB.start, uv});
-              // control[face].push_back({uv, segmentAB.end});
-              // control[face].push_back({segmentCD.start, uv});
-              // control[face].push_back({uv, segmentCD.end});
+        //       // Detected Intersection
+        //       auto uv = lerp(segmentCD.start, segmentCD.end, l.y);
+        //       // control[face].push_back({segmentAB.start, uv});
+        //       // control[face].push_back({uv, segmentAB.end});
+        //       // control[face].push_back({segmentCD.start, uv});
+        //       // control[face].push_back({uv, segmentCD.end});
 
-              auto point    = mesh_point{face, uv};
-              auto point_id = (int)app->points.size();
+        //       auto point    = mesh_point{face, uv};
+        //       auto point_id = (int)app->points.size();
 
-              auto orientation = cross(segmentAB.end - segmentAB.start,
-                  segmentCD.end - segmentCD.start);
-              assert(orientation != 0);
-              auto ccwise = orientation > 0;
+        //       auto orientation = cross(segmentAB.end - segmentAB.start,
+        //           segmentCD.end - segmentCD.start);
+        //       assert(orientation != 0);
+        //       auto ccwise = orientation > 0;
 
-              // Flip orientation when self-intersecting.
-              // if (segmentAB.polygon_id == segmentCD.polygon_id) {
-              //   ccwise = !ccwise;
-              // }
+        //       // Flip orientation when self-intersecting.
+        //       // if (segmentAB.polygon_id == segmentCD.polygon_id) {
+        //       //   ccwise = !ccwise;
+        //       // }
 
-              counterclockwise[point_id] = ccwise;
+        //       counterclockwise[point_id] = ccwise;
 
-              //        C
-              //        |
-              // A -- point -- B
-              //        |
-              //        D
+        //       //        C
+        //       //        |
+        //       // A -- point -- B
+        //       //        |
+        //       //        D
 
-              edge_map[AB].push_back({point_id, CD, segmentAB.polygon_id,
-                  segmentAB.segment_id, l.x});
-              edge_map[CD].push_back({point_id, AB, segmentCD.polygon_id,
-                  segmentCD.segment_id, l.y});
+        //       edge_map[AB].push_back({point_id, CD, segmentAB.polygon_id,
+        //           segmentAB.segment_id, l.x});
+        //       edge_map[CD].push_back({point_id, AB, segmentCD.polygon_id,
+        //           segmentCD.segment_id, l.y});
 
-              app->points.push_back(point);
+        //       app->points.push_back(point);
 
-              draw_mesh_point(
-                  app->glscene, app->mesh, app->isecs_material, point, 0.0020f);
-            }
-          }
-        }
+        //       draw_mesh_point(
+        //           app->glscene, app->mesh, app->isecs_material, point,
+        //           0.0020f);
+        //     }
+        //   }
+        // }
 
-        // Triangles to be divided are inside control_map
-        // First attempt with single triangle
-
-        using Point = std::array<float, 3>;
+        using Point = std::array<float, 2>;
 
         for (auto& [face, infos] : hashgrid) {
+          if (infos.size() > 1) continue;
           auto abc = app->mesh.triangles[face];
 
-          vec3f abc_pos[3];
-          abc_pos[0] = app->mesh.positions[abc.x];
-          abc_pos[1] = app->mesh.positions[abc.y];
-          abc_pos[2] = app->mesh.positions[abc.z];
-
-          auto a_point = Point{abc_pos[0].x, abc_pos[0].y, abc_pos[0].z};
-          auto b_point = Point{abc_pos[1].x, abc_pos[1].y, abc_pos[1].z};
-          auto c_point = Point{abc_pos[2].x, abc_pos[2].y, abc_pos[2].z};
-
-          auto polygon  = vector<vector<Point>>();
-          auto elements = vector<vec3f>();
+          vec2f abc_pos[3] = {{0, 0}, {1, 0}, {0, 1}};  // Not so sure
+          auto elements    = vector<vec2f>();
           elements.push_back(abc_pos[0]);
           elements.push_back(abc_pos[1]);
           elements.push_back(abc_pos[2]);
 
+          auto polygon = vector<vector<Point>>();
+          auto a_point = Point{abc_pos[0].x, abc_pos[0].y};
+          auto b_point = Point{abc_pos[1].x, abc_pos[1].y};
+          auto c_point = Point{abc_pos[2].x, abc_pos[2].y};
           polygon.push_back({a_point, b_point, c_point});
-          for (auto& info : infos) {
-            auto start_pos = eval_position(
-                app->mesh.triangles, app->mesh.positions, {face, info.start});
-            auto end_pos = eval_position(
-                app->mesh.triangles, app->mesh.positions, {face, info.end});
 
-            auto start_point = Point{start_pos.x, start_pos.y, start_pos.z};
-            auto end_point   = Point{end_pos.x, end_pos.y, end_pos.z};
+          for (auto& info : infos) {
+            auto start_pos = info.start;
+            auto end_pos   = info.end;
+
+            auto start_point = Point{start_pos.x, start_pos.y};
+            auto end_point   = Point{end_pos.x, end_pos.y};
             elements.push_back(start_pos);
             elements.push_back(end_pos);
 
-            polygon.push_back({start_point, end_point});
-            draw_mesh_point(app->glscene, app->mesh, app->points_material,
-                mesh_point{face, info.start}, 0.0020f);
-            draw_mesh_point(app->glscene, app->mesh, app->points_material,
-                mesh_point{face, info.end}, 0.0020f);
+            polygon.push_back({start_point});
+            polygon.push_back({end_point});
           }
 
           printf("Polygon size: %d\n", polygon.size());
           for (auto& p : polygon) {
             for (auto& v : p) {
-              printf("%f %f\n", v[0], v[1]);
+              printf("%f %f # ", v[0], v[1]);
             }
+            printf("\n");
           }
 
           vector<int> indices = mapbox::earcut<int>(polygon);
@@ -716,8 +707,8 @@ void key_input(app_state* app, const gui_input& input) {
 
             auto edges = vector<vec2i>({edge1, edge2, edge3});
             for (auto& edge : edges) {
-              draw_segment(app->glscene, app->mesh, app->points_material,
-                  elements[edge.x], elements[edge.y]);
+              draw_mesh_segment(app->glscene, app->mesh, app->points_material,
+                  {elements[edge.x], elements[edge.y], face});
             }
           }
         }
