@@ -676,12 +676,11 @@ void key_input(app_state* app, const gui_input& input) {
             coords.push_back(node.y);
           }
 
-          delaunator::Delaunator d(coords);
-
-          for (int i = 0; i < d.triangles.size(); i += 3) {
-            auto t0 = nodes[d.triangles[i]];
-            auto t1 = nodes[d.triangles[i + 1]];
-            auto t2 = nodes[d.triangles[i + 2]];
+          auto dt = delaunator::Delaunator(coords);
+          for (int i = 0; i < dt.triangles.size(); i += 3) {
+            auto t0 = nodes[dt.triangles[i]];
+            auto t1 = nodes[dt.triangles[i + 1]];
+            auto t2 = nodes[dt.triangles[i + 2]];
 
             draw_mesh_segment(
                 app->glscene, app->mesh, app->points_material, {t0, t1, face});
