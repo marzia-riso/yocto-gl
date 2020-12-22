@@ -656,13 +656,11 @@ void key_input(app_state* app, const gui_input& input) {
         }
 
         using Point = std::array<float, 2>;
-
         for (auto& [face, infos] : hashgrid) {
           if (infos.size() != 2) continue;
           auto abc = app->mesh.triangles[face];
 
           vec2f abc_pos[3] = {{0, 0}, {0, 1}, {1, 0}};  // Not so sure
-          auto  point2edge = unordered_map<int, vector<vec2f>>();
 
           auto elements = vector<vec2f>();
           elements.push_back(abc_pos[0]);
@@ -691,42 +689,42 @@ void key_input(app_state* app, const gui_input& input) {
             if (find_idx(nodes, isec) == -1) nodes.push_back(isec);
           }
 
-          // if (nodes.size() == 4) continue;
-
           for (auto& node : nodes) {
             elements.push_back(node);
             auto control_point = Point{node.x, node.y};
             polygon.push_back({control_point});
           }
 
-          printf("Polygon size: %d\n", polygon.size());
-          for (auto& p : polygon) {
-            for (auto& v : p) {
-              printf("%f %f # ", v[0], v[1]);
-            }
-            printf("\n");
-          }
+          // printf("Polygon size: %d\n", polygon.size());
+          // for (auto& p : polygon) {
+          //   for (auto& v : p) {
+          //     printf("%f %f # ", v[0], v[1]);
+          //   }
+          //   printf("\n");
+          // }
 
           vector<int> idx = mapbox::earcut<int>(polygon);
-          printf("Detected triangles: %d\n", (int)(idx.size() / 3));
-          for (auto i : idx) printf("%d ", i);
-          printf("\n");
-          for (int i = 0; i < idx.size() - 2; i += 3) {
-            auto edge1 = vec2i{idx[i], idx[i + 1]};
-            auto edge2 = vec2i{idx[i + 1], idx[i + 2]};
-            auto edge3 = vec2i{idx[i + 2], idx[i]};
-            printf("Triangle: %d ", idx[i]);
-            printf("%d ", idx[i + 1]);
-            printf("%d\n", idx[i + 2]);
+          // printf("Detected triangles: %d\n", (int)(idx.size() / 3));
+          // for (auto i : idx) printf("%d ", i);
+          // printf("\n");
 
-            auto edges = vector<vec2i>({edge1, edge2, edge3});
-            for (auto& edge : edges) {
-              draw_mesh_segment(app->glscene, app->mesh, app->points_material,
-                  {elements[edge.x], elements[edge.y], face});
-            }
+          for (int i = 0; i < idx.size(); i += 3) {
+            auto t0 = elements[idx[i]];
+            auto t1 = elements[idx[i + 1]];
+            auto t2 = elements[idx[i + 2]];
+
+            // printf("Triangle: %d ", idx[i]);
+            // printf("%d ", idx[i + 1]);
+            // printf("%d\n", idx[i + 2]);
+
+            draw_mesh_segment(
+                app->glscene, app->mesh, app->points_material, {t0, t1, face});
+            draw_mesh_segment(
+                app->glscene, app->mesh, app->points_material, {t1, t2, face});
+            draw_mesh_segment(
+                app->glscene, app->mesh, app->points_material, {t2, t0, face});
           }
         }
-        break;
 
         // auto graph = compute_graph(
         //     app->points.size(), edge_map, counterclockwise);
