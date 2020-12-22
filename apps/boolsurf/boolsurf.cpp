@@ -44,6 +44,8 @@
 #include <unordered_set>
 
 #include "boolsurf_utils.h"
+#include "ext/delaunator.cpp"
+#include "ext/earcut.hpp"
 
 using namespace yocto;
 
@@ -655,67 +657,30 @@ void key_input(app_state* app, const gui_input& input) {
           }
         }
 
-        using Point = std::array<float, 2>;
         for (auto& [face, infos] : hashgrid) {
-          if (infos.size() != 2) continue;
-          auto abc = app->mesh.triangles[face];
-
-          vec2f abc_pos[3] = {{0, 0}, {0, 1}, {1, 0}};  // Not so sure
-
-          auto elements = vector<vec2f>();
-          elements.push_back(abc_pos[0]);
-          elements.push_back(abc_pos[1]);
-          elements.push_back(abc_pos[2]);
-
-          auto polygon = vector<vector<Point>>();
-          auto a_point = Point{abc_pos[0].x, abc_pos[0].y};
-          auto b_point = Point{abc_pos[1].x, abc_pos[1].y};
-          auto c_point = Point{abc_pos[2].x, abc_pos[2].y};
-          polygon.push_back({a_point, b_point, c_point});
-
-          auto nodes = vector<vec2f>{};
+          auto nodes = vector<vec2f>{{0, 0}, {1, 0}, {0, 1}};
           for (auto& info : infos) {
             // Horror
             if (find_idx(nodes, info.start) == -1) nodes.push_back(info.start);
             if (find_idx(nodes, info.end) == -1) nodes.push_back(info.end);
-
-            draw_mesh_point(app->glscene, app->mesh, app->isecs_material,
-                {face, info.start}, 0.0015f);
-            draw_mesh_point(app->glscene, app->mesh, app->isecs_material,
-                {face, info.end}, 0.0015f);
           }
 
           for (auto& isec : intersections[face]) {
             if (find_idx(nodes, isec) == -1) nodes.push_back(isec);
           }
 
+          auto coords = vector<double>();
           for (auto& node : nodes) {
-            elements.push_back(node);
-            auto control_point = Point{node.x, node.y};
-            polygon.push_back({control_point});
+            coords.push_back(node.x);
+            coords.push_back(node.y);
           }
 
-          // printf("Polygon size: %d\n", polygon.size());
-          // for (auto& p : polygon) {
-          //   for (auto& v : p) {
-          //     printf("%f %f # ", v[0], v[1]);
-          //   }
-          //   printf("\n");
-          // }
+          delaunator::Delaunator d(coords);
 
-          vector<int> idx = mapbox::earcut<int>(polygon);
-          // printf("Detected triangles: %d\n", (int)(idx.size() / 3));
-          // for (auto i : idx) printf("%d ", i);
-          // printf("\n");
-
-          for (int i = 0; i < idx.size(); i += 3) {
-            auto t0 = elements[idx[i]];
-            auto t1 = elements[idx[i + 1]];
-            auto t2 = elements[idx[i + 2]];
-
-            // printf("Triangle: %d ", idx[i]);
-            // printf("%d ", idx[i + 1]);
-            // printf("%d\n", idx[i + 2]);
+          for (int i = 0; i < d.triangles.size(); i += 3) {
+            auto t0 = nodes[d.triangles[i]];
+            auto t1 = nodes[d.triangles[i + 1]];
+            auto t2 = nodes[d.triangles[i + 2]];
 
             draw_mesh_segment(
                 app->glscene, app->mesh, app->points_material, {t0, t1, face});
