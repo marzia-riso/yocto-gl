@@ -487,8 +487,8 @@ void draw_mesh_segment(shade_scene* scene, const bool_mesh& mesh,
   auto start = mesh_point{segment.face, segment.start};
   auto end   = mesh_point{segment.face, segment.end};
 
-  draw_mesh_point(scene, mesh, material, start, 0.0016f);
-  draw_mesh_point(scene, mesh, material, end, 0.0016f);
+  draw_mesh_point(scene, mesh, material, start, 0.0012f);
+  draw_mesh_point(scene, mesh, material, end, 0.0012f);
 
   auto pos_start = eval_position(mesh.triangles, mesh.positions, start);
   auto pos_end   = eval_position(mesh.triangles, mesh.positions, end);
@@ -670,6 +670,7 @@ void key_input(app_state* app, const gui_input& input) {
           }
 
           auto coords = vector<double>();
+          coords.reserve(nodes.size() * 2);
           for (auto& node : nodes) {
             coords.push_back(node.x);
             coords.push_back(node.y);
