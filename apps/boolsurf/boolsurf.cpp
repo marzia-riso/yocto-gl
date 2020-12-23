@@ -664,11 +664,19 @@ void key_input(app_state* app, const gui_input& input) {
         // TODO(giacomo): make this a function
         for (auto& [face, infos] : hashgrid) {
           auto nodes = vector<vec2f>{{0, 0}, {1, 0}, {0, 1}};
-          for (auto& info : infos) {
-            // Horror
-            if (find_idx(nodes, info.start) == -1) nodes.push_back(info.start);
-            if (find_idx(nodes, info.end) == -1) nodes.push_back(info.end);
-          }
+          // for (auto& info : infos) {
+          //   // Horror
+          //   if (find_idx(nodes, info.start) == -1)
+          //   nodes.push_back(info.start); if (find_idx(nodes, info.end) == -1)
+          //   nodes.push_back(info.end);
+          // }
+          // unordered_map<vec2i,
+          // for (auto& path : info) {
+          //     int id = nodes.push_back
+          //     for (int i = 0; i < path.size(); i++) {
+          //         nodes.push_back(path[i]);
+          //     }
+          // }
 
           for (auto& isec : intersections[face]) {
             if (find_idx(nodes, isec) == -1) nodes.push_back(isec);
@@ -713,6 +721,28 @@ void key_input(app_state* app, const gui_input& input) {
             // draw_mesh_segment(app->glscene, app->mesh, app->points_material,
             //     {t2, t0, face}, 0.00006f);
           }
+
+          auto edge_map = unordered_map<vec2i(edge), vec2i(face)>{};
+          for (int i = 0; i < dt_triangles; i++) {
+            for (int k = 0; k < 3; k++) {
+              auto edge = make_key(tr[k], tr[(k + 1) % 3]);
+              if (edge_map.find(edge) == edge_map.end()) {
+                edge_map[edge] = {i, -1};
+              } else {
+                edge_map[edge].y = i;
+              }
+            }
+          }
+
+          for (auto& path : info.paths) {
+            for (int i = 0; i < path.size() - 1; i++) {
+              auto edge  = {path[i], path[i] + 1};
+              auto faces = edge_map.at(edge);
+              app->polygons[path.polygon_id].inner_faces.push_back(faces.x);
+              app->polygons[path.polygon_id].outer_faces.push_back(faces.y);
+            }
+          }
+
           mesh.triangles[face] = {0, 0, 0};
         }
 

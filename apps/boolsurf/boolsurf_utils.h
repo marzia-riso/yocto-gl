@@ -22,8 +22,7 @@ struct hashgrid_entry {
   int edge_id    = -1;
   int segment_id = -1;
 
-  vec2f start;
-  vec2f end;
+  vector<vec2f> face_path = {};
 };
 
 struct mesh_segment {
