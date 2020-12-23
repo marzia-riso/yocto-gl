@@ -466,8 +466,8 @@ void draw_intersections(shade_scene* scene, const bool_mesh& mesh,
 }
 
 void draw_segment(shade_scene* scene, const bool_mesh& mesh,
-    shade_material* material, const vec3f& start, const vec3f& end) {
-  auto radius   = 0.0006f;
+    shade_material* material, const vec3f& start, const vec3f& end,
+    float radius = 0.0006f) {
   auto cylinder = make_uvcylinder({4, 1, 1}, {radius, 1});
   for (auto& p : cylinder.positions) {
     p.z = p.z * 0.5 + 0.5;
@@ -483,17 +483,18 @@ void draw_segment(shade_scene* scene, const bool_mesh& mesh,
 }
 
 void draw_mesh_segment(shade_scene* scene, const bool_mesh& mesh,
-    shade_material* material, const mesh_segment& segment) {
+    shade_material* material, const mesh_segment& segment,
+    float radius = 0.0012f) {
   auto start = mesh_point{segment.face, segment.start};
   auto end   = mesh_point{segment.face, segment.end};
 
-  draw_mesh_point(scene, mesh, material, start, 0.0012f);
-  draw_mesh_point(scene, mesh, material, end, 0.0012f);
+  draw_mesh_point(scene, mesh, material, start, radius);
+  draw_mesh_point(scene, mesh, material, end, radius);
 
   auto pos_start = eval_position(mesh.triangles, mesh.positions, start);
   auto pos_end   = eval_position(mesh.triangles, mesh.positions, end);
 
-  draw_segment(scene, mesh, material, pos_start, pos_end);
+  draw_segment(scene, mesh, material, pos_start, pos_end, radius / 2);
 }
 
 void draw_arrangement(shade_scene* scene, const bool_mesh& mesh,
@@ -549,12 +550,12 @@ void mouse_input(app_state* app, const gui_input& input) {
       polygon.points.push_back(app->points.size() - 1);
 
       draw_mesh_point(
-          app->glscene, app->mesh, app->paths_material, point, 0.0010f);
+          app->glscene, app->mesh, app->paths_material, point, 0.00006f);
 
       if (polygon.points.size() > 1) {
         auto geo_path = compute_path(polygon, app->points, app->mesh);
         draw_path(
-            app->glscene, app->mesh, app->paths_material, geo_path, 0.0005f);
+            app->glscene, app->mesh, app->paths_material, geo_path, 0.00006f);
 
         auto segments = mesh_segments(app->mesh.triangles, geo_path.strip,
             geo_path.lerps, geo_path.start, geo_path.end);
@@ -657,6 +658,10 @@ void key_input(app_state* app, const gui_input& input) {
           }
         }
 
+        auto edge_map = unordered_map<vec2i, vector<int>>{};
+        // init edge_map...
+
+        // TODO(giacomo): make this a function
         for (auto& [face, infos] : hashgrid) {
           auto nodes = vector<vec2f>{{0, 0}, {1, 0}, {0, 1}};
           for (auto& info : infos) {
@@ -667,6 +672,19 @@ void key_input(app_state* app, const gui_input& input) {
 
           for (auto& isec : intersections[face]) {
             if (find_idx(nodes, isec) == -1) nodes.push_back(isec);
+          }
+
+          auto mapping = vector<int>(nodes.size());
+          mapping[0]   = mesh.triangles[face][0];
+          mapping[1]   = mesh.triangles[face][1];
+          mapping[2]   = mesh.triangles[face][2];
+          for (int i = 3; i < nodes.size(); i++) {
+            auto point = mesh_point{face, nodes[i]};
+            auto pos   = eval_position(
+                app.mesh.triangles, app.mesh.positions, point);
+            auto id = app.mesh.positions.size();
+            app.mesh.positions.push_back(pos);
+            mapping[i] = id;
           }
 
           auto coords = vector<double>();
@@ -682,13 +700,20 @@ void key_input(app_state* app, const gui_input& input) {
             auto t1 = nodes[dt.triangles[i + 1]];
             auto t2 = nodes[dt.triangles[i + 2]];
 
-            draw_mesh_segment(
-                app->glscene, app->mesh, app->points_material, {t0, t1, face});
-            draw_mesh_segment(
-                app->glscene, app->mesh, app->points_material, {t1, t2, face});
-            draw_mesh_segment(
-                app->glscene, app->mesh, app->points_material, {t2, t0, face});
+            auto i0 = mapping[dt.triangles[i]];
+            auto i1 = mapping[dt.triangles[i + 1]];
+            auto i2 = mapping[dt.triangles[i + 2]];
+
+            mesh.triangles.push_back({i0, i1, i2});
+
+            // draw_mesh_segment(app->glscene, app->mesh, app->points_material,
+            //     {t0, t1, face}, 0.00006f);
+            // draw_mesh_segment(app->glscene, app->mesh, app->points_material,
+            //     {t1, t2, face}, 0.00006f);
+            // draw_mesh_segment(app->glscene, app->mesh, app->points_material,
+            //     {t2, t0, face}, 0.00006f);
           }
+          mesh.triangles[face] = {0, 0, 0};
         }
 
         // auto graph = compute_graph(
@@ -755,7 +780,7 @@ void key_input(app_state* app, const gui_input& input) {
 
         auto geo_path = compute_path(polygon, app->points, app->mesh);
         draw_path(
-            app->glscene, app->mesh, app->paths_material, geo_path, 0.0005f);
+            app->glscene, app->mesh, app->paths_material, geo_path, 0.00006f);
 
         auto segments = mesh_segments(app->mesh.triangles, geo_path.strip,
             geo_path.lerps, geo_path.start, geo_path.end);
