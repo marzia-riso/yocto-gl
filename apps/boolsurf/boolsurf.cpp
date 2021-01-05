@@ -742,11 +742,28 @@ void do_the_thing(app_state* app) {
     }
 
     auto dt = delaunator::Delaunator(coords);
-    printf("Triangles: %d\n", dt.triangles.size() / 3);
+    // if ((dt.triangles.size() / 3) != 6) continue;
+    printf("Face: %d - Triangles: %d\n", face, dt.triangles.size() / 3);
+    // for (auto i = 0; i < nodes.size(); i++)
+    //   printf("Node %d - (%f, %f)\n", i, nodes[i].x, nodes[i].y);
+
+    // printf("Triangles: %d\n", dt.triangles.size() / 3);
     for (int i = 0; i < dt.triangles.size(); i += 3) {
       auto t0 = nodes[dt.triangles[i]];
       auto t1 = nodes[dt.triangles[i + 1]];
       auto t2 = nodes[dt.triangles[i + 2]];
+
+      auto v  = t1 - t0;
+      auto w  = t2 - t1;
+      auto or = cross(v, w);
+      // printf("Orientation: %f\n", or);
+      if ((or == 0.0f) || (or == -0.0f)) {
+        // printf("Collinear Triangle: %d %d %d\n", dt.triangles[i],
+        //     dt.triangles[i + 1], dt.triangles[i + 2]);
+        continue;
+      }
+      printf("Triangle: %d %d %d\n", dt.triangles[i], dt.triangles[i + 1],
+          dt.triangles[i + 2]);
 
       auto i0 = mapping[dt.triangles[i]];
       auto i1 = mapping[dt.triangles[i + 1]];

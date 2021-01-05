@@ -31,6 +31,7 @@
 
 #include <yocto/yocto_commonio.h>
 
+#include <algorithm>
 #include <mutex>
 #include <unordered_map>
 
