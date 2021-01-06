@@ -194,6 +194,74 @@ inline vector<mesh_segment> mesh_segments(const vector<vec3i>& triangles,
   return result;
 }
 
+inline vec2i make_edge_key(const vec2i& edge) {
+  if (edge.x < edge.y) return {edge.y, edge.x};
+  return edge;
+};
+
+inline vec2i get_mesh_edge(const vec3i& triangle, const vec2f& uv) {
+  if (uv.y == 0)
+    return vec2i{triangle.x, triangle.y};  // point on edge(xy)
+  else if (uv.x == 0)
+    return vec2i{triangle.x, triangle.z};  // point on edge (xz)
+  else if ((uv.x + uv.y) == 1.0f)
+    return vec2i{triangle.y, triangle.z};  // point on edge (yz)
+  else
+    return zero2i;
+}
+
+inline vector<int> compute_mapping(const vector<vec2f>& nodes, const int face,
+    bool_mesh& mesh, unordered_map<vec2i, vector<int>>& vertex_edgemap) {
+  auto mapping = vector<int>(nodes.size());
+  auto verts   = mesh.triangles[face];
+  mapping[0]   = verts.x;
+  mapping[1]   = verts.y;
+  mapping[2]   = verts.z;
+
+  for (int i = 3; i < nodes.size(); i++) {
+    auto point = mesh_point{face, nodes[i]};
+    auto pos   = eval_position(mesh.triangles, mesh.positions, point);
+
+    // Ordered edge where the point lies
+    auto id   = -1;
+    auto edge = get_mesh_edge(verts, nodes[i]);
+    edge      = make_edge_key(edge);
+
+    // Point in triangle
+    if (edge == zero2i) {
+      id = mesh.positions.size();
+      mesh.positions.push_back(pos);
+      mapping[i] = id;
+      continue;
+    }
+
+    // Point already existing on edge
+    auto edgepoints = vertex_edgemap[edge];
+    for (auto& p : edgepoints)
+      if (mesh.positions[p] == pos) {
+        id = p;
+        break;
+      }
+
+    if (id == -1) {
+      id = mesh.positions.size();
+      mesh.positions.push_back(pos);
+      vertex_edgemap[edge].push_back(id);
+    }
+
+    mapping[i] = id;
+  }
+  return mapping;
+}
+
+float collinear(const vec2f& a, const vec2f& b, const vec2f& c) {
+  auto v  = b - a;
+  auto w  = c - b;
+  auto or = cross(v, w);
+  printf("Or: %f\n", or);
+  return ((or == 0.0f) || (or == -0.0f));
+}
+
 inline void print_graph(const vector<vector<int>>& graph) {
   printf("Graph:\n");
   for (int i = 0; i < graph.size(); i++) {

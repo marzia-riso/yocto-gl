@@ -699,17 +699,19 @@ void do_the_thing(app_state* app) {
     }
   }
 
-  // auto edge_map = unordered_map<vec2i, vector<int>>{};
-  // init edge_map...
+  auto vertex_edgemap = unordered_map<vec2i, vector<int>>{};
 
   // TODO(giacomo): make this a function
   for (auto& [face, infos] : hashgrid) {
     auto nodes = vector<vec2f>{{0, 0}, {1, 0}, {0, 1}};
     for (auto& info : infos) {
-      if (find_idx(nodes, info.start) == -1) nodes.push_back(info.start);
-      if (find_idx(nodes, info.end) == -1) nodes.push_back(info.end);
+      if (find_idx(nodes, info.start) == -1) {
+        nodes.push_back(info.start);
+      }
+      if (find_idx(nodes, info.end) == -1) {
+        nodes.push_back(info.end);
+      }
     }
-
     // unordered_map<vec2i,
     // for (auto& path : info) {
     //     int id = nodes.push_back
@@ -722,17 +724,8 @@ void do_the_thing(app_state* app) {
       if (find_idx(nodes, isec) == -1) nodes.push_back(isec);
     }
 
-    auto mapping = vector<int>(nodes.size());
-    mapping[0]   = app->mesh.triangles[face][0];
-    mapping[1]   = app->mesh.triangles[face][1];
-    mapping[2]   = app->mesh.triangles[face][2];
-    for (int i = 3; i < nodes.size(); i++) {
-      auto point = mesh_point{face, nodes[i]};
-      auto pos = eval_position(app->mesh.triangles, app->mesh.positions, point);
-      auto id  = app->mesh.positions.size();
-      app->mesh.positions.push_back(pos);
-      mapping[i] = id;
-    }
+    // Mesh update + compute mapping from triangle nodes to mesh positions
+    auto mapping = compute_mapping(nodes, face, app->mesh, vertex_edgemap);
 
     auto coords = vector<double>();
     coords.reserve(nodes.size() * 2);
@@ -742,41 +735,24 @@ void do_the_thing(app_state* app) {
     }
 
     auto dt = delaunator::Delaunator(coords);
-    // if ((dt.triangles.size() / 3) != 6) continue;
-    printf("Face: %d - Triangles: %d\n", face, dt.triangles.size() / 3);
-    // for (auto i = 0; i < nodes.size(); i++)
-    //   printf("Node %d - (%f, %f)\n", i, nodes[i].x, nodes[i].y);
-
-    // printf("Triangles: %d\n", dt.triangles.size() / 3);
+    // printf("Face: %d - Triangles: %d\n", face, dt.triangles.size() / 3);
     for (int i = 0; i < dt.triangles.size(); i += 3) {
-      auto t0 = nodes[dt.triangles[i]];
-      auto t1 = nodes[dt.triangles[i + 1]];
-      auto t2 = nodes[dt.triangles[i + 2]];
+      auto a = nodes[dt.triangles[i]];
+      auto b = nodes[dt.triangles[i + 1]];
+      auto c = nodes[dt.triangles[i + 2]];
 
-      auto v  = t1 - t0;
-      auto w  = t2 - t1;
-      auto or = cross(v, w);
-      // printf("Orientation: %f\n", or);
-      if ((or == 0.0f) || (or == -0.0f)) {
-        // printf("Collinear Triangle: %d %d %d\n", dt.triangles[i],
-        //     dt.triangles[i + 1], dt.triangles[i + 2]);
-        continue;
-      }
-      printf("Triangle: %d %d %d\n", dt.triangles[i], dt.triangles[i + 1],
-          dt.triangles[i + 2]);
+      // Collinearity
+      auto or = std::abs(cross(b - a, c - b));
+      if (or == 0.0) continue;
+
+      // printf("Triangle: %d %d %d\n", dt.triangles[i], dt.triangles[i + 1],
+      //     dt.triangles[i + 2]);
 
       auto i0 = mapping[dt.triangles[i]];
       auto i1 = mapping[dt.triangles[i + 1]];
       auto i2 = mapping[dt.triangles[i + 2]];
 
       app->mesh.triangles.push_back({i0, i1, i2});
-
-      // draw_mesh_segment(app->glscene, app->mesh, app->points_material,
-      //     {t0, t1, face}, 0.0015f);
-      // draw_mesh_segment(app->glscene, app->mesh, app->points_material,
-      //     {t1, t2, face}, 0.0015f);
-      // draw_mesh_segment(app->glscene, app->mesh, app->points_material,
-      //     {t2, t0, face}, 0.0015f);
     }
 
     // auto edge_map = unordered_map<vec2i(edge), vec2i(face)>{};
@@ -790,7 +766,6 @@ void do_the_thing(app_state* app) {
     //     }
     //   }
     // }
-
     // for (auto& path : info.paths) {
     //   for (int i = 0; i < path.size() - 1; i++) {
     //     auto edge  = {path[i], path[i] + 1};
@@ -807,7 +782,7 @@ void do_the_thing(app_state* app) {
     ist->hidden = true;
   }
   app->mesh.normals = compute_normals(app->mesh.triangles, app->mesh.positions);
-  // app->mesh.adjacencies = face_adjacencies(app->mesh.triangles);
+  app->mesh.adjacencies = face_adjacencies(app->mesh.triangles);
 
   set_positions(app->mesh_shape, app->mesh.positions);
   set_triangles(app->mesh_shape, app->mesh.triangles);
