@@ -77,7 +77,6 @@ struct app_state {
 
   vector<mesh_polygon> polygons = {};
   vector<mesh_point>   points   = {};  // Click inserted points
-  // vector<isec_polygon> intersections = {};
 
   // rendering state
   shade_scene*  glscene        = new shade_scene{};
@@ -699,14 +698,13 @@ void do_the_thing(app_state* app) {
   }
 
   auto vertex_edgemap = unordered_map<vec2i, vector<int>>{};
+  auto face_edgemap   = unordered_map<vec2i, vec2i>();
 
   // TODO(giacomo): make this a function
   for (auto& [face, infos] : hashgrid) {
     auto nodes = vector<vec2f>{{0, 0}, {1, 0}, {0, 1}};
-    for (auto& info : infos) {
-      if (find_idx(nodes, info.start) == -1) nodes.push_back(info.start);
-      if (find_idx(nodes, info.end) == -1) nodes.push_back(info.end);
-    }
+
+    // TODO(marzia): refactor nodes creation
     // unordered_map<vec2i,
     // for (auto& path : info) {
     //     int id = nodes.push_back
@@ -715,53 +713,35 @@ void do_the_thing(app_state* app) {
     //     }
     // }
 
+    for (auto& info : infos) {
+      if (find_idx(nodes, info.start) == -1) nodes.push_back(info.start);
+      if (find_idx(nodes, info.end) == -1) nodes.push_back(info.end);
+    }
+
     for (auto& isec : intersections[face]) {
       if (find_idx(nodes, isec) == -1) nodes.push_back(isec);
     }
 
     // Mesh update + compute mapping from triangle nodes to mesh positions
-    auto mapping = compute_mapping(nodes, face, app->mesh, vertex_edgemap);
-
+    auto mapping   = compute_mapping(nodes, face, app->mesh, vertex_edgemap);
     auto triangles = triangulate(nodes);
+
+    printf("\n Face: %d Triangles: %d\n", face, triangles.size());
     for (auto i = 0; i < triangles.size(); i++) {
       auto& verts = triangles[i];
 
-      // Collinearity
-      auto& a = nodes[verts.x];
-      auto& b = nodes[verts.y];
-      auto& c = nodes[verts.z];
-      auto or = std::abs(cross(b - a, c - b));
-      if (or == 0.0) continue;
-
       // printf("Triangle: %d %d %d\n", verts.x, verts.y, verts.z);
-
       auto i0 = mapping[verts.x];
       auto i1 = mapping[verts.y];
       auto i2 = mapping[verts.z];
 
+      auto triangle_idx = app->mesh.triangles.size();
       app->mesh.triangles.push_back({i0, i1, i2});
+
+      update_face_edgemap(face_edgemap, {i0, i1}, triangle_idx);
+      update_face_edgemap(face_edgemap, {i1, i2}, triangle_idx);
+      update_face_edgemap(face_edgemap, {i2, i0}, triangle_idx);
     }
-
-    // auto edge_map = unordered_map<vec2i(edge), vec2i(face)>{};
-    // for (int i = 0; i < dt_triangles; i++) {
-    //   for (int k = 0; k < 3; k++) {
-    //     auto edge = make_key(tr[k], tr[(k + 1) % 3]);
-    //     if (edge_map.find(edge) == edge_map.end()) {
-    //       edge_map[edge] = {i, -1};
-    //     } else {
-    //       edge_map[edge].y = i;
-    //     }
-    //   }
-    // }
-    // for (auto& path : info.paths) {
-    //   for (int i = 0; i < path.size() - 1; i++) {
-    //     auto edge  = {path[i], path[i] + 1};
-    //     auto faces = edge_map.at(edge);
-    //     app->polygons[path.polygon_id].inner_faces.push_back(faces.x);
-    //     app->polygons[path.polygon_id].outer_faces.push_back(faces.y);
-    //   }
-    // }
-
     app->mesh.triangles[face] = {0, 0, 0};
   }
 

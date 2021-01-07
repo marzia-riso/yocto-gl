@@ -197,7 +197,7 @@ inline vector<mesh_segment> mesh_segments(const vector<vec3i>& triangles,
 }
 
 inline vec2i make_edge_key(const vec2i& edge) {
-  if (edge.x < edge.y) return {edge.y, edge.x};
+  if (edge.x > edge.y) return {edge.y, edge.x};
   return edge;
 };
 
@@ -270,17 +270,29 @@ inline vector<vec3i> triangulate(const vector<vec2f>& nodes) {
   for (int i = 0; i < dt.triangles.size(); i += 3) {
     auto verts = vec3i{(int)dt.triangles[i], (int)dt.triangles[i + 1],
         (int)dt.triangles[i + 2]};
+
+    // Check collinearity
+    auto& a = nodes[verts.x];
+    auto& b = nodes[verts.y];
+    auto& c = nodes[verts.z];
+    auto or = std::abs(cross(b - a, c - b));
+    if (or == 0.0) {
+      printf("\tCollinear\n");
+      continue;
+    }
+
     triangles.push_back(verts);
   }
   return triangles;
 }
 
-float collinearity(const vector<vec2f>& nodes, const vec3i& triangle) {
-  auto& a = nodes[triangle.x];
-  auto& b = nodes[triangle.y];
-  auto& c = nodes[triangle.z];
-
-  return std::abs(cross(b - a, c - b));
+inline void update_face_edgemap(unordered_map<vec2i, vec2i>& face_edgemap,
+    const vec2i& edge, const int face) {
+  auto key = make_edge_key(edge);
+  if (face_edgemap.find(key) == face_edgemap.end())
+    face_edgemap[key] = {face, -1};
+  else
+    face_edgemap[key].y = face;
 }
 
 inline void print_graph(const vector<vector<int>>& graph) {
