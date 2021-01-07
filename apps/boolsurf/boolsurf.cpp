@@ -44,7 +44,6 @@
 #include <unordered_set>
 
 #include "boolsurf_utils.h"
-#include "ext/delaunator.cpp"
 #include "ext/earcut.hpp"
 
 using namespace yocto;
@@ -705,12 +704,8 @@ void do_the_thing(app_state* app) {
   for (auto& [face, infos] : hashgrid) {
     auto nodes = vector<vec2f>{{0, 0}, {1, 0}, {0, 1}};
     for (auto& info : infos) {
-      if (find_idx(nodes, info.start) == -1) {
-        nodes.push_back(info.start);
-      }
-      if (find_idx(nodes, info.end) == -1) {
-        nodes.push_back(info.end);
-      }
+      if (find_idx(nodes, info.start) == -1) nodes.push_back(info.start);
+      if (find_idx(nodes, info.end) == -1) nodes.push_back(info.end);
     }
     // unordered_map<vec2i,
     // for (auto& path : info) {
@@ -727,30 +722,22 @@ void do_the_thing(app_state* app) {
     // Mesh update + compute mapping from triangle nodes to mesh positions
     auto mapping = compute_mapping(nodes, face, app->mesh, vertex_edgemap);
 
-    auto coords = vector<double>();
-    coords.reserve(nodes.size() * 2);
-    for (auto& node : nodes) {
-      coords.push_back(node.x);
-      coords.push_back(node.y);
-    }
-
-    auto dt = delaunator::Delaunator(coords);
-    // printf("Face: %d - Triangles: %d\n", face, dt.triangles.size() / 3);
-    for (int i = 0; i < dt.triangles.size(); i += 3) {
-      auto a = nodes[dt.triangles[i]];
-      auto b = nodes[dt.triangles[i + 1]];
-      auto c = nodes[dt.triangles[i + 2]];
+    auto triangles = triangulate(nodes);
+    for (auto i = 0; i < triangles.size(); i++) {
+      auto& verts = triangles[i];
 
       // Collinearity
+      auto& a = nodes[verts.x];
+      auto& b = nodes[verts.y];
+      auto& c = nodes[verts.z];
       auto or = std::abs(cross(b - a, c - b));
       if (or == 0.0) continue;
 
-      // printf("Triangle: %d %d %d\n", dt.triangles[i], dt.triangles[i + 1],
-      //     dt.triangles[i + 2]);
+      // printf("Triangle: %d %d %d\n", verts.x, verts.y, verts.z);
 
-      auto i0 = mapping[dt.triangles[i]];
-      auto i1 = mapping[dt.triangles[i + 1]];
-      auto i2 = mapping[dt.triangles[i + 2]];
+      auto i0 = mapping[verts.x];
+      auto i1 = mapping[verts.y];
+      auto i2 = mapping[verts.z];
 
       app->mesh.triangles.push_back({i0, i1, i2});
     }

@@ -6,6 +6,8 @@
 #include <cassert>
 #include <unordered_set>
 
+#include "ext/delaunator.cpp"
+
 using namespace yocto;
 using namespace std;
 
@@ -254,12 +256,31 @@ inline vector<int> compute_mapping(const vector<vec2f>& nodes, const int face,
   return mapping;
 }
 
-float collinear(const vec2f& a, const vec2f& b, const vec2f& c) {
-  auto v  = b - a;
-  auto w  = c - b;
-  auto or = cross(v, w);
-  printf("Or: %f\n", or);
-  return ((or == 0.0f) || (or == -0.0f));
+inline vector<vec3i> triangulate(const vector<vec2f>& nodes) {
+  auto coords = vector<double>();
+  coords.reserve(nodes.size() * 2);
+  for (auto& node : nodes) {
+    coords.push_back(node.x);
+    coords.push_back(node.y);
+  }
+
+  auto dt        = delaunator::Delaunator(coords);
+  auto triangles = vector<vec3i>();
+  triangles.reserve(dt.triangles.size() / 3);
+  for (int i = 0; i < dt.triangles.size(); i += 3) {
+    auto verts = vec3i{(int)dt.triangles[i], (int)dt.triangles[i + 1],
+        (int)dt.triangles[i + 2]};
+    triangles.push_back(verts);
+  }
+  return triangles;
+}
+
+float collinearity(const vector<vec2f>& nodes, const vec3i& triangle) {
+  auto& a = nodes[triangle.x];
+  auto& b = nodes[triangle.y];
+  auto& c = nodes[triangle.z];
+
+  return std::abs(cross(b - a, c - b));
 }
 
 inline void print_graph(const vector<vector<int>>& graph) {
