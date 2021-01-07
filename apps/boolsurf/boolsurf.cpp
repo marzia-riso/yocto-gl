@@ -699,6 +699,7 @@ void do_the_thing(app_state* app) {
 
   auto vertex_edgemap = unordered_map<vec2i, vector<int>>{};
   auto face_edgemap   = unordered_map<vec2i, vec2i>();
+  printf("Pre positions: %d\n", app->mesh.positions.size());
 
   // TODO(giacomo): make this a function
   for (auto& [face, infos] : hashgrid) {
@@ -726,14 +727,11 @@ void do_the_thing(app_state* app) {
     auto mapping   = compute_mapping(nodes, face, app->mesh, vertex_edgemap);
     auto triangles = triangulate(nodes);
 
-    printf("\n Face: %d Triangles: %d\n", face, triangles.size());
     for (auto i = 0; i < triangles.size(); i++) {
       auto& verts = triangles[i];
-
-      // printf("Triangle: %d %d %d\n", verts.x, verts.y, verts.z);
-      auto i0 = mapping[verts.x];
-      auto i1 = mapping[verts.y];
-      auto i2 = mapping[verts.z];
+      auto  i0    = mapping[verts.x];
+      auto  i1    = mapping[verts.y];
+      auto  i2    = mapping[verts.z];
 
       auto triangle_idx = app->mesh.triangles.size();
       app->mesh.triangles.push_back({i0, i1, i2});
@@ -744,6 +742,8 @@ void do_the_thing(app_state* app) {
     }
     app->mesh.triangles[face] = {0, 0, 0};
   }
+
+  printf("Positions: %d\n", app->mesh.positions.size());
 
   for (auto& ist : app->instances) {
     ist->hidden = true;

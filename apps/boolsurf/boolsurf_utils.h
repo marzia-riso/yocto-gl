@@ -239,11 +239,13 @@ inline vector<int> compute_mapping(const vector<vec2f>& nodes, const int face,
 
     // Point already existing on edge
     auto edgepoints = vertex_edgemap[edge];
-    for (auto& p : edgepoints)
-      if (mesh.positions[p] == pos) {
+    for (auto& p : edgepoints) {
+      auto diff = abs(mesh.positions[p] - pos);
+      if ((diff.x < 0.001) && (diff.y < 0.001) && (diff.z < 0.001)) {
         id = p;
         break;
       }
+    }
 
     if (id == -1) {
       id = mesh.positions.size();
