@@ -275,9 +275,8 @@ inline vector<vec3i> triangulate(const vector<vec2f>& nodes) {
     auto& a = nodes[verts.x];
     auto& b = nodes[verts.y];
     auto& c = nodes[verts.z];
-    auto or = std::abs(cross(b - a, c - b));
-    if (or == 0.0) {
-      printf("\tCollinear\n");
+    auto or = cross(b - a, c - b);
+    if (fabs(or) < 0.001) {
       continue;
     }
 
