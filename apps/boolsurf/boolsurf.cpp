@@ -754,6 +754,7 @@ void do_the_thing(app_state* app) {
   set_positions(app->mesh_shape, app->mesh.positions);
   set_triangles(app->mesh_shape, app->mesh.triangles);
 
+  set_normals(app->mesh_shape, app->mesh.normals);
   init_edges_and_vertices_shapes_and_points(app);
 
   // auto graph = compute_graph(
