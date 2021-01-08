@@ -270,8 +270,8 @@ inline vector<vec3i> triangulate(const vector<vec2f>& nodes) {
   auto triangles = vector<vec3i>();
   triangles.reserve(dt.triangles.size() / 3);
   for (int i = 0; i < dt.triangles.size(); i += 3) {
-    auto verts = vec3i{(int)dt.triangles[i], (int)dt.triangles[i + 1],
-        (int)dt.triangles[i + 2]};
+    auto verts = vec3i{(int)dt.triangles[i], (int)dt.triangles[i + 2],
+        (int)dt.triangles[i + 1]};
 
     // Check collinearity
     auto& a = nodes[verts.x];
