@@ -201,19 +201,21 @@ inline vec2i make_edge_key(const vec2i& edge) {
   return edge;
 };
 
-inline vec2i get_mesh_edge(const vec3i& triangle, const vec2f& uv) {
+inline tuple<vec2i, float> get_mesh_edge(
+    const vec3i& triangle, const vec2f& uv) {
   if (uv.y == 0)
-    return vec2i{triangle.x, triangle.y};  // point on edge(xy)
+    return {vec2i{triangle.x, triangle.y}, uv.x};  // point on edge(xy)
   else if (uv.x == 0)
-    return vec2i{triangle.x, triangle.z};  // point on edge (xz)
-  else if ((uv.x + uv.y) == 1.0f)
-    return vec2i{triangle.y, triangle.z};  // point on edge (yz)
+    return {vec2i{triangle.z, triangle.x}, 1.0f - uv.y};  // point on edge (xz)
+  else if (fabs(uv.x + uv.y - 1.0f) < 0.0001)
+    return {vec2i{triangle.y, triangle.z}, uv.y};  // point on edge (yz)
   else
-    return zero2i;
+    return {zero2i, -1};
 }
 
 inline vector<int> compute_mapping(const vector<vec2f>& nodes, const int face,
-    bool_mesh& mesh, unordered_map<vec2i, vector<int>>& vertex_edgemap) {
+    bool_mesh&                                       mesh,
+    unordered_map<vec2i, vector<tuple<int, float>>>& vertex_edgemap) {
   auto mapping = vector<int>(nodes.size());
   auto verts   = mesh.triangles[face];
   mapping[0]   = verts.x;
@@ -225,9 +227,9 @@ inline vector<int> compute_mapping(const vector<vec2f>& nodes, const int face,
     auto pos   = eval_position(mesh.triangles, mesh.positions, point);
 
     // Ordered edge where the point lies
-    auto id   = -1;
-    auto edge = get_mesh_edge(verts, nodes[i]);
-    edge      = make_edge_key(edge);
+    auto id        = -1;
+    auto [edge, l] = get_mesh_edge(verts, nodes[i]);
+    auto edge_key  = make_edge_key(edge);
 
     // Point in triangle
     if (edge == zero2i) {
@@ -238,11 +240,17 @@ inline vector<int> compute_mapping(const vector<vec2f>& nodes, const int face,
     }
 
     // Point already existing on edge
-    auto edgepoints = vertex_edgemap[edge];
-    for (auto& p : edgepoints) {
-      auto diff = abs(mesh.positions[p] - pos);
-      if ((diff.x < 0.001) && (diff.y < 0.001) && (diff.z < 0.001)) {
-        id = p;
+    auto& edgepoints = vertex_edgemap[edge_key];
+    for (auto i = 0; i < edgepoints.size(); i++) {
+      // printf("Here\n");
+
+      auto [_, l1] = edgepoints[i];
+      if (edge != edge_key) l1 = 1.0f - l1;
+
+      if (l > l1) {
+        id = mesh.positions.size();
+        mesh.positions.push_back(pos);
+        edgepoints.insert(edgepoints.begin() + i, {id, l});
         break;
       }
     }
@@ -250,7 +258,7 @@ inline vector<int> compute_mapping(const vector<vec2f>& nodes, const int face,
     if (id == -1) {
       id = mesh.positions.size();
       mesh.positions.push_back(pos);
-      vertex_edgemap[edge].push_back(id);
+      vertex_edgemap[edge_key] = {{id, l}};
     }
 
     mapping[i] = id;
@@ -278,6 +286,8 @@ inline vector<vec3i> triangulate(const vector<vec2f>& nodes) {
     auto& b = nodes[verts.y];
     auto& c = nodes[verts.z];
     auto or = cross(b - a, c - b);
+
+    if (or < 0.0) printf("Counterclock\n");
     if (fabs(or) < 0.001) {
       continue;
     }

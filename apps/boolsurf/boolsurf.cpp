@@ -700,6 +700,10 @@ void do_the_thing(app_state* app) {
   auto vertex_edgemap = unordered_map<vec2i, vector<int>>{};
   auto face_edgemap   = unordered_map<vec2i, vec2i>();
   printf("Pre positions: %d\n", app->mesh.positions.size());
+  auto vertex_edgemap = unordered_map<vec2i, vector<std::tuple<int, float>>>{};
+  auto face_edgemap   = unordered_map<vec2i, vec2i>{};
+
+  printf("Positions: %d\n", app->mesh.positions.size());
 
   // TODO(giacomo): make this a function
   for (auto& [face, infos] : hashgrid) {
