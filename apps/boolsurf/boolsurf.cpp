@@ -595,9 +595,9 @@ void set_patch_shape(
   auto positions = vector<vec3f>(faces.size() * 3);
   for (int i = 0; i < faces.size(); i++) {
     auto [a, b, c]       = mesh.triangles[faces[i]];
-    positions[3 * i + 0] = mesh.positions[a] + 0.01 * mesh.normals[a];
-    positions[3 * i + 1] = mesh.positions[b] + 0.01 * mesh.normals[b];
-    positions[3 * i + 2] = mesh.positions[c] + 0.01 * mesh.normals[c];
+    positions[3 * i + 0] = mesh.positions[a] + 0.0005 * mesh.normals[a];
+    positions[3 * i + 1] = mesh.positions[b] + 0.0005 * mesh.normals[b];
+    positions[3 * i + 2] = mesh.positions[c] + 0.0005 * mesh.normals[c];
   }
   set_positions(shape, positions);
   set_instances(shape, {});
@@ -777,11 +777,15 @@ void do_the_thing(app_state* app) {
 
     for (auto& [ids, points] : segments) {
       for (auto p = 0; p < points.size() - 1; p++) {
-        auto start = mapping[points[p]];
-        auto end   = mapping[points[p + 1]];
+        auto edge     = vec2i{mapping[points[p]], mapping[points[p + 1]]};
+        auto edge_key = make_edge_key(edge);
+        auto faces    = face_edgemap[edge_key];
 
-        auto key   = make_edge_key({start, end});
-        auto faces = face_edgemap[key];
+        auto& [a, b, c] = app->mesh.triangles[faces.x];
+        if ((edge == vec2i{a, b}) || (edge == vec2i{b, c}) ||
+            (edge == vec2i{c, a})) {
+          swap(faces.x, faces.y);
+        }
 
         app->polygons[ids.x].inner_faces.push_back(faces.x);
         app->polygons[ids.x].outer_faces.push_back(faces.y);
@@ -803,8 +807,8 @@ void do_the_thing(app_state* app) {
   init_edges_and_vertices_shapes_and_points(app);
 
   for (auto& polygon : app->polygons) {
-    add_patch_shape(app, polygon.inner_faces, vec3f{1, 0, 0});
-    add_patch_shape(app, polygon.outer_faces, vec3f{0, 0, 1});
+    add_patch_shape(app, polygon.inner_faces, vec3f{0.8, 0, 0});
+    add_patch_shape(app, polygon.outer_faces, vec3f{0, 0, 0.8});
   }
 
   // auto graph = compute_graph(
