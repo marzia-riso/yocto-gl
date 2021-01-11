@@ -35,8 +35,10 @@ struct mesh_segment {
 };
 
 struct mesh_polygon {
-  vector<int>                  points = {};
-  vector<vector<mesh_segment>> edges  = {};
+  vector<int>                  points      = {};
+  vector<vector<mesh_segment>> edges       = {};
+  vector<int>                  inner_faces = {};
+  vector<int>                  outer_faces = {};
 };
 
 struct cell_polygon {
