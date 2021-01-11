@@ -227,40 +227,40 @@ inline vector<int> compute_mapping(const vector<vec2f>& nodes, const int face,
     auto pos   = eval_position(mesh.triangles, mesh.positions, point);
 
     // Ordered edge where the point lies
-    auto id        = -1;
-    auto [edge, l] = get_mesh_edge(verts, nodes[i]);
-    auto edge_key  = make_edge_key(edge);
+    auto [edge, l1] = get_mesh_edge(verts, nodes[i]);
+    auto edge_key   = make_edge_key(edge);
+    if (edge_key != edge) l1 = 1.0f - l1;
+    auto id = -1;
 
     // Point in triangle
-    if (edge == zero2i) {
+    if (edge_key == zero2i) {
       id = mesh.positions.size();
       mesh.positions.push_back(pos);
-      mapping[i] = id;
-      continue;
-    }
+    } else if (vertex_edgemap.find(edge_key) == vertex_edgemap.end()) {
+      id = mesh.positions.size();
+      mesh.positions.push_back(pos);
+      vertex_edgemap[edge_key] = {{id, l1}};
+    } else {
+      auto& endpoints = vertex_edgemap[edge_key];
+      for (auto e = 0; e < endpoints.size(); e++) {
+        auto& [p, l] = endpoints[e];
+        if (fabs(l1 - l) < 0.0001) {
+          id = p;
+          break;
+        } else if (l1 > l) {
+          id = mesh.positions.size();
+          mesh.positions.push_back(pos);
+          endpoints.insert(endpoints.begin() + e, {id, l1});
+          break;
+        }
+      }
 
-    // Point already existing on edge
-    auto& edgepoints = vertex_edgemap[edge_key];
-    for (auto i = 0; i < edgepoints.size(); i++) {
-      // printf("Here\n");
-
-      auto [_, l1] = edgepoints[i];
-      if (edge != edge_key) l1 = 1.0f - l1;
-
-      if (l > l1) {
+      if (id == -1) {
         id = mesh.positions.size();
         mesh.positions.push_back(pos);
-        edgepoints.insert(edgepoints.begin() + i, {id, l});
-        break;
+        endpoints.insert(endpoints.end(), {id, l1});
       }
     }
-
-    if (id == -1) {
-      id = mesh.positions.size();
-      mesh.positions.push_back(pos);
-      vertex_edgemap[edge_key] = {{id, l}};
-    }
-
     mapping[i] = id;
   }
   return mapping;
@@ -286,8 +286,6 @@ inline vector<vec3i> triangulate(const vector<vec2f>& nodes) {
     auto& b = nodes[verts.y];
     auto& c = nodes[verts.z];
     auto or = cross(b - a, c - b);
-
-    if (or < 0.0) printf("Counterclock\n");
     if (fabs(or) < 0.001) {
       continue;
     }
