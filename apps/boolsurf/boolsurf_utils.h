@@ -127,6 +127,12 @@ inline int find_idx(const vector<T>& vec, const T& x) {
   return -1;
 }
 
+inline int find_node(const vector<vec2f>& vec, const vec2f& x) {
+  for (auto i = 0; i < vec.size(); i++)
+    if (distance(vec[i], x) < 0.001) return i;
+  return -1;
+}
+
 // TODO(giacomo): Expose this function in yocto_mesh.h
 inline int find_adjacent_triangle(
     const vec3i& triangle, const vec3i& adjacent) {

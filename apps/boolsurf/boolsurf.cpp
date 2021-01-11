@@ -718,9 +718,10 @@ void do_the_thing(app_state* app) {
     auto nodes    = vector<vec2f>{{0, 0}, {1, 0}, {0, 1}};
     auto segments = unordered_map<vec3i, vector<int>>();
 
+    // TODO (marzia): change if possible
     for (auto& info : infos) {
-      auto start_idx = find_idx(nodes, info.start);
-      auto end_idx   = find_idx(nodes, info.end);
+      auto start_idx = find_node(nodes, info.start);
+      auto end_idx   = find_node(nodes, info.end);
 
       if (start_idx == -1) {
         start_idx = nodes.size();
@@ -732,7 +733,6 @@ void do_the_thing(app_state* app) {
         nodes.push_back(info.end);
       }
 
-      // printf("Start_idx: %d End_idx: %d\n", start_idx, end_idx);
       segments[{info.polygon_id, info.edge_id, info.segment_id}] = {
           start_idx, end_idx};
     }
@@ -747,22 +747,13 @@ void do_the_thing(app_state* app) {
     for (auto& [idx, l] : isecs) {
       auto& segment  = segments[idx];
       auto  uv       = lerp(nodes[segment.front()], nodes[segment.back()], l);
-      auto  isec_idx = find_idx(nodes, uv);
+      auto  isec_idx = find_node(nodes, uv);
       if (isec_idx == -1) {
         isec_idx = nodes.size();
         nodes.push_back(uv);
       }
       segment.insert(segment.end() - 1, isec_idx);
     }
-
-    // TODO(marzia): refactor nodes creation
-    // unordered_map<vec2i,
-    // for (auto& path : info) {
-    //     int id = nodes.push_back
-    //     for (int i = 0; i < path.size(); i++) {
-    //         nodes.push_back(path[i]);
-    //     }
-    // }
 
     // Mesh update + compute mapping from triangle nodes to mesh positions
     auto mapping   = compute_mapping(nodes, face, app->mesh, vertex_edgemap);
@@ -784,39 +775,21 @@ void do_the_thing(app_state* app) {
 
     app->mesh.triangles[face] = {0, 0, 0};
 
-    printf("Segments Size: %d\n", segments.size());
-    for (auto& [ids, points] : segments) {
-      printf("Polygon: %d Edge: %d Segment: %d\n", ids.x, ids.y, ids.z);
-      for (auto& p : points) printf("\tPoint: %d\n", p);
-    }
-
     for (auto& [ids, points] : segments) {
       for (auto p = 0; p < points.size() - 1; p++) {
-        printf("Segment: %d %d\n", mapping[points[p]], mapping[points[p + 1]]);
         auto start = mapping[points[p]];
         auto end   = mapping[points[p + 1]];
-        draw_segment(app->glscene, app->mesh, app->points_material,
-            app->mesh.positions[start], app->mesh.positions[end], 0.0008f);
 
         auto key   = make_edge_key({start, end});
         auto faces = face_edgemap[key];
+
         app->polygons[ids.x].inner_faces.push_back(faces.x);
         app->polygons[ids.x].outer_faces.push_back(faces.y);
-        // printf("Start: %d End: %d\n", start, end);
-        // printf("Faces %d - %d\n", faces.x, faces.y);
       }
     }
   }
 
   printf("Positions: %d\n", app->mesh.positions.size());
-  // for (auto& path : info.paths) {
-  //   for (int i = 0; i < path.size() - 1; i++) {
-  //     auto edge  = {path[i], path[i] + 1};
-  //     auto faces = edge_map.at(edge);
-  //     app->polygons[path.polygon_id].inner_faces.push_back(faces.x);
-  //     app->polygons[path.polygon_id].outer_faces.push_back(faces.y);
-  //   }
-  // }
 
   for (auto& ist : app->instances) {
     ist->hidden = true;
@@ -830,13 +803,8 @@ void do_the_thing(app_state* app) {
   init_edges_and_vertices_shapes_and_points(app);
 
   for (auto& polygon : app->polygons) {
-    draw_intersections(
-        app->glscene, app->mesh, app->cell_materials[0], polygon.inner_faces);
-    draw_intersections(
-        app->glscene, app->mesh, app->cell_materials[1], polygon.outer_faces);
-
-    // add_patch_shape(app, polygon.inner_faces, vec3f{1, 0, 0});
-    // add_patch_shape(app, polygon.outer_faces, vec3f{0, 0, 1});
+    add_patch_shape(app, polygon.inner_faces, vec3f{1, 0, 0});
+    add_patch_shape(app, polygon.outer_faces, vec3f{0, 0, 1});
   }
 
   // auto graph = compute_graph(
