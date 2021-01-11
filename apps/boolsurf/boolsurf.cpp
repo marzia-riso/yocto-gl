@@ -620,9 +620,8 @@ void do_the_thing(app_state* app) {
   // self-intersections
   // auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
   auto hashgrid = vector<vector<hashgrid_entry>>(app->mesh.triangles.size());
-  auto intersections =
-      unordered_map<int, vector<std::tuple<int, int, float>>>();
-  auto edge_map         = unordered_map<vec2i, vector<intersection_node>>();
+  auto intersections = unordered_map<int, vector<std::tuple<vec3i, float>>>();
+  auto edge_map      = unordered_map<vec2i, vector<intersection_node>>();
   auto counterclockwise = unordered_map<int, bool>();
 
   for (auto p = 0; p < app->polygons.size(); p++) {
@@ -665,9 +664,11 @@ void do_the_thing(app_state* app) {
         // Detected Intersection
         auto uv = lerp(segmentCD.start, segmentCD.end, l.y);
         intersections[face].push_back(
-            {segmentAB.polygon_id, segmentAB.segment_id, l.x});
+            {{segmentAB.polygon_id, segmentAB.edge_id, segmentAB.segment_id},
+                l.x});
         intersections[face].push_back(
-            {segmentCD.polygon_id, segmentCD.segment_id, l.y});
+            {{segmentCD.polygon_id, segmentCD.edge_id, segmentCD.segment_id},
+                l.y});
 
         auto point    = mesh_point{face, uv};
         auto point_id = (int)app->points.size();
@@ -714,9 +715,8 @@ void do_the_thing(app_state* app) {
   for (auto face = 0; face < hashgrid.size(); face++) {
     auto& infos = hashgrid[face];
     if (infos.size() == 0) continue;
-    auto nodes = vector<vec2f>{{0, 0}, {1, 0}, {0, 1}};
-    // auto segments = unordered_map<vec2i, vector<vec2f>>();
-    auto segments = unordered_map<vec2i, vector<int>>();
+    auto nodes    = vector<vec2f>{{0, 0}, {1, 0}, {0, 1}};
+    auto segments = unordered_map<vec3i, vector<int>>();
 
     for (auto& info : infos) {
       auto start_idx = find_idx(nodes, info.start);
@@ -724,33 +724,35 @@ void do_the_thing(app_state* app) {
 
       if (start_idx == -1) {
         start_idx = nodes.size();
-        nodes.push_back({info.start});
+        nodes.push_back(info.start);
       }
 
       if (end_idx == -1) {
         end_idx = nodes.size();
-        nodes.push_back({info.end});
+        nodes.push_back(info.end);
       }
 
-      segments[{info.polygon_id, info.segment_id}] = {start_idx, end_idx};
+      // printf("Start_idx: %d End_idx: %d\n", start_idx, end_idx);
+      segments[{info.polygon_id, info.edge_id, info.segment_id}] = {
+          start_idx, end_idx};
     }
 
     auto& isecs = intersections[face];
     sort(isecs.begin(), isecs.end(), [](auto& a, auto& b) {
-      auto& [p, s, l]    = a;
-      auto& [p1, s1, l1] = b;
+      auto& [ids, l]   = a;
+      auto& [ids1, l1] = b;
       return l < l1;
     });
 
-    for (auto& [pol, seg, l] : isecs) {
-      auto& segment = segments[{pol, seg}];
-      auto  uv      = lerp(nodes[segment.front()], nodes[segment.back()], l);
-      auto  idx     = find_idx(nodes, uv);
-      if (idx == -1) {
-        idx = nodes.size();
+    for (auto& [idx, l] : isecs) {
+      auto& segment  = segments[idx];
+      auto  uv       = lerp(nodes[segment.front()], nodes[segment.back()], l);
+      auto  isec_idx = find_idx(nodes, uv);
+      if (isec_idx == -1) {
+        isec_idx = nodes.size();
         nodes.push_back(uv);
       }
-      segment.insert(segment.end() - 1, idx);
+      segment.insert(segment.end() - 1, isec_idx);
     }
 
     // TODO(marzia): refactor nodes creation
@@ -782,17 +784,26 @@ void do_the_thing(app_state* app) {
 
     app->mesh.triangles[face] = {0, 0, 0};
 
+    printf("Segments Size: %d\n", segments.size());
+    for (auto& [ids, points] : segments) {
+      printf("Polygon: %d Edge: %d Segment: %d\n", ids.x, ids.y, ids.z);
+      for (auto& p : points) printf("\tPoint: %d\n", p);
+    }
+
     for (auto& [ids, points] : segments) {
       for (auto p = 0; p < points.size() - 1; p++) {
+        printf("Segment: %d %d\n", mapping[points[p]], mapping[points[p + 1]]);
         auto start = mapping[points[p]];
         auto end   = mapping[points[p + 1]];
+        draw_segment(app->glscene, app->mesh, app->points_material,
+            app->mesh.positions[start], app->mesh.positions[end], 0.0008f);
 
         auto key   = make_edge_key({start, end});
         auto faces = face_edgemap[key];
-        app->polygons[p].inner_faces.push_back(faces.x);
-        app->polygons[p].outer_faces.push_back(faces.y);
-        printf("Start: %d End: %d\n", start, end);
-        printf("Faces %d - %d\n", faces.x, faces.y);
+        app->polygons[ids.x].inner_faces.push_back(faces.x);
+        app->polygons[ids.x].outer_faces.push_back(faces.y);
+        // printf("Start: %d End: %d\n", start, end);
+        // printf("Faces %d - %d\n", faces.x, faces.y);
       }
     }
   }
