@@ -781,12 +781,14 @@ void do_the_thing(app_state* app) {
         auto edge_key = make_edge_key(edge);
         auto faces    = face_edgemap[edge_key];
 
+        // Not enough - Fix it
         auto& [a, b, c] = app->mesh.triangles[faces.x];
         if ((edge == vec2i{a, b}) || (edge == vec2i{b, c}) ||
             (edge == vec2i{c, a})) {
           swap(faces.x, faces.y);
         }
 
+        printf("Faces: %d %d\n", faces.x, faces.y);
         app->polygons[ids.x].inner_faces.push_back(faces.x);
         app->polygons[ids.x].outer_faces.push_back(faces.y);
       }
@@ -794,6 +796,10 @@ void do_the_thing(app_state* app) {
   }
 
   printf("Positions: %d\n", app->mesh.positions.size());
+  for (auto p = 6534; p < app->mesh.positions.size(); p++) {
+    auto& pos = app->mesh.positions[p];
+    printf("Position: %d - %f %f %f\n", p, pos.x, pos.y, pos.z);
+  }
 
   for (auto& ist : app->instances) {
     ist->hidden = true;
