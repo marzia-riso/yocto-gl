@@ -683,10 +683,11 @@ void do_the_thing(app_state* app) {
     });
 
     auto id = (int)app->mesh.positions.size();
-    for (auto i = 0; i < points.size() - 1; i++) {
+    for (auto i = 0; i < points.size(); i++) {
       auto& [sid, _]    = points[i];
       auto& [uv, pos]   = eval_point(points[i], polygon, app->mesh);
-      auto& [uv1, pos1] = eval_point(points[i + 1], polygon, app->mesh);
+      auto& [uv1, pos1] = eval_point(
+          points[((i + 1) % points.size())], polygon, app->mesh);
       if (i == 0) app->mesh.positions.push_back(pos);
 
       auto id1 = (int)app->mesh.positions.size();
