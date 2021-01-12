@@ -33,6 +33,12 @@ struct mesh_segment {
   int   face  = -1;
 };
 
+struct triangle_segment {
+  vec2i segments = {};
+  vec2f start    = {};
+  vec2f end      = {};
+};
+
 struct mesh_polygon {
   vector<int>          points      = {};
   vector<mesh_segment> segments    = {};
@@ -202,6 +208,16 @@ inline vector<mesh_segment> mesh_segments(const vector<vec3i>& triangles,
     result[i] = {start_uv, end_uv, strip[i]};
   }
   return result;
+}
+
+inline tuple<vec2f, vec3f> eval_point(const tuple<int, float>& point_info,
+    const mesh_polygon& polygon, const bool_mesh& mesh) {
+  auto& [sid, dist] = point_info;
+  auto& segment     = polygon.segments[sid];
+  auto  uv          = (dist == 0.0f) ? segment.start
+                           : lerp(segment.start, segment.end, dist);
+  auto pos = eval_position(mesh.triangles, mesh.positions, {segment.face, uv});
+  return {uv, pos};
 }
 
 inline vec2i make_edge_key(const vec2i& edge) {

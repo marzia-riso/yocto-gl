@@ -621,6 +621,7 @@ void do_the_thing(app_state* app) {
   // auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
   auto hashgrid = vector<vector<hashgrid_entry>>(app->mesh.triangles.size());
   auto polygon_points = vector<vector<tuple<int, float>>>(app->polygons.size());
+  auto triangle_segments = unordered_map<int, vector<triangle_segment>>{};
 
   for (auto p = 0; p < app->polygons.size(); p++) {
     auto& polygon = app->polygons[p];
@@ -647,9 +648,8 @@ void do_the_thing(app_state* app) {
           continue;
         }
 
-        // Detected Intersection
         auto uv = lerp(CD.start, CD.end, l.y);
-
+        //(marzia): Multiple Point Detection;
         polygon_points[AB.polygon].push_back({AB.segment, l.x});
         polygon_points[CD.polygon].push_back({CD.segment, l.y});
 
@@ -672,9 +672,9 @@ void do_the_thing(app_state* app) {
     printf("\t Points: %d\n", points.size());
   }
 
-  auto added = vector<vec2f>();
   for (auto p = 0; p < polygon_points.size(); p++) {
-    auto& points = polygon_points[p];
+    auto& points  = polygon_points[p];
+    auto& polygon = app->polygons[p];
     sort(points.begin(), points.end(), [](auto& a, auto& b) {
       auto& [segment, distance]   = a;
       auto& [segment1, distance1] = b;
@@ -682,19 +682,29 @@ void do_the_thing(app_state* app) {
       return segment < segment1;
     });
 
-    for (auto& [sid, dist] : points) {
-      auto& segment = app->polygons[p].segments[sid];
-      if (dist == 0.0f)
-        added.push_back(segment.start);
-      else
-        added.push_back(lerp(segment.start, segment.end, dist));
+    auto id = (int)app->mesh.positions.size();
+    for (auto i = 0; i < points.size() - 1; i++) {
+      auto& [sid, _]    = points[i];
+      auto& [uv, pos]   = eval_point(points[i], polygon, app->mesh);
+      auto& [uv1, pos1] = eval_point(points[i + 1], polygon, app->mesh);
+      if (i == 0) app->mesh.positions.push_back(pos);
 
-      draw_mesh_point(app->glscene, app->mesh, app->points_material,
-          {segment.face, added.back()}, 0.0017f);
+      auto id1 = (int)app->mesh.positions.size();
+      app->mesh.positions.push_back(pos1);
+
+      triangle_segments[polygon.segments[sid].face].push_back(
+          {{id, id1}, uv, uv1});
+      id = id1;
     }
   }
 
-  printf("Added points: %d\n", added.size());
+  for (auto& [tri, segments] : triangle_segments) {
+    printf("Triangle: %d\n", tri);
+    for (auto& seg : segments) {
+      auto& [ids, uv, uv1] = seg;
+      printf("\t %d %d\n", ids.x, ids.y);
+    }
+  }
 
   // auto vertex_edgemap = unordered_map<vec2i, vector<std::tuple<int,
   // float>>>{}; auto face_edgemap   = unordered_map<vec2i, vec2i>{};
