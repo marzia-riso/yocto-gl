@@ -111,7 +111,7 @@ void load_shape(app_state* app, const string& filename) {
     return;
   }
 
-  // Move somewhere else (?)
+  // Transformint quad mesh into triangle mesh
   if (app->ioshape->quads.size()) {
     app->ioshape->triangles = quads_to_triangles(app->ioshape->quads);
     app->ioshape->quads     = {};
@@ -620,70 +620,38 @@ void do_the_thing(app_state* app) {
   // self-intersections
   // auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
   auto hashgrid = vector<vector<hashgrid_entry>>(app->mesh.triangles.size());
-  auto intersections = unordered_map<int, vector<std::tuple<vec3i, float>>>();
-  auto edge_map      = unordered_map<vec2i, vector<intersection_node>>();
-  auto counterclockwise = unordered_map<int, bool>();
+  auto polygon_points = vector<vector<tuple<int, float>>>(app->polygons.size());
 
   for (auto p = 0; p < app->polygons.size(); p++) {
     auto& polygon = app->polygons[p];
-    for (auto e = 0; e < polygon.edges.size(); e++) {
-      auto& edge       = polygon.edges[e];
-      auto  end_points = get_edge_points(app->polygons, app->points, p, e);
-      auto  end        = (int)(edge.size() - 1);
-      edge_map[end_points].push_back({end_points.x, {-1, -1}, p, 0, 0.0f});
-      edge_map[end_points].push_back({end_points.y, {-1, -1}, p, end, 1.0f});
-
-      for (auto s = 0; s < edge.size(); s++) {
-        auto& segment = edge[s];
-        hashgrid[segment.face].push_back({p, e, s, segment.start, segment.end});
-      }
+    for (auto s = 0; s < polygon.segments.size(); s++) {
+      auto& segment = polygon.segments[s];
+      hashgrid[segment.face].push_back({p, s, segment.start, segment.end});
+      polygon_points[p].push_back({s, 0.0f});
     }
   }
 
   // for (auto& [face, value] : hashgrid) {
   for (auto face = 0; face < hashgrid.size(); face++) {
-    auto& value = hashgrid[face];
-    if (value.size() < 2) continue;
-    for (auto i = 0; i < value.size() - 1; i++) {
-      auto& segmentAB = value[i];
-      for (auto j = i + 1; j < value.size(); j++) {
-        auto& segmentCD = value[j];
+    auto& entries = hashgrid[face];
+    if (entries.size() == 0) continue;
 
-        auto AB = get_edge_points(app->polygons, app->points,
-            segmentAB.polygon_id, segmentAB.edge_id);
-        auto CD = get_edge_points(app->polygons, app->points,
-            segmentCD.polygon_id, segmentCD.edge_id);
+    for (auto i = 0; i < entries.size() - 1; i++) {
+      auto& AB = entries[i];
 
-        auto l = intersect_segments(
-            segmentAB.start, segmentAB.end, segmentCD.start, segmentCD.end);
+      for (auto j = i + 1; j < entries.size(); j++) {
+        auto& CD = entries[j];
 
+        auto l = intersect_segments(AB.start, AB.end, CD.start, CD.end);
         if (l.x <= 0.0f || l.x >= 1.0f || l.y <= 0.0f || l.y >= 1.0f) {
           continue;
         }
 
         // Detected Intersection
-        auto uv = lerp(segmentCD.start, segmentCD.end, l.y);
-        intersections[face].push_back(
-            {{segmentAB.polygon_id, segmentAB.edge_id, segmentAB.segment_id},
-                l.x});
-        intersections[face].push_back(
-            {{segmentCD.polygon_id, segmentCD.edge_id, segmentCD.segment_id},
-                l.y});
+        auto uv = lerp(CD.start, CD.end, l.y);
 
-        auto point    = mesh_point{face, uv};
-        auto point_id = (int)app->points.size();
-
-        auto orientation = cross(
-            segmentAB.end - segmentAB.start, segmentCD.end - segmentCD.start);
-        assert(orientation != 0);
-        auto ccwise = orientation > 0;
-
-        // Flip orientation when self-intersecting.
-        // if (segmentAB.polygon_id == segmentCD.polygon_id) {
-        //   ccwise = !ccwise;
-        // }
-
-        counterclockwise[point_id] = ccwise;
+        polygon_points[AB.polygon].push_back({AB.segment, l.x});
+        polygon_points[CD.polygon].push_back({CD.segment, l.y});
 
         //        C
         //        |
@@ -691,131 +659,152 @@ void do_the_thing(app_state* app) {
         //        |
         //        D
 
-        edge_map[AB].push_back(
-            {point_id, CD, segmentAB.polygon_id, segmentAB.segment_id, l.x});
-        edge_map[CD].push_back(
-            {point_id, AB, segmentCD.polygon_id, segmentCD.segment_id, l.y});
-
+        auto point    = mesh_point{face, uv};
+        auto point_id = (int)app->points.size();
         app->points.push_back(point);
-
-        // draw_mesh_point(
-        //     app->glscene, app->mesh, app->isecs_material, point,
-        //     0.0020f);
       }
     }
   }
 
-  auto vertex_edgemap = unordered_map<vec2i, vector<std::tuple<int, float>>>{};
-  auto face_edgemap   = unordered_map<vec2i, vec2i>{};
+  for (auto p = 0; p < app->polygons.size(); p++) {
+    printf("Polygon: %d - Segments %d\n", p, app->polygons[p].segments.size());
+    auto& points = polygon_points[p];
+    printf("\t Points: %d\n", points.size());
+  }
 
-  printf("Positions: %d\n", app->mesh.positions.size());
-
-  // TODO(giacomo): make this a function
-  //  for (auto& [face, infos] : hashgrid) {
-  for (auto face = 0; face < hashgrid.size(); face++) {
-    auto& infos = hashgrid[face];
-    if (infos.size() == 0) continue;
-    auto nodes    = vector<vec2f>{{0, 0}, {1, 0}, {0, 1}};
-    auto segments = unordered_map<vec3i, vector<int>>();
-
-    // TODO (marzia): change if possible
-    for (auto& info : infos) {
-      auto start_idx = find_node(nodes, info.start);
-      auto end_idx   = find_node(nodes, info.end);
-
-      if (start_idx == -1) {
-        start_idx = nodes.size();
-        nodes.push_back(info.start);
-      }
-
-      if (end_idx == -1) {
-        end_idx = nodes.size();
-        nodes.push_back(info.end);
-      }
-
-      segments[{info.polygon_id, info.edge_id, info.segment_id}] = {
-          start_idx, end_idx};
-    }
-
-    auto& isecs = intersections[face];
-    sort(isecs.begin(), isecs.end(), [](auto& a, auto& b) {
-      auto& [ids, l]   = a;
-      auto& [ids1, l1] = b;
-      return l < l1;
+  auto added = vector<vec2f>();
+  for (auto p = 0; p < polygon_points.size(); p++) {
+    auto& points = polygon_points[p];
+    sort(points.begin(), points.end(), [](auto& a, auto& b) {
+      auto& [segment, distance]   = a;
+      auto& [segment1, distance1] = b;
+      if (segment == segment1) return distance < distance1;
+      return segment < segment1;
     });
 
-    for (auto& [idx, l] : isecs) {
-      auto& segment  = segments[idx];
-      auto  uv       = lerp(nodes[segment.front()], nodes[segment.back()], l);
-      auto  isec_idx = find_node(nodes, uv);
-      if (isec_idx == -1) {
-        isec_idx = nodes.size();
-        nodes.push_back(uv);
-      }
-      segment.insert(segment.end() - 1, isec_idx);
-    }
+    for (auto& [sid, dist] : points) {
+      auto& segment = app->polygons[p].segments[sid];
+      if (dist == 0.0f)
+        added.push_back(segment.start);
+      else
+        added.push_back(lerp(segment.start, segment.end, dist));
 
-    // Mesh update + compute mapping from triangle nodes to mesh positions
-    auto mapping   = compute_mapping(nodes, face, app->mesh, vertex_edgemap);
-    auto triangles = triangulate(nodes);
-
-    for (auto i = 0; i < triangles.size(); i++) {
-      auto& verts = triangles[i];
-      auto  i0    = mapping[verts.x];
-      auto  i1    = mapping[verts.y];
-      auto  i2    = mapping[verts.z];
-
-      auto triangle_idx = app->mesh.triangles.size();
-      app->mesh.triangles.push_back({i0, i1, i2});
-
-      update_face_edgemap(face_edgemap, {i0, i1}, triangle_idx);
-      update_face_edgemap(face_edgemap, {i1, i2}, triangle_idx);
-      update_face_edgemap(face_edgemap, {i2, i0}, triangle_idx);
-    }
-
-    app->mesh.triangles[face] = {0, 0, 0};
-
-    for (auto& [ids, points] : segments) {
-      for (auto p = 0; p < points.size() - 1; p++) {
-        auto edge     = vec2i{mapping[points[p]], mapping[points[p + 1]]};
-        auto edge_key = make_edge_key(edge);
-        auto faces    = face_edgemap[edge_key];
-
-        // Not enough - Fix it
-        auto& [a, b, c] = app->mesh.triangles[faces.x];
-        if ((edge == vec2i{a, b}) || (edge == vec2i{b, c}) ||
-            (edge == vec2i{c, a})) {
-          swap(faces.x, faces.y);
-        }
-
-        printf("Faces: %d %d\n", faces.x, faces.y);
-        app->polygons[ids.x].inner_faces.push_back(faces.x);
-        app->polygons[ids.x].outer_faces.push_back(faces.y);
-      }
+      draw_mesh_point(app->glscene, app->mesh, app->points_material,
+          {segment.face, added.back()}, 0.0017f);
     }
   }
 
-  printf("Positions: %d\n", app->mesh.positions.size());
-  for (auto p = 6534; p < app->mesh.positions.size(); p++) {
-    auto& pos = app->mesh.positions[p];
-    printf("Position: %d - %f %f %f\n", p, pos.x, pos.y, pos.z);
-  }
+  printf("Added points: %d\n", added.size());
 
-  for (auto& ist : app->instances) {
-    ist->hidden = true;
-  }
+  // auto vertex_edgemap = unordered_map<vec2i, vector<std::tuple<int,
+  // float>>>{}; auto face_edgemap   = unordered_map<vec2i, vec2i>{};
+  // printf("Positions: %d\n", app->mesh.positions.size());
 
-  app->mesh.normals = compute_normals(app->mesh.triangles, app->mesh.positions);
-  app->mesh.adjacencies = face_adjacencies(app->mesh.triangles);
-  set_positions(app->mesh_shape, app->mesh.positions);
-  set_triangles(app->mesh_shape, app->mesh.triangles);
-  set_normals(app->mesh_shape, app->mesh.normals);
-  init_edges_and_vertices_shapes_and_points(app);
+  // // // TODO(giacomo): make this a function
+  // // //  for (auto& [face, infos] : hashgrid) {
+  // for (auto face = 0; face < hashgrid.size(); face++) {
+  //   auto& entries = hashgrid[face];
+  //   if (entries.size() == 0) continue;
+  //   auto nodes    = vector<vec2f>{{0, 0}, {1, 0}, {0, 1}};
+  //   auto segments = unordered_map<vec2i, vector<int>>();
 
-  for (auto& polygon : app->polygons) {
-    add_patch_shape(app, polygon.inner_faces, vec3f{0.8, 0, 0});
-    add_patch_shape(app, polygon.outer_faces, vec3f{0, 0, 0.8});
-  }
+  //   //   // TODO (marzia): change if possible
+  //   for (auto& info : infos) {
+  //     auto start_idx = find_node(nodes, info.start);
+  //     auto end_idx   = find_node(nodes, info.end);
+
+  //     if (start_idx == -1) {
+  //       start_idx = nodes.size();
+  //       nodes.push_back(info.start);
+  //     }
+
+  //     if (end_idx == -1) {
+  //       end_idx = nodes.size();
+  //       nodes.push_back(info.end);
+  //     }
+
+  //     segments[{info.polygon_id, info.edge_id, info.segment_id}] = {
+  //         start_idx, end_idx};
+  //   }
+
+  //   auto& isecs = intersections[face];
+  //   sort(isecs.begin(), isecs.end(), [](auto& a, auto& b) {
+  //     auto& [ids, l]   = a;
+  //     auto& [ids1, l1] = b;
+  //     return l < l1;
+  //   });
+
+  //   for (auto& [idx, l] : isecs) {
+  //     auto& segment  = segments[idx];
+  //     auto  uv       = lerp(nodes[segment.front()], nodes[segment.back()],
+  //     l); auto  isec_idx = find_node(nodes, uv); if (isec_idx == -1) {
+  //       isec_idx = nodes.size();
+  //       nodes.push_back(uv);
+  //     }
+  //     segment.insert(segment.end() - 1, isec_idx);
+  //   }
+
+  //   // Mesh update + compute mapping from triangle nodes to mesh positions
+  //   auto mapping   = compute_mapping(nodes, face, app->mesh,
+  //   vertex_edgemap); auto triangles = triangulate(nodes);
+
+  //   for (auto i = 0; i < triangles.size(); i++) {
+  //     auto& verts = triangles[i];
+  //     auto  i0    = mapping[verts.x];
+  //     auto  i1    = mapping[verts.y];
+  //     auto  i2    = mapping[verts.z];
+
+  //     auto triangle_idx = app->mesh.triangles.size();
+  //     app->mesh.triangles.push_back({i0, i1, i2});
+
+  //     update_face_edgemap(face_edgemap, {i0, i1}, triangle_idx);
+  //     update_face_edgemap(face_edgemap, {i1, i2}, triangle_idx);
+  //     update_face_edgemap(face_edgemap, {i2, i0}, triangle_idx);
+  //   }
+
+  //   app->mesh.triangles[face] = {0, 0, 0};
+
+  //   for (auto& [ids, points] : segments) {
+  //     for (auto p = 0; p < points.size() - 1; p++) {
+  //       auto edge     = vec2i{mapping[points[p]], mapping[points[p + 1]]};
+  //       auto edge_key = make_edge_key(edge);
+  //       auto faces    = face_edgemap[edge_key];
+
+  //       // Not enough - Fix it
+  //       auto& [a, b, c] = app->mesh.triangles[faces.x];
+  //       if ((edge == vec2i{a, b}) || (edge == vec2i{b, c}) ||
+  //           (edge == vec2i{c, a})) {
+  //         swap(faces.x, faces.y);
+  //       }
+
+  //       printf("Faces: %d %d\n", faces.x, faces.y);
+  //       app->polygons[ids.x].inner_faces.push_back(faces.x);
+  //       app->polygons[ids.x].outer_faces.push_back(faces.y);
+  //     }
+  //   }
+  // }
+
+  // printf("Positions: %d\n", app->mesh.positions.size());
+  // for (auto p = 6534; p < app->mesh.positions.size(); p++) {
+  //   auto& pos = app->mesh.positions[p];
+  //   printf("Position: %d - %f %f %f\n", p, pos.x, pos.y, pos.z);
+  // }
+
+  // for (auto& ist : app->instances) {
+  //   ist->hidden = true;
+  // }
+
+  // app->mesh.normals = compute_normals(app->mesh.triangles,
+  // app->mesh.positions); app->mesh.adjacencies =
+  // face_adjacencies(app->mesh.triangles); set_positions(app->mesh_shape,
+  // app->mesh.positions); set_triangles(app->mesh_shape,
+  // app->mesh.triangles); set_normals(app->mesh_shape, app->mesh.normals);
+  // init_edges_and_vertices_shapes_and_points(app);
+
+  // for (auto& polygon : app->polygons) {
+  //   add_patch_shape(app, polygon.inner_faces, vec3f{0.8, 0, 0});
+  //   add_patch_shape(app, polygon.outer_faces, vec3f{0, 0, 0.8});
+  // }
 
   // auto graph = compute_graph(
   //     app->points.size(), edge_map, counterclockwise);

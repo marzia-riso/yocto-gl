@@ -20,9 +20,8 @@ struct bool_mesh {
 };
 
 struct hashgrid_entry {
-  int polygon_id = -1;
-  int edge_id    = -1;
-  int segment_id = -1;
+  int polygon = -1;
+  int segment = -1;
 
   vec2f start = {};
   vec2f end   = {};
@@ -35,16 +34,16 @@ struct mesh_segment {
 };
 
 struct mesh_polygon {
-  vector<int>                  points      = {};
-  vector<vector<mesh_segment>> edges       = {};
-  vector<int>                  inner_faces = {};
-  vector<int>                  outer_faces = {};
+  vector<int>          points      = {};
+  vector<mesh_segment> segments    = {};
+  vector<int>          inner_faces = {};
+  vector<int>          outer_faces = {};
 };
 
 struct cell_polygon {
-  vector<int>                  points    = {};
-  vector<vector<mesh_segment>> edges     = {};
-  vector<int>                  embedding = {};
+  vector<int>          points    = {};
+  vector<mesh_segment> segments  = {};
+  vector<int>          embedding = {};
 };
 
 struct edge {
@@ -76,7 +75,8 @@ inline vec2i get_edge_points(const vector<mesh_polygon>& polygons,
 
 inline void update_mesh_polygon(
     mesh_polygon& polygon, const vector<mesh_segment>& segments) {
-  polygon.edges.push_back(segments);
+  polygon.segments.insert(
+      polygon.segments.end(), segments.begin(), segments.end());
 }
 
 inline bool_mesh init_mesh(const generic_shape* shape) {
@@ -461,8 +461,8 @@ inline unordered_map<vec2i, std::pair<int, bool>> compute_edge_info(
   for (auto i = 0; i < polygons.size(); i++) {
     auto& polygon = polygons[i];
 
-    auto a = polygon.edges.back().back();
-    auto b = polygon.edges.front().front();
+    auto a = polygon.segments.back();
+    auto b = polygon.segments.front();
 
     auto v = a.end - a.start;
     auto w = b.end - b.start;
@@ -550,7 +550,7 @@ inline vector<cell_polygon> compute_cells(
     cell.points.push_back(cell.points.front());
 
     cell.embedding.reserve(num_polygons);
-    cell.edges.reserve(cell.points.size() - 1);
+    cell.segments.reserve(cell.points.size() - 1);
     for (auto j = 0; j < num_polygons; j++) cell.embedding.push_back(0);
 
     for (auto j = 0; j < cell.points.size() - 1; j++) {
@@ -560,7 +560,8 @@ inline vector<cell_polygon> compute_cells(
       auto path     = compute_geodesic_path(mesh, start, end);
       auto segments = mesh_segments(
           mesh.triangles, path.strip, path.lerps, path.start, path.end);
-      cell.edges.push_back(segments);
+      cell.segments.insert(
+          cell.segments.end(), segments.begin(), segments.end());
     }
     cells[i] = cell;
   }
