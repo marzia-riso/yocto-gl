@@ -70,10 +70,8 @@ struct intersection_node {
 };
 
 struct intersection {
-  int   polygon = -1;
-  int   segment = -1;
-  float dist    = -1.0f;
-  int   idx     = -1;
+  int   idx  = -1;
+  float lerp = -1.0f;
 };
 
 inline bool is_closed(const mesh_polygon& polygon) {

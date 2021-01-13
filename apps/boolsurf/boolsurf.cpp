@@ -621,8 +621,7 @@ void do_the_thing(app_state* app) {
   // self-intersections
   // auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
   auto hashgrid = vector<vector<hashgrid_entry>>(app->mesh.triangles.size());
-  auto polygon_points = vector<vector<tuple<int, float>>>(app->polygons.size());
-  auto intersections  = unordered_map<vec2i, vector<tuple<float, int>>>();
+  auto intersections     = unordered_map<vec2i, vector<intersection>>();
   auto triangle_segments = unordered_map<int, vector<triangle_segment>>{};
 
   for (auto p = 0; p < app->polygons.size(); p++) {
@@ -630,8 +629,6 @@ void do_the_thing(app_state* app) {
     for (auto s = 0; s < polygon.segments.size(); s++) {
       auto& segment = polygon.segments[s];
       hashgrid[segment.face].push_back({p, s, segment.start, segment.end});
-      polygon_points[p].push_back({s, 0.0f});
-      polygon_points[p].push_back({s, 1.0f});
     }
   }
 
@@ -660,10 +657,8 @@ void do_the_thing(app_state* app) {
             app->mesh.triangles, app->mesh.positions, point);
         app->mesh.positions.push_back(pos);
 
-        polygon_points[AB.polygon].push_back({AB.segment, l.x});
-        polygon_points[CD.polygon].push_back({CD.segment, l.y});
-        intersections[{AB.polygon, AB.segment}].push_back({l.x, idx});
-        intersections[{CD.polygon, CD.segment}].push_back({l.y, idx});
+        intersections[{AB.polygon, AB.segment}].push_back({idx, l.x});
+        intersections[{CD.polygon, CD.segment}].push_back({idx, l.y});
 
         //        C
         //        |
@@ -674,43 +669,38 @@ void do_the_thing(app_state* app) {
     }
   }
 
-  for (auto pid = 0; pid < polygon_points.size(); pid++) {
-    auto& points  = polygon_points[pid];
-    auto& polygon = app->polygons[pid];
-    sort(points.begin(), points.end(), [](auto& a, auto& b) {
-      auto& [segment, distance]   = a;
-      auto& [segment1, distance1] = b;
-      if (segment == segment1) return distance < distance1;
-      return segment < segment1;
-    });
+  for (auto pid = 0; pid < app->polygons.size(); pid++) {
+    auto& segments = app->polygons[pid].segments;
+    auto  first_id = (int)app->mesh.positions.size();
+    auto  id       = first_id;
+    for (auto s = 0; s < segments.size(); s++) {
+      auto& segment = segments[s];
+      auto  uv      = segment.start;
+      auto  pos     = eval_position(
+          app->mesh.triangles, app->mesh.positions, {segment.face, uv});
+      app->mesh.positions.push_back(pos);
 
-    auto first_point = (int)app->mesh.positions.size();
-    auto id          = first_point;
-    for (auto i = 0; i < points.size() - 1; i++) {
-      auto& [sid, lerp]   = points[i];
-      auto& [sid1, lerp1] = points[i + 1];
+      if (intersections.find({pid, s}) != intersections.end()) {
+        auto& isecs = intersections[{pid, s}];
+        sort(isecs.begin(), isecs.end(),
+            [](auto& a, auto& b) { return a.lerp < b.lerp; });
 
-      auto& [uv, pos]   = eval_point(polygon, sid, lerp, app->mesh);
-      auto& [uv1, pos1] = eval_point(polygon, sid1, lerp1, app->mesh);
-      if (sid != sid1) continue;
-      if ((lerp != 0.0f) && (lerp != 1.0f))
-        id = find_intersection_idx(intersections, pid, sid, lerp);
-      else {
-        app->mesh.positions.push_back(pos);
+        for (auto& [id1, l] : isecs) {
+          auto uv1 = lerp(segment.start, segment.end, l);
+          triangle_segments[segment.face].push_back({pid, id, id1, uv, uv1});
+          uv = uv1;
+          id = id1;
+        };
       }
 
-      auto id1 = (i == points.size() - 2) ? first_point
-                                          : (int)app->mesh.positions.size();
-      if ((lerp1 != 0.0f) && (lerp1 != 1.0f))
-        id1 = find_intersection_idx(intersections, pid, sid1, lerp1);
+      auto id1 = (int)app->mesh.positions.size();
+      if (s == segments.size() - 1) id1 = first_id;
 
-      triangle_segments[polygon.segments[sid].face].push_back(
-          {pid, id, id1, uv, uv1});
-
+      triangle_segments[segment.face].push_back(
+          {pid, id, id1, uv, segment.end});
       id = id1;
     }
   }
-  printf("New positions: %d\n", app->mesh.positions.size());
 
   auto face_edgemap = unordered_map<vec2i, vec2i>{};
   for (auto& [face, segments] : triangle_segments) {
