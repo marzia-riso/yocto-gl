@@ -609,6 +609,7 @@ auto add_patch_shape(
   auto patch_shape    = add_shape(app->glscene, {}, {}, {}, {}, {}, {}, {}, {});
   auto patch_material = add_material(
       app->glscene, {0, 0, 0}, color, 1, 0, 0.4);  // @Leak
+  patch_material->opacity = 0.4;
   add_instance(app->glscene, identity3x4f, patch_shape, patch_material);
   set_patch_shape(patch_shape, app->mesh, faces);
   return patch_shape;
