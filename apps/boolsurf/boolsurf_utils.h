@@ -69,6 +69,13 @@ struct intersection_node {
   float t       = -1;
 };
 
+struct intersection {
+  int   polygon = -1;
+  int   segment = -1;
+  float dist    = -1.0f;
+  int   idx     = -1;
+};
+
 inline bool is_closed(const mesh_polygon& polygon) {
   if (polygon.points.size() < 3) return false;
   return (polygon.points.front() == polygon.points.back());
@@ -220,6 +227,17 @@ inline tuple<vec2f, vec3f> eval_point(const mesh_polygon& polygon,
                            : lerp(segment.start, segment.end, dist);
   auto pos = eval_position(mesh.triangles, mesh.positions, {segment.face, uv});
   return {uv, pos};
+}
+
+inline int find_intersection_idx(
+    const unordered_map<vec2i, vector<tuple<float, int>>>& intersections,
+    int pid, int sid, const float dist) {
+  auto  ids   = vec2i{pid, sid};
+  auto& isecs = intersections.at(ids);
+  for (auto& [l, idx] : isecs) {
+    if (l == dist) return idx;
+  }
+  return -1;
 }
 
 inline vec2i make_edge_key(const vec2i& edge) {

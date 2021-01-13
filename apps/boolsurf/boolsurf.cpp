@@ -621,6 +621,7 @@ void do_the_thing(app_state* app) {
   // auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
   auto hashgrid = vector<vector<hashgrid_entry>>(app->mesh.triangles.size());
   auto polygon_points = vector<vector<tuple<int, float>>>(app->polygons.size());
+  auto intersections  = unordered_map<vec2i, vector<tuple<float, int>>>();
   auto triangle_segments = unordered_map<int, vector<triangle_segment>>{};
 
   for (auto p = 0; p < app->polygons.size(); p++) {
@@ -648,27 +649,34 @@ void do_the_thing(app_state* app) {
           continue;
         }
 
-        auto uv = lerp(CD.start, CD.end, l.y);
+        auto uv       = lerp(CD.start, CD.end, l.y);
+        auto point    = mesh_point{face, uv};
+        auto point_id = (int)app->points.size();
+        app->points.push_back(point);
+
+        auto idx = (int)app->mesh.positions.size();
+        auto pos = eval_position(
+            app->mesh.triangles, app->mesh.positions, point);
+        app->mesh.positions.push_back(pos);
+
         //(marzia): Multiple Point Detection;
         polygon_points[AB.polygon].push_back({AB.segment, l.x});
         polygon_points[CD.polygon].push_back({CD.segment, l.y});
+        intersections[{AB.polygon, AB.segment}].push_back({l.x, idx});
+        intersections[{CD.polygon, CD.segment}].push_back({l.y, idx});
 
         //        C
         //        |
         // A -- point -- B
         //        |
         //        D
-
-        auto point    = mesh_point{face, uv};
-        auto point_id = (int)app->points.size();
-        app->points.push_back(point);
       }
     }
   }
 
-  for (auto p = 0; p < polygon_points.size(); p++) {
-    auto& points  = polygon_points[p];
-    auto& polygon = app->polygons[p];
+  for (auto pid = 0; pid < polygon_points.size(); pid++) {
+    auto& points  = polygon_points[pid];
+    auto& polygon = app->polygons[pid];
     sort(points.begin(), points.end(), [](auto& a, auto& b) {
       auto& [segment, distance]   = a;
       auto& [segment1, distance1] = b;
@@ -679,21 +687,25 @@ void do_the_thing(app_state* app) {
     auto first_point = (int)app->mesh.positions.size();
     auto id          = first_point;
     for (auto i = 0; i < points.size() - 1; i++) {
-      auto& [sid, lerp] = points[i];
-      // auto& [sid1, lerp1] = points[((i + 1) % points.size())];
+      auto& [sid, lerp]   = points[i];
       auto& [sid1, lerp1] = points[i + 1];
 
       auto& [uv, pos]   = eval_point(polygon, sid, lerp, app->mesh);
       auto& [uv1, pos1] = eval_point(polygon, sid1, lerp1, app->mesh);
-
       if (sid != sid1) continue;
+      if ((lerp != 0.0f) && (lerp != 1.0f))
+        id = find_intersection_idx(intersections, pid, sid, lerp);
+      else {
+        app->mesh.positions.push_back(pos);
+      }
 
-      app->mesh.positions.push_back(pos);
       auto id1 = (i == points.size() - 2) ? first_point
                                           : (int)app->mesh.positions.size();
+      if ((lerp1 != 0.0f) && (lerp1 != 1.0f))
+        id1 = find_intersection_idx(intersections, pid, sid1, lerp1);
 
       triangle_segments[polygon.segments[sid].face].push_back(
-          {p, id, id1, uv, uv1});
+          {pid, id, id1, uv, uv1});
 
       id = id1;
     }
@@ -849,8 +861,8 @@ void key_input(app_state* app, const gui_input& input) {
         polygon.points.push_back(point);
 
         auto geo_path = compute_path(polygon, app->points, app->mesh);
-        // draw_path(
-        //     app->glscene, app->mesh, app->paths_material, geo_path, 0.0005f);
+        draw_path(
+            app->glscene, app->mesh, app->paths_material, geo_path, 0.0005f);
 
         auto segments = mesh_segments(app->mesh.triangles, geo_path.strip,
             geo_path.lerps, geo_path.start, geo_path.end);
