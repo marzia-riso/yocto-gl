@@ -659,7 +659,6 @@ void do_the_thing(app_state* app) {
             app->mesh.triangles, app->mesh.positions, point);
         app->mesh.positions.push_back(pos);
 
-        //(marzia): Multiple Point Detection;
         polygon_points[AB.polygon].push_back({AB.segment, l.x});
         polygon_points[CD.polygon].push_back({CD.segment, l.y});
         intersections[{AB.polygon, AB.segment}].push_back({l.x, idx});
@@ -710,7 +709,6 @@ void do_the_thing(app_state* app) {
       id = id1;
     }
   }
-
   printf("New positions: %d\n", app->mesh.positions.size());
 
   auto face_edgemap = unordered_map<vec2i, vec2i>{};
@@ -755,15 +753,15 @@ void do_the_thing(app_state* app) {
   }
 
   for (auto& [face, segments] : triangle_segments) {
-    for (auto& segment : segments) {
-      auto& [p, id, id1, uv, uv1] = segment;
+    for (auto i = 0; i < segments.size(); i++) {
+      auto& [p, id, id1, uv, uv1] = segments[i];
       auto edge                   = vec2i{id, id1};
       auto edge_key               = make_edge_key(edge);
 
       auto faces      = face_edgemap[edge_key];
       auto& [a, b, c] = app->mesh.triangles[faces.x];
-      if ((edge == vec2i{a, b}) || (edge == vec2i{b, c}) ||
-          (edge == vec2i{c, a})) {
+      if ((edge == vec2i{b, a}) || (edge == vec2i{c, b}) ||
+          (edge == vec2i{a, c})) {
         swap(faces.x, faces.y);
       }
 
