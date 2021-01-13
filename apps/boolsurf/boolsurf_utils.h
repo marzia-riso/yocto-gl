@@ -324,11 +324,16 @@ inline vector<vec3i> triangulate(const vector<vec2f>& nodes) {
 
 inline void update_face_edgemap(unordered_map<vec2i, vec2i>& face_edgemap,
     const vec2i& edge, const int face) {
+  // printf("Edge: %d %d\n", edge.x, edge.y);
+
   auto key = make_edge_key(edge);
-  if (face_edgemap.find(key) == face_edgemap.end())
-    face_edgemap[key] = {face, -1};
-  else
-    face_edgemap[key].y = face;
+  if (face_edgemap.find(key) != face_edgemap.end()) {
+    auto& faces = face_edgemap[key];
+    if (faces.x == -1)
+      faces.x = face;
+    else
+      faces.y = face;
+  }
 }
 
 inline void print_graph(const vector<vector<int>>& graph) {

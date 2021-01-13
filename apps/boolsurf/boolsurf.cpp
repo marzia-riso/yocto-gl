@@ -679,7 +679,7 @@ void do_the_thing(app_state* app) {
     });
 
     auto first_point = (int)app->mesh.positions.size();
-    auto id          = (int)app->mesh.positions.size();
+    auto id          = first_point;
     for (auto i = 0; i < points.size(); i++) {
       auto& [sid, _]    = points[i];
       auto& [uv, pos]   = eval_point(points[i], polygon, app->mesh);
@@ -696,39 +696,66 @@ void do_the_thing(app_state* app) {
     }
   }
 
-  // printf("New positions: %d\n", app->mesh.positions.size());
-  // for (auto p = 6534; p < app->mesh.positions.size(); p++) {
-  //   auto& pos = app->mesh.positions[p];
-  //   printf("%d - (%f %f %f)\n", p, pos.x, pos.y, pos.z);
-  //   draw_sphere(app->glscene, app->mesh, app->points_material, {pos},
-  //   0.0015f);
-  // }
-
+  auto face_edgemap = unordered_map<vec2i, vec2i>{};
   for (auto& [face, segments] : triangle_segments) {
     auto [a, b, c] = app->mesh.triangles[face];
-    auto nodes     = unordered_map<int, vec2f>();
-    nodes[a]       = {0, 0};
-    nodes[b]       = {1, 0};
-    nodes[c]       = {0, 1};
+    auto nodes     = vector<vec2f>{{0, 0}, {1, 0}, {0, 1}};
+    auto indices   = vector<int>{a, b, c};
 
     for (auto s = 0; s < segments.size(); s++) {
+      if (s == 0) {
+        auto& pos = app->mesh.positions[segments[s].start_idx];
+        draw_sphere(
+            app->glscene, app->mesh, app->isecs_material, {pos}, 0.0015f);
+      }
+
       auto& [id, id1, uv, uv1] = segments[s];
+      if (find_idx(indices, id) == -1) {
+        nodes.push_back(uv);
+        indices.push_back(id);
+      }
 
-      if (nodes.find(id) == nodes.end()) nodes[id] = uv;
-      if (nodes.find(id1) == nodes.end()) nodes[id1] = uv1;
+      if (find_idx(indices, id1) == -1) {
+        nodes.push_back(uv1);
+        indices.push_back(id1);
+      }
+
+      auto edge          = make_edge_key({id, id1});
+      face_edgemap[edge] = {-1, -1};
     }
 
-    auto mapping = unordered_map<int, int>();
-    auto uvs     = vector<vec2f>(nodes.size());
-    auto i       = 0;
-    for (auto& [id, uv] : nodes) {
-      mapping[i] = id;
-      uvs.push_back(uv);
-      i++;
+    for (auto i = 0; i < nodes.size(); i++) {
+      auto& uv = nodes[i];
+      printf("%d - %d - (%f %f)\n", i, indices[i], uv.x, uv.y);
     }
 
-    auto triangles = triangulate(uvs);
-    printf("Triangles: %d\n", triangles.size());
+    auto triangles = triangulate(nodes);
+
+    for (auto i = 0; i < triangles.size(); i++) {
+      auto& [x, y, z] = triangles[i];
+      printf("Triangle: %d %d %d\n", x, y, z);
+
+      auto i0 = indices[x];
+      auto i1 = indices[y];
+      auto i2 = indices[z];
+
+      printf("Triangle: %d %d %d\n", i0, i1, i2);
+
+      auto triangle_idx = app->mesh.triangles.size();
+      app->mesh.triangles.push_back({i0, i1, i2});
+
+      //   update_face_edgemap(face_edgemap, {i0, i1}, triangle_idx);
+      //   update_face_edgemap(face_edgemap, {i1, i2}, triangle_idx);
+      //   update_face_edgemap(face_edgemap, {i2, i0}, triangle_idx);
+      // }
+    }
+
+    app->mesh.triangles[face] = {0, 0, 0};
+    break;
+  }
+
+  for (auto& [edge, faces] : face_edgemap) {
+    printf("Edge: %d %d - Faces: %d %d\n", edge.x, edge.y, faces.x, faces.y);
   }
 
   // auto vertex_edgemap = unordered_map<vec2i, vector<std::tuple<int,
@@ -819,22 +846,16 @@ void do_the_thing(app_state* app) {
   //   }
   // }
 
-  // printf("Positions: %d\n", app->mesh.positions.size());
-  // for (auto p = 6534; p < app->mesh.positions.size(); p++) {
-  //   auto& pos = app->mesh.positions[p];
-  //   printf("Position: %d - %f %f %f\n", p, pos.x, pos.y, pos.z);
-  // }
+  for (auto& ist : app->instances) {
+    ist->hidden = true;
+  }
 
-  // for (auto& ist : app->instances) {
-  //   ist->hidden = true;
-  // }
-
-  // app->mesh.normals = compute_normals(app->mesh.triangles,
-  // app->mesh.positions); app->mesh.adjacencies =
-  // face_adjacencies(app->mesh.triangles); set_positions(app->mesh_shape,
-  // app->mesh.positions); set_triangles(app->mesh_shape,
-  // app->mesh.triangles); set_normals(app->mesh_shape, app->mesh.normals);
-  // init_edges_and_vertices_shapes_and_points(app);
+  app->mesh.normals = compute_normals(app->mesh.triangles, app->mesh.positions);
+  app->mesh.adjacencies = face_adjacencies(app->mesh.triangles);
+  set_positions(app->mesh_shape, app->mesh.positions);
+  set_triangles(app->mesh_shape, app->mesh.triangles);
+  set_normals(app->mesh_shape, app->mesh.normals);
+  init_edges_and_vertices_shapes_and_points(app);
 
   // for (auto& polygon : app->polygons) {
   //   add_patch_shape(app, polygon.inner_faces, vec3f{0.8, 0, 0});
