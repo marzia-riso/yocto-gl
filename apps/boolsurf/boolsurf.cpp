@@ -666,11 +666,7 @@ void do_the_thing(app_state* app) {
     }
   }
 
-  for (auto p = 0; p < app->polygons.size(); p++) {
-    printf("Polygon: %d - Segments %d\n", p, app->polygons[p].segments.size());
-    auto& points = polygon_points[p];
-    printf("\t Points: %d\n", points.size());
-  }
+  printf("Mesh positions: %d\n", app->mesh.positions.size());
 
   for (auto p = 0; p < polygon_points.size(); p++) {
     auto& points  = polygon_points[p];
@@ -682,29 +678,57 @@ void do_the_thing(app_state* app) {
       return segment < segment1;
     });
 
-    auto id = (int)app->mesh.positions.size();
+    auto first_point = (int)app->mesh.positions.size();
+    auto id          = (int)app->mesh.positions.size();
     for (auto i = 0; i < points.size(); i++) {
       auto& [sid, _]    = points[i];
       auto& [uv, pos]   = eval_point(points[i], polygon, app->mesh);
       auto& [uv1, pos1] = eval_point(
           points[((i + 1) % points.size())], polygon, app->mesh);
-      if (i == 0) app->mesh.positions.push_back(pos);
 
-      auto id1 = (int)app->mesh.positions.size();
-      app->mesh.positions.push_back(pos1);
+      app->mesh.positions.push_back(pos);
+      auto id1 = (i == points.size() - 1) ? first_point
+                                          : (int)app->mesh.positions.size();
 
       triangle_segments[polygon.segments[sid].face].push_back(
-          {{id, id1}, uv, uv1});
+          {id, id1, uv, uv1});
       id = id1;
     }
   }
 
-  for (auto& [tri, segments] : triangle_segments) {
-    printf("Triangle: %d\n", tri);
-    for (auto& seg : segments) {
-      auto& [ids, uv, uv1] = seg;
-      printf("\t %d %d\n", ids.x, ids.y);
+  // printf("New positions: %d\n", app->mesh.positions.size());
+  // for (auto p = 6534; p < app->mesh.positions.size(); p++) {
+  //   auto& pos = app->mesh.positions[p];
+  //   printf("%d - (%f %f %f)\n", p, pos.x, pos.y, pos.z);
+  //   draw_sphere(app->glscene, app->mesh, app->points_material, {pos},
+  //   0.0015f);
+  // }
+
+  for (auto& [face, segments] : triangle_segments) {
+    auto [a, b, c] = app->mesh.triangles[face];
+    auto nodes     = unordered_map<int, vec2f>();
+    nodes[a]       = {0, 0};
+    nodes[b]       = {1, 0};
+    nodes[c]       = {0, 1};
+
+    for (auto s = 0; s < segments.size(); s++) {
+      auto& [id, id1, uv, uv1] = segments[s];
+
+      if (nodes.find(id) == nodes.end()) nodes[id] = uv;
+      if (nodes.find(id1) == nodes.end()) nodes[id1] = uv1;
     }
+
+    auto mapping = unordered_map<int, int>();
+    auto uvs     = vector<vec2f>(nodes.size());
+    auto i       = 0;
+    for (auto& [id, uv] : nodes) {
+      mapping[i] = id;
+      uvs.push_back(uv);
+      i++;
+    }
+
+    auto triangles = triangulate(uvs);
+    printf("Triangles: %d\n", triangles.size());
   }
 
   // auto vertex_edgemap = unordered_map<vec2i, vector<std::tuple<int,

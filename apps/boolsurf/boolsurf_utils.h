@@ -34,9 +34,11 @@ struct mesh_segment {
 };
 
 struct triangle_segment {
-  vec2i segments = {};
-  vec2f start    = {};
-  vec2f end      = {};
+  int start_idx = -1;
+  int end_idx   = -1;
+
+  vec2f start = {};
+  vec2f end   = {};
 };
 
 struct mesh_polygon {
@@ -306,6 +308,7 @@ inline vector<vec3i> triangulate(const vector<vec2f>& nodes) {
         (int)dt.triangles[i + 1]};
 
     // Check collinearity
+
     auto& a = nodes[verts.x];
     auto& b = nodes[verts.y];
     auto& c = nodes[verts.z];
