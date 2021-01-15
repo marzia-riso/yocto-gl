@@ -75,7 +75,7 @@ struct app_state {
   // boolmesh info
   bool_mesh mesh = bool_mesh{};
 
-  vector<mesh_polygon> polygons = {};
+  vector<mesh_polygon> polygons = {mesh_polygon{}};
   vector<mesh_point>   points   = {};  // Click inserted points
 
   // rendering state
@@ -303,6 +303,7 @@ void init_glscene(app_state* app, shade_scene* glscene, const bool_mesh& mesh,
   app->paths_material  = add_material(glscene, {0, 0, 0}, {1, 1, 1}, 1, 0, 0.4);
   app->isecs_material  = add_material(glscene, {0, 0, 0}, {0, 1, 0}, 1, 0, 0.4);
   auto colors          = vector<vec3f>{
+      {0, 0, 0},  // REMEMBER IT
       {1, 0, 0},
       {0, 1, 0},
       {0, 0, 1},
@@ -556,7 +557,7 @@ void mouse_input(app_state* app, const gui_input& input) {
       input.mouse_left.state == gui_button::state::releasing) {
     auto isec = intersect_shape(app, input);
     if (isec.hit) {
-      if (!app->polygons.size()) app->polygons.push_back(mesh_polygon{});
+      if (app->polygons.size() == 1) app->polygons.push_back(mesh_polygon{});
       if (is_closed(app->polygons.back()))
         app->polygons.push_back(mesh_polygon{});
 
@@ -619,8 +620,8 @@ void do_the_thing(app_state* app) {
   // Hashgrid from triangle idx to <polygon idx, edge_idx, segment idx,
   // segment start uv, segment end uv> to handle intersections and
   // self-intersections
-  // auto hashgrid = unordered_map<int, vector<hashgrid_entry>>();
-  auto hashgrid = vector<vector<hashgrid_entry>>(app->mesh.triangles.size());
+
+  auto hashgrid          = unordered_map<int, vector<hashgrid_entry>>();
   auto intersections     = unordered_map<vec2i, vector<intersection>>();
   auto triangle_segments = unordered_map<int, vector<triangle_segment>>{};
 
@@ -632,20 +633,20 @@ void do_the_thing(app_state* app) {
     }
   }
 
-  for (auto face = 0; face < hashgrid.size(); face++) {
-    auto& entries = hashgrid[face];
-    if (entries.size() == 0) continue;
-
+  for (auto& [face, entries] : hashgrid) {
     for (auto i = 0; i < entries.size() - 1; i++) {
       auto& AB = entries[i];
-
       for (auto j = i + 1; j < entries.size(); j++) {
         auto& CD = entries[j];
 
         auto l = intersect_segments(AB.start, AB.end, CD.start, CD.end);
-        if (l.x <= 0.0f || l.x >= 1.0f || l.y <= 0.0f || l.y >= 1.0f) {
-          continue;
-        }
+        if (l.x <= 0.0f || l.x >= 1.0f || l.y <= 0.0f || l.y >= 1.0f) continue;
+
+        //        C
+        //        |
+        // A -- point -- B
+        //        |
+        //        D
 
         auto uv       = lerp(CD.start, CD.end, l.y);
         auto point    = mesh_point{face, uv};
@@ -659,12 +660,6 @@ void do_the_thing(app_state* app) {
 
         intersections[{AB.polygon, AB.segment}].push_back({idx, l.x});
         intersections[{CD.polygon, CD.segment}].push_back({idx, l.y});
-
-        //        C
-        //        |
-        // A -- point -- B
-        //        |
-        //        D
       }
     }
   }
@@ -734,6 +729,7 @@ void do_the_thing(app_state* app) {
 
       auto triangle_idx = app->mesh.triangles.size();
       app->mesh.triangles.push_back({i0, i1, i2});
+      // printf("%d - (%d %d %d)\n", triangle_idx, i0, i1, i2);
 
       update_face_edgemap(face_edgemap, {i0, i1}, triangle_idx);
       update_face_edgemap(face_edgemap, {i1, i2}, triangle_idx);
@@ -756,8 +752,32 @@ void do_the_thing(app_state* app) {
         swap(faces.x, faces.y);
       }
 
-      app->polygons[p].inner_faces.push_back(faces.x);
-      app->polygons[p].outer_faces.push_back(faces.y);
+      // printf("Edge: %d %d - Faces: %d %d\n", edge_key.x, edge_key.y, faces.x,
+      // faces.y);
+
+      if (faces.x != -1)
+        app->polygons[p].inner_faces.push_back(faces.x);
+      else {
+        auto& start = app->mesh.positions[edge_key.x];
+        auto& end   = app->mesh.positions[edge_key.y];
+        printf("Start: %f %f %f\n", start.x, start.y, start.z);
+        printf("End: %f %f %f\n", end.x, end.y, end.z);
+
+        draw_segment(
+            app->glscene, app->mesh, app->points_material, start, end, 0.0002f);
+      }
+
+      if (faces.y != -1)
+        app->polygons[p].outer_faces.push_back(faces.y);
+      else {
+        auto& start = app->mesh.positions[edge_key.x];
+        auto& end   = app->mesh.positions[edge_key.y];
+        printf("Start: %f %f %f\n", start.x, start.y, start.z);
+        printf("End: %f %f %f\n", end.x, end.y, end.z);
+
+        draw_segment(
+            app->glscene, app->mesh, app->points_material, start, end, 0.0002f);
+      }
     }
   }
 
@@ -772,9 +792,35 @@ void do_the_thing(app_state* app) {
   set_normals(app->mesh_shape, app->mesh.normals);
   init_edges_and_vertices_shapes_and_points(app);
 
-  for (auto& polygon : app->polygons) {
-    add_patch_shape(app, polygon.inner_faces, vec3f{0.8, 0, 0});
-    add_patch_shape(app, polygon.outer_faces, vec3f{0, 0, 0.8});
+  //(marzia) Check why duplicate faces
+  for (auto i = 1; i < app->polygons.size(); i++) {
+    auto& inner = app->polygons[i].inner_faces;
+    auto& outer = app->polygons[i].outer_faces;
+
+    // Removing duplicates
+    sort(inner.begin(), inner.end());
+    inner.erase(unique(inner.begin(), inner.end()), inner.end());
+
+    sort(outer.begin(), outer.end());
+    outer.erase(unique(outer.begin(), outer.end()), outer.end());
+  }
+
+  //(marzia) this structure may change
+  auto face_polygons = vector<unordered_set<int>>(app->mesh.triangles.size());
+  auto tags          = compute_face_tags(app->mesh, app->polygons);
+
+  for (auto p = 1; p < app->polygons.size(); p++)
+    flood_fill(app->mesh, app->polygons, tags, face_polygons, p);
+
+  for (auto face = 0; face < face_polygons.size(); face++) {
+    auto& polygons = face_polygons[face];
+    if (!polygons.size()) continue;
+
+    auto color = zero3f;
+    for (auto& p : polygons) color += app->cell_materials[p]->color;
+    color /= polygons.size();
+
+    add_patch_shape(app, {face}, color);
   }
 
   // auto graph = compute_graph(
@@ -831,10 +877,18 @@ void key_input(app_state* app, const gui_input& input) {
       case (int)gui_key('I'): {
         do_the_thing(app);
       } break;
+      case (int)gui_key('S'): {
+        for (auto& polygon : app->polygons) {
+          add_patch_shape(app, polygon.inner_faces, vec3f{0.8, 0, 0});
+          add_patch_shape(app, polygon.outer_faces, vec3f{0, 0, 0.8});
+        }
+        break;
+      }
       case (int)gui_key('C'): {
         auto old_camera = app->glcamera;
         app->points.clear();
         app->polygons.clear();
+        app->polygons.push_back(mesh_polygon{});
         load_shape(app, app->filename);
         clear_scene(app->glscene);
         init_glscene(app, app->glscene, app->mesh, {});

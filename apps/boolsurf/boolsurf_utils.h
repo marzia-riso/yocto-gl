@@ -340,8 +340,6 @@ inline vector<vec3i> triangulate(const vector<vec2f>& nodes) {
 
 inline void update_face_edgemap(unordered_map<vec2i, vec2i>& face_edgemap,
     const vec2i& edge, const int face) {
-  // printf("Edge: %d %d\n", edge.x, edge.y);
-
   auto key = make_edge_key(edge);
   if (face_edgemap.find(key) != face_edgemap.end()) {
     auto& faces = face_edgemap[key];
@@ -349,6 +347,66 @@ inline void update_face_edgemap(unordered_map<vec2i, vec2i>& face_edgemap,
       faces.x = face;
     else
       faces.y = face;
+  }
+}
+
+inline vector<int> find_boundary_faces(const vector<vec3i>& adjacencies) {
+  auto boundary = vector<int>();
+  for (auto face = 0; face < adjacencies.size(); face++) {
+    auto& [f0, f1, f2] = adjacencies[face];
+    if ((f0 == -1) || (f1 == -1) || (f2 == -1)) boundary.push_back(face);
+  }
+  return boundary;
+}
+
+inline vector<vec3i> compute_face_tags(
+    const bool_mesh& mesh, const vector<mesh_polygon>& polygons) {
+  auto tags = vector<vec3i>(mesh.triangles.size(), zero3i);
+  for (auto p = 1; p < polygons.size(); p++) {
+    for (auto f : polygons[p].inner_faces)
+      for (auto k = 0; k < 3; k++)
+        if (tags[f][k] == 0) {
+          tags[f][k] = -p;
+          break;
+        }
+
+    for (auto f : polygons[p].outer_faces)
+      for (auto k = 0; k < 3; k++)
+        if (tags[f][k] == 0) {
+          tags[f][k] = p;
+          break;
+        }
+  }
+  return tags;
+}
+
+inline void flood_fill(const bool_mesh& mesh,
+    const vector<mesh_polygon>& polygons, const vector<vec3i>& face_tags,
+    vector<unordered_set<int>>& face_polygons, const int pid) {
+  // check for connected components
+  auto visited = vector<bool>(mesh.adjacencies.size(), false);
+
+  auto num_visited = 0;
+  auto start_face  = polygons[pid].inner_faces.front();
+  auto stack       = vector<int>{start_face};
+  face_polygons[start_face].insert(pid);
+
+  while (!stack.empty()) {
+    auto face = stack.back();
+    stack.pop_back();
+
+    if (visited[face]) continue;
+    visited[face] = true;
+    num_visited += 1;
+
+    for (auto neighbor : mesh.adjacencies[face]) {
+      if (neighbor < 0 || visited[neighbor]) continue;
+      auto& tags = face_tags[neighbor];
+
+      if (find_in_vec(tags, pid) != -1) continue;
+      face_polygons[neighbor].insert(pid);
+      stack.push_back(neighbor);
+    }
   }
 }
 
