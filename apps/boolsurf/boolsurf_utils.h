@@ -79,6 +79,7 @@ inline bool is_closed(const mesh_polygon& polygon) {
   return (polygon.points.front() == polygon.points.back());
 }
 
+//(marzia) Not used
 inline vec2i get_edge_points(const vector<mesh_polygon>& polygons,
     const vector<mesh_point>& points, const int polygon_id, const int edge_id) {
   auto& polygon = polygons[polygon_id];
@@ -138,12 +139,6 @@ template <class T>
 inline int find_idx(const vector<T>& vec, const T& x) {
   for (auto i = 0; i < vec.size(); i++)
     if (vec[i] == x) return i;
-  return -1;
-}
-
-inline int find_node(const vector<vec2f>& vec, const vec2f& x) {
-  for (auto i = 0; i < vec.size(); i++)
-    if (distance(vec[i], x) < 0.001) return i;
   return -1;
 }
 
@@ -218,31 +213,12 @@ inline vector<mesh_segment> mesh_segments(const vector<vec3i>& triangles,
   return result;
 }
 
-inline tuple<vec2f, vec3f> eval_point(const mesh_polygon& polygon,
-    const int sid, const float dist, const bool_mesh& mesh) {
-  auto& segment = polygon.segments[sid];
-  auto  uv      = (dist == 0.0f) ? segment.start
-                           : lerp(segment.start, segment.end, dist);
-  auto pos = eval_position(mesh.triangles, mesh.positions, {segment.face, uv});
-  return {uv, pos};
-}
-
-inline int find_intersection_idx(
-    const unordered_map<vec2i, vector<tuple<float, int>>>& intersections,
-    int pid, int sid, const float dist) {
-  auto  ids   = vec2i{pid, sid};
-  auto& isecs = intersections.at(ids);
-  for (auto& [l, idx] : isecs) {
-    if (l == dist) return idx;
-  }
-  return -1;
-}
-
 inline vec2i make_edge_key(const vec2i& edge) {
   if (edge.x > edge.y) return {edge.y, edge.x};
   return edge;
 };
 
+//(marzia) Not used
 inline tuple<vec2i, float> get_mesh_edge(
     const vec3i& triangle, const vec2f& uv) {
   if (uv.y == 0)
@@ -255,6 +231,7 @@ inline tuple<vec2i, float> get_mesh_edge(
     return {zero2i, -1};
 }
 
+//(marzia) Not used
 inline vector<int> compute_mapping(const vector<vec2f>& nodes, const int face,
     bool_mesh&                                       mesh,
     unordered_map<vec2i, vector<tuple<int, float>>>& vertex_edgemap) {
@@ -324,12 +301,11 @@ inline vector<vec3i> triangulate(const vector<vec2f>& nodes) {
         (int)dt.triangles[i + 1]};
 
     // Check collinearity
-
-    auto& a = nodes[verts.x];
-    auto& b = nodes[verts.y];
-    auto& c = nodes[verts.z];
-    auto or = cross(b - a, c - b);
-    if (fabs(or) < 0.001) {
+    auto& a           = nodes[verts.x];
+    auto& b           = nodes[verts.y];
+    auto& c           = nodes[verts.z];
+    auto  orientation = cross(b - a, c - b);
+    if (fabs(orientation) < 0.001) {
       continue;
     }
 
@@ -383,7 +359,6 @@ inline vector<vec3i> compute_face_tags(
 inline void flood_fill(const bool_mesh& mesh,
     const vector<mesh_polygon>& polygons, const vector<vec3i>& face_tags,
     vector<unordered_set<int>>& face_polygons, const int pid) {
-  // check for connected components
   auto visited = vector<bool>(mesh.adjacencies.size(), false);
 
   auto num_visited = 0;
@@ -410,6 +385,7 @@ inline void flood_fill(const bool_mesh& mesh,
   }
 }
 
+//(marzia) Previous implementation
 inline void print_graph(const vector<vector<int>>& graph) {
   printf("Graph:\n");
   for (int i = 0; i < graph.size(); i++) {
