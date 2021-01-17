@@ -610,7 +610,7 @@ auto add_patch_shape(
   auto patch_shape    = add_shape(app->glscene, {}, {}, {}, {}, {}, {}, {}, {});
   auto patch_material = add_material(
       app->glscene, {0, 0, 0}, color, 1, 0, 0.4);  // @Leak
-  patch_material->opacity = 0.4;
+  patch_material->opacity = 0.2;
   add_instance(app->glscene, identity3x4f, patch_shape, patch_material);
   set_patch_shape(patch_shape, app->mesh, faces);
   return patch_shape;
@@ -806,22 +806,29 @@ void do_the_thing(app_state* app) {
   }
 
   //(marzia) this structure may change
-  auto face_polygons = vector<unordered_set<int>>(app->mesh.triangles.size());
-  auto tags          = compute_face_tags(app->mesh, app->polygons);
+  // auto face_polygons =
+  // vector<unordered_set<int>>(app->mesh.triangles.size());
+  auto tags = compute_face_tags(app->mesh, app->polygons);
 
-  for (auto p = 1; p < app->polygons.size(); p++)
-    flood_fill(app->mesh, app->polygons, tags, face_polygons, p);
+  for (auto p = 1; p < app->polygons.size(); p++) {
+    auto add   = [&](int face) { return find_in_vec(tags[face], p) == -1; };
+    auto start = app->polygons[p].inner_faces;
 
-  for (auto face = 0; face < face_polygons.size(); face++) {
-    auto& polygons = face_polygons[face];
-    if (!polygons.size()) continue;
-
-    auto color = zero3f;
-    for (auto& p : polygons) color += app->cell_materials[p]->color;
-    color /= polygons.size();
-
-    add_patch_shape(app, {face}, color);
+    auto visited = flood_fill(app->mesh, start, add);
+    auto color   = app->cell_materials[p]->color;
+    add_patch_shape(app, visited, color);
   }
+
+  // for (auto face = 0; face < face_polygons.size(); face++) {
+  //   auto& polygons = face_polygons[face];
+  //   if (!polygons.size()) continue;
+
+  //   auto color = zero3f;
+  //   for (auto& p : polygons) color += app->cell_materials[p]->color;
+  //   color /= polygons.size();
+
+  //   add_patch_shape(app, {face}, color);
+  // }
 
   // auto graph = compute_graph(
   //     app->points.size(), edge_map, counterclockwise);

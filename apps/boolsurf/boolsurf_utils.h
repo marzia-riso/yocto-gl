@@ -339,32 +339,34 @@ inline vector<vec3i> compute_face_tags(
     const bool_mesh& mesh, const vector<mesh_polygon>& polygons) {
   auto tags = vector<vec3i>(mesh.triangles.size(), zero3i);
   for (auto p = 1; p < polygons.size(); p++) {
-    for (auto f : polygons[p].inner_faces)
-      for (auto k = 0; k < 3; k++)
+    for (auto f : polygons[p].inner_faces) {
+      for (auto k = 0; k < 3; k++) {
         if (tags[f][k] == 0) {
           tags[f][k] = -p;
           break;
         }
+      }
+    }
 
-    for (auto f : polygons[p].outer_faces)
-      for (auto k = 0; k < 3; k++)
+    for (auto f : polygons[p].outer_faces) {
+      for (auto k = 0; k < 3; k++) {
         if (tags[f][k] == 0) {
           tags[f][k] = p;
           break;
         }
+      }
+    }
   }
   return tags;
 }
 
-inline void flood_fill(const bool_mesh& mesh,
-    const vector<mesh_polygon>& polygons, const vector<vec3i>& face_tags,
-    vector<unordered_set<int>>& face_polygons, const int pid) {
+template <typename F>
+vector<int> flood_fill(
+    const bool_mesh& mesh, const vector<int>& start, F&& add) {
   auto visited = vector<bool>(mesh.adjacencies.size(), false);
 
-  auto num_visited = 0;
-  auto start_face  = polygons[pid].inner_faces.front();
-  auto stack       = vector<int>{start_face};
-  face_polygons[start_face].insert(pid);
+  auto result = vector<int>{};
+  auto stack  = start;
 
   while (!stack.empty()) {
     auto face = stack.back();
@@ -372,17 +374,17 @@ inline void flood_fill(const bool_mesh& mesh,
 
     if (visited[face]) continue;
     visited[face] = true;
-    num_visited += 1;
+
+    result.push_back(face);
 
     for (auto neighbor : mesh.adjacencies[face]) {
       if (neighbor < 0 || visited[neighbor]) continue;
-      auto& tags = face_tags[neighbor];
-
-      if (find_in_vec(tags, pid) != -1) continue;
-      face_polygons[neighbor].insert(pid);
-      stack.push_back(neighbor);
+      if (add(neighbor)) {
+        stack.push_back(neighbor);
+      }
     }
   }
+  return result;
 }
 
 //(marzia) Previous implementation
