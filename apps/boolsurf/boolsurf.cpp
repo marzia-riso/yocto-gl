@@ -424,9 +424,11 @@ void update_camera(app_state* app, const gui_input& input) {
 void drop(app_state* app, const gui_input& input) {
   if (input.dropped.size()) {
     app->filename = input.dropped[0];
-    load_shape(app, app->filename);
     clear_scene(app->glscene);
+    load_shape(app, app->filename);
     init_glscene(app, app->glscene, app->mesh, {});
+    init_edges_and_vertices_shapes_and_points(app);
+
     return;
   }
 }
@@ -697,6 +699,8 @@ void do_the_thing(app_state* app) {
     }
   }
 
+  //(marzia) collapse the triangle_segments iterations
+  // Not now, they're useful while debugging
   auto face_edgemap = unordered_map<vec2i, vec2i>{};
   for (auto& [face, segments] : triangle_segments) {
     auto [a, b, c] = app->mesh.triangles[face];
@@ -752,17 +756,11 @@ void do_the_thing(app_state* app) {
         swap(faces.x, faces.y);
       }
 
-      // printf("Edge: %d %d - Faces: %d %d\n", edge_key.x, edge_key.y, faces.x,
-      // faces.y);
-
       if (faces.x != -1)
         app->polygons[p].inner_faces.push_back(faces.x);
       else {
         auto& start = app->mesh.positions[edge_key.x];
         auto& end   = app->mesh.positions[edge_key.y];
-        printf("Start: %f %f %f\n", start.x, start.y, start.z);
-        printf("End: %f %f %f\n", end.x, end.y, end.z);
-
         draw_segment(
             app->glscene, app->mesh, app->points_material, start, end, 0.0002f);
       }
@@ -772,18 +770,25 @@ void do_the_thing(app_state* app) {
       else {
         auto& start = app->mesh.positions[edge_key.x];
         auto& end   = app->mesh.positions[edge_key.y];
-        printf("Start: %f %f %f\n", start.x, start.y, start.z);
-        printf("End: %f %f %f\n", end.x, end.y, end.z);
-
         draw_segment(
             app->glscene, app->mesh, app->points_material, start, end, 0.0002f);
       }
     }
   }
 
-  for (auto& ist : app->instances) {
-    ist->hidden = true;
+  // Removing face duplicates
+  for (auto i = 1; i < app->polygons.size(); i++) {
+    auto& inner = app->polygons[i].inner_faces;
+    auto& outer = app->polygons[i].outer_faces;
+
+    sort(inner.begin(), inner.end());
+    inner.erase(unique(inner.begin(), inner.end()), inner.end());
+
+    sort(outer.begin(), outer.end());
+    outer.erase(unique(outer.begin(), outer.end()), outer.end());
   }
+
+  for (auto& ist : app->instances) ist->hidden = true;
 
   app->mesh.normals = compute_normals(app->mesh.triangles, app->mesh.positions);
   app->mesh.adjacencies = face_adjacencies(app->mesh.triangles);
@@ -792,22 +797,6 @@ void do_the_thing(app_state* app) {
   set_normals(app->mesh_shape, app->mesh.normals);
   init_edges_and_vertices_shapes_and_points(app);
 
-  //(marzia) Check why duplicate faces
-  for (auto i = 1; i < app->polygons.size(); i++) {
-    auto& inner = app->polygons[i].inner_faces;
-    auto& outer = app->polygons[i].outer_faces;
-
-    // Removing duplicates
-    sort(inner.begin(), inner.end());
-    inner.erase(unique(inner.begin(), inner.end()), inner.end());
-
-    sort(outer.begin(), outer.end());
-    outer.erase(unique(outer.begin(), outer.end()), outer.end());
-  }
-
-  //(marzia) this structure may change
-  // auto face_polygons =
-  // vector<unordered_set<int>>(app->mesh.triangles.size());
   auto tags = compute_face_tags(app->mesh, app->polygons);
 
   for (auto p = 1; p < app->polygons.size(); p++) {
@@ -819,17 +808,7 @@ void do_the_thing(app_state* app) {
     add_patch_shape(app, visited, color);
   }
 
-  // for (auto face = 0; face < face_polygons.size(); face++) {
-  //   auto& polygons = face_polygons[face];
-  //   if (!polygons.size()) continue;
-
-  //   auto color = zero3f;
-  //   for (auto& p : polygons) color += app->cell_materials[p]->color;
-  //   color /= polygons.size();
-
-  //   add_patch_shape(app, {face}, color);
-  // }
-
+  // Previous Implementation
   // auto graph = compute_graph(
   //     app->points.size(), edge_map, counterclockwise);
   // // print_graph(graph);
@@ -884,13 +863,6 @@ void key_input(app_state* app, const gui_input& input) {
       case (int)gui_key('I'): {
         do_the_thing(app);
       } break;
-      case (int)gui_key('S'): {
-        for (auto& polygon : app->polygons) {
-          add_patch_shape(app, polygon.inner_faces, vec3f{0.8, 0, 0});
-          add_patch_shape(app, polygon.outer_faces, vec3f{0, 0, 0.8});
-        }
-        break;
-      }
       case (int)gui_key('C'): {
         auto old_camera = app->glcamera;
         app->points.clear();
@@ -899,8 +871,8 @@ void key_input(app_state* app, const gui_input& input) {
         load_shape(app, app->filename);
         clear_scene(app->glscene);
         init_glscene(app, app->glscene, app->mesh, {});
+        init_edges_and_vertices_shapes_and_points(app);
         app->glcamera = old_camera;
-
       } break;
 
       case (int)gui_key::enter: {
