@@ -612,7 +612,7 @@ auto add_patch_shape(
   auto patch_shape    = add_shape(app->glscene, {}, {}, {}, {}, {}, {}, {}, {});
   auto patch_material = add_material(
       app->glscene, {0, 0, 0}, color, 1, 0, 0.4);  // @Leak
-  patch_material->opacity = 0.2;
+  patch_material->opacity = 0.3;
   add_instance(app->glscene, identity3x4f, patch_shape, patch_material);
   set_patch_shape(patch_shape, app->mesh, faces);
   return patch_shape;
@@ -800,12 +800,20 @@ void do_the_thing(app_state* app) {
   auto tags = compute_face_tags(app->mesh, app->polygons);
 
   for (auto p = 1; p < app->polygons.size(); p++) {
-    auto add   = [&](int face) { return find_in_vec(tags[face], p) == -1; };
-    auto start = app->polygons[p].inner_faces;
+    auto add_inner = [&](int face) { return find_in_vec(tags[face], p) == -1; };
+    auto add_outer = [&](int face) {
+      return find_in_vec(tags[face], -p) == -1;
+    };
 
-    auto visited = flood_fill(app->mesh, start, add);
-    auto color   = app->cell_materials[p]->color;
-    add_patch_shape(app, visited, color);
+    auto start_inner   = app->polygons[p].inner_faces;
+    auto inner_visited = flood_fill(app->mesh, start_inner, add_inner);
+
+    auto start_outer   = app->polygons[p].outer_faces;
+    auto outer_visited = flood_fill(app->mesh, start_outer, add_outer);
+
+    auto color = app->cell_materials[p]->color;
+    add_patch_shape(app, inner_visited, color);
+    add_patch_shape(app, outer_visited, color);
   }
 
   // Previous Implementation
