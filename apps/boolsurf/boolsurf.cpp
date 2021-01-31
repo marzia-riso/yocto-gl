@@ -94,6 +94,10 @@ struct app_state {
   vector<shade_material*> cell_materials = {};
   vector<shade_instance*> instances      = {};
 
+  //(marzia) Useful while debugging!
+  vector<int> patch_in  = {};
+  vector<int> patch_out = {};
+
   gui_widgets widgets = {};
 
   ~app_state() {
@@ -593,28 +597,28 @@ void mouse_input(app_state* app, const gui_input& input) {
   }
 }
 
-void set_patch_shape(
-    shade_shape* shape, const bool_mesh& mesh, const vector<int>& faces) {
+void set_patch_shape(shade_shape* shape, const bool_mesh& mesh,
+    const vector<int>& faces, const float distance) {
   auto positions = vector<vec3f>(faces.size() * 3);
   for (int i = 0; i < faces.size(); i++) {
     auto [a, b, c]       = mesh.triangles[faces[i]];
-    positions[3 * i + 0] = mesh.positions[a] + 0.0005 * mesh.normals[a];
-    positions[3 * i + 1] = mesh.positions[b] + 0.0005 * mesh.normals[b];
-    positions[3 * i + 2] = mesh.positions[c] + 0.0005 * mesh.normals[c];
+    positions[3 * i + 0] = mesh.positions[a] + distance * mesh.normals[a];
+    positions[3 * i + 1] = mesh.positions[b] + distance * mesh.normals[b];
+    positions[3 * i + 2] = mesh.positions[c] + distance * mesh.normals[c];
   }
   set_positions(shape, positions);
   set_instances(shape, {});
   shape->shape->elements = ogl_element_type::triangles;
 }
 
-auto add_patch_shape(
-    app_state* app, const vector<int>& faces, const vec3f& color) {
+auto add_patch_shape(app_state* app, const vector<int>& faces,
+    const vec3f& color, const float distance) {
   auto patch_shape    = add_shape(app->glscene, {}, {}, {}, {}, {}, {}, {}, {});
   auto patch_material = add_material(
       app->glscene, {0, 0, 0}, color, 1, 0, 0.4);  // @Leak
   patch_material->opacity = 0.3;
   add_instance(app->glscene, identity3x4f, patch_shape, patch_material);
-  set_patch_shape(patch_shape, app->mesh, faces);
+  set_patch_shape(patch_shape, app->mesh, faces, distance);
   return patch_shape;
 }
 
@@ -733,7 +737,6 @@ void do_the_thing(app_state* app) {
 
       auto triangle_idx = app->mesh.triangles.size();
       app->mesh.triangles.push_back({i0, i1, i2});
-      // printf("%d - (%d %d %d)\n", triangle_idx, i0, i1, i2);
 
       update_face_edgemap(face_edgemap, {i0, i1}, triangle_idx);
       update_face_edgemap(face_edgemap, {i1, i2}, triangle_idx);
@@ -788,7 +791,8 @@ void do_the_thing(app_state* app) {
     outer.erase(unique(outer.begin(), outer.end()), outer.end());
   }
 
-  for (auto& ist : app->instances) ist->hidden = true;
+  //(marzia) Why do we need this?
+  // for (auto& ist : app->instances) ist->hidden = true;
 
   app->mesh.normals = compute_normals(app->mesh.triangles, app->mesh.positions);
   app->mesh.adjacencies = face_adjacencies(app->mesh.triangles);
@@ -800,20 +804,24 @@ void do_the_thing(app_state* app) {
   auto tags = compute_face_tags(app->mesh, app->polygons);
 
   for (auto p = 1; p < app->polygons.size(); p++) {
-    auto add_inner = [&](int face) { return find_in_vec(tags[face], p) == -1; };
-    auto add_outer = [&](int face) {
-      return find_in_vec(tags[face], -p) == -1;
-    };
+    //(marzia) Merge into a single condition ?
+    auto add_in  = [&](int face) { return find_in_vec(tags[face], p) == -1; };
+    auto add_out = [&](int face) { return find_in_vec(tags[face], -p) == -1; };
 
-    auto start_inner   = app->polygons[p].inner_faces;
-    auto inner_visited = flood_fill(app->mesh, start_inner, add_inner);
+    auto start_in   = app->polygons[p].inner_faces;
+    auto visited_in = flood_fill(app->mesh, start_in, add_in);
 
-    auto start_outer   = app->polygons[p].outer_faces;
-    auto outer_visited = flood_fill(app->mesh, start_outer, add_outer);
+    auto start_out   = app->polygons[p].outer_faces;
+    auto visited_out = flood_fill(app->mesh, start_out, add_out);
 
-    auto color = app->cell_materials[p]->color;
-    add_patch_shape(app, inner_visited, color);
-    add_patch_shape(app, outer_visited, color);
+    auto color_in  = app->cell_materials[(2 * p) - 1]->color;
+    auto color_out = app->cell_materials[(2 * p)]->color;
+
+    app->patch_in.push_back(app->glscene->instances.size());
+    add_patch_shape(app, visited_in, color_in, 0.0002f * p);
+
+    app->patch_out.push_back(app->glscene->instances.size());
+    add_patch_shape(app, visited_out, color_out, 0.0002f * p);
   }
 
   // Previous Implementation
@@ -870,6 +878,16 @@ void key_input(app_state* app, const gui_input& input) {
     switch (idx) {
       case (int)gui_key('I'): {
         do_the_thing(app);
+      } break;
+      case (int)gui_key('L'): {
+        for (auto l : app->patch_in)
+          app->glscene->instances[l]->hidden =
+              !app->glscene->instances[l]->hidden;
+      } break;
+      case (int)gui_key('R'): {
+        for (auto l : app->patch_out)
+          app->glscene->instances[l]->hidden =
+              !app->glscene->instances[l]->hidden;
       } break;
       case (int)gui_key('C'): {
         auto old_camera = app->glcamera;
