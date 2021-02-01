@@ -362,7 +362,7 @@ inline vector<vec3i> compute_face_tags(
 
 template <typename F>
 vector<int> flood_fill(
-    const bool_mesh& mesh, const vector<int>& start, F&& add) {
+    const bool_mesh& mesh, const vector<int>& start, F&& stop) {
   auto visited = vector<bool>(mesh.adjacencies.size(), false);
 
   auto result = vector<int>{};
@@ -376,12 +376,11 @@ vector<int> flood_fill(
     visited[face] = true;
 
     result.push_back(face);
+    if (stop(neighbor)) continue;
 
     for (auto neighbor : mesh.adjacencies[face]) {
       if (neighbor < 0 || visited[neighbor]) continue;
-      if (add(neighbor)) {
-        stack.push_back(neighbor);
-      }
+      stack.push_back(neighbor);
     }
   }
   return result;

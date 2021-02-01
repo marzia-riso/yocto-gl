@@ -808,8 +808,8 @@ void do_the_thing(app_state* app) {
 
   for (auto p = 1; p < app->polygons.size(); p++) {
     //(marzia) Merge into a single condition ?
-    auto add_out = [&](int face) { return find_in_vec(tags[face], -p) == -1; };
-    auto add_in  = [&](int face) { return find_in_vec(tags[face], p) == -1; };
+    auto add_out = [&](int face) { return find_in_vec(tags[face], -p) != -1; };
+    auto add_in  = [&](int face) { return find_in_vec(tags[face], p) != -1; };
 
     auto start_out   = app->polygons[p].outer_faces;
     auto visited_out = flood_fill(app->mesh, start_out, add_out);
