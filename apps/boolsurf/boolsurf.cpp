@@ -95,8 +95,9 @@ struct app_state {
   vector<shade_instance*> instances      = {};
 
   //(marzia) Useful while debugging!
-  vector<int> patch_in  = {};
-  vector<int> patch_out = {};
+  // unordered_map<int, vector<int>> patch_in        = {};
+  // unordered_map<int, vector<int>> patch_out       = {};
+  // int                             current_polygon = 1;
 
   gui_widgets widgets = {};
 
@@ -431,8 +432,6 @@ void drop(app_state* app, const gui_input& input) {
     clear_scene(app->glscene);
     load_shape(app, app->filename);
     init_glscene(app, app->glscene, app->mesh, {});
-    init_edges_and_vertices_shapes_and_points(app);
-
     return;
   }
 }
@@ -801,27 +800,53 @@ void do_the_thing(app_state* app) {
   set_normals(app->mesh_shape, app->mesh.normals);
   init_edges_and_vertices_shapes_and_points(app);
 
-  auto tags = compute_face_tags(app->mesh, app->polygons);
+  auto tags          = compute_face_tags(app->mesh, app->polygons);
+  auto face_polygons = unordered_map<int, vector<int>>();
+
+  auto cells      = vector<vector<int>>();
+  auto cell_faces = unordered_map<int, vector<int>>();
 
   for (auto p = 1; p < app->polygons.size(); p++) {
     //(marzia) Merge into a single condition ?
-    auto add_in  = [&](int face) { return find_in_vec(tags[face], p) == -1; };
     auto add_out = [&](int face) { return find_in_vec(tags[face], -p) == -1; };
-
-    auto start_in   = app->polygons[p].inner_faces;
-    auto visited_in = flood_fill(app->mesh, start_in, add_in);
+    auto add_in  = [&](int face) { return find_in_vec(tags[face], p) == -1; };
 
     auto start_out   = app->polygons[p].outer_faces;
     auto visited_out = flood_fill(app->mesh, start_out, add_out);
+    for (auto o : visited_out) face_polygons[o].push_back(-p);
 
-    auto color_in  = app->cell_materials[(2 * p) - 1]->color;
-    auto color_out = app->cell_materials[(2 * p)]->color;
+    auto start_in   = app->polygons[p].inner_faces;
+    auto visited_in = flood_fill(app->mesh, start_in, add_in);
+    for (auto i : visited_in) face_polygons[i].push_back(p);
 
-    app->patch_in.push_back(app->glscene->instances.size());
-    add_patch_shape(app, visited_in, color_in, 0.0002f * p);
+    // auto color_out = app->cell_materials[(2 * p)]->color;
+    // auto color_in  = app->cell_materials[(2 * p) - 1]->color;
 
-    app->patch_out.push_back(app->glscene->instances.size());
-    add_patch_shape(app, visited_out, color_out, 0.0002f * p);
+    // app->patch_out[p].push_back(app->glscene->instances.size());
+    // add_patch_shape(app, visited_out, color_out, 0.0002f * p);
+
+    // app->patch_in[p].push_back(app->glscene->instances.size());
+    // add_patch_shape(app, visited_in, color_in, 0.00025f * p);
+  }
+
+  // Inverting face_polygons map
+  for (auto& [face, polygons] : face_polygons) {
+    auto idx = find_idx(cells, polygons);
+    if (idx == -1) {
+      idx = (int)cells.size();
+      cells.push_back(polygons);
+    }
+
+    cell_faces[idx].push_back(face);
+  }
+
+  for (auto i = 0; i < cells.size(); i++) {
+    printf("Cell: %d -> ", i);
+    for (auto c : cells[i]) printf("%d ", c);
+    printf("\n\t Faces: %d \n", cell_faces[i].size());
+
+    auto color = app->cell_materials[i + 1]->color;
+    add_patch_shape(app, cell_faces[i], color, 0.00025f);
   }
 
   // Previous Implementation
@@ -879,16 +904,33 @@ void key_input(app_state* app, const gui_input& input) {
       case (int)gui_key('I'): {
         do_the_thing(app);
       } break;
-      case (int)gui_key('L'): {
-        for (auto l : app->patch_in)
-          app->glscene->instances[l]->hidden =
-              !app->glscene->instances[l]->hidden;
-      } break;
-      case (int)gui_key('R'): {
-        for (auto l : app->patch_out)
-          app->glscene->instances[l]->hidden =
-              !app->glscene->instances[l]->hidden;
-      } break;
+        // case (int)gui_key('L'): {
+        //   for (auto& [_, patches] : app->patch_in)
+        //     for (auto p : patches)
+        //       app->glscene->instances[p]->hidden =
+        //           !app->glscene->instances[p]->hidden;
+        // } break;
+        // case (int)gui_key('R'): {
+        //   for (auto& [_, patches] : app->patch_out)
+        //     for (auto p : patches)
+        //       app->glscene->instances[p]->hidden =
+        //           !app->glscene->instances[p]->hidden;
+        // } break;
+        // case (int)gui_key('N'): {
+        //   for (auto& [key, patches] : app->patch_in)
+        //     for (auto p : patches)
+        //       app->glscene->instances[p]->hidden =
+        //           (key == app->current_polygon) ? false : true;
+
+        //   for (auto& [key, patches] : app->patch_out)
+        //     for (auto p : patches)
+        //       app->glscene->instances[p]->hidden =
+        //           (key == app->current_polygon) ? false : true;
+
+        //   app->current_polygon = (app->current_polygon + 1) %
+        //                          app->polygons.size();
+        // } break;
+
       case (int)gui_key('C'): {
         auto old_camera = app->glcamera;
         app->points.clear();
@@ -897,7 +939,6 @@ void key_input(app_state* app, const gui_input& input) {
         load_shape(app, app->filename);
         clear_scene(app->glscene);
         init_glscene(app, app->glscene, app->mesh, {});
-        init_edges_and_vertices_shapes_and_points(app);
         app->glcamera = old_camera;
       } break;
 
