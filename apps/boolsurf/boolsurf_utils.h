@@ -365,7 +365,7 @@ vector<int> flood_fill(
     const bool_mesh& mesh, const vector<int>& start, F&& add) {
   auto visited = vector<bool>(mesh.adjacencies.size(), false);
 
-  auto result = vector<int>{};
+  auto result = start;
   auto stack  = start;
 
   while (!stack.empty()) {
@@ -375,10 +375,9 @@ vector<int> flood_fill(
     if (visited[face]) continue;
     visited[face] = true;
 
-    result.push_back(face);
-
     for (auto neighbor : mesh.adjacencies[face]) {
       if (neighbor < 0 || visited[neighbor]) continue;
+      result.push_back(face);
       if (add(neighbor)) {
         stack.push_back(neighbor);
       }
