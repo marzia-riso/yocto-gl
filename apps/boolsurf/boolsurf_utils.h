@@ -381,6 +381,7 @@ vector<int> flood_fill(const bool_mesh& mesh, const vector<int>& start,
       if (neighbor < 0 || visited[neighbor])
         continue;
       else if (check(face, -polygon) && check(neighbor, -polygon))
+        // Check if "face" is not inner and "neighbor" is outer
         stack.push_back(neighbor);
       else if (check(neighbor, polygon))
         stack.push_back(neighbor);

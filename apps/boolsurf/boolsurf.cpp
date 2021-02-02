@@ -758,23 +758,8 @@ void do_the_thing(app_state* app) {
         swap(faces.x, faces.y);
       }
 
-      if (faces.x != -1)
-        app->polygons[p].inner_faces.push_back(faces.x);
-      else {
-        auto& start = app->mesh.positions[edge_key.x];
-        auto& end   = app->mesh.positions[edge_key.y];
-        draw_segment(
-            app->glscene, app->mesh, app->points_material, start, end, 0.0002f);
-      }
-
-      if (faces.y != -1)
-        app->polygons[p].outer_faces.push_back(faces.y);
-      else {
-        auto& start = app->mesh.positions[edge_key.x];
-        auto& end   = app->mesh.positions[edge_key.y];
-        draw_segment(
-            app->glscene, app->mesh, app->points_material, start, end, 0.0002f);
-      }
+      if (faces.x != -1) app->polygons[p].inner_faces.push_back(faces.x);
+      if (faces.y != -1) app->polygons[p].outer_faces.push_back(faces.y);
     }
   }
 
@@ -791,7 +776,7 @@ void do_the_thing(app_state* app) {
   }
 
   //(marzia) Why do we need this?
-  // for (auto& ist : app->instances) ist->hidden = true;
+  for (auto& ist : app->instances) ist->hidden = true;
 
   app->mesh.normals = compute_normals(app->mesh.triangles, app->mesh.positions);
   app->mesh.adjacencies = face_adjacencies(app->mesh.triangles);
@@ -807,16 +792,16 @@ void do_the_thing(app_state* app) {
   auto cell_faces = unordered_map<int, vector<int>>();
 
   for (auto p = 1; p < app->polygons.size(); p++) {
-    auto add = [&](int face, int polygon) {
+    auto check = [&](int face, int polygon) {
       return find_in_vec(tags[face], polygon) == -1;
     };
 
     auto start_out   = app->polygons[p].outer_faces;
-    auto visited_out = flood_fill(app->mesh, start_out, -p, add);
+    auto visited_out = flood_fill(app->mesh, start_out, -p, check);
     for (auto o : visited_out) face_polygons[o].push_back(-p);
 
     auto start_in   = app->polygons[p].inner_faces;
-    auto visited_in = flood_fill(app->mesh, start_in, p, add);
+    auto visited_in = flood_fill(app->mesh, start_in, p, check);
     for (auto i : visited_in) face_polygons[i].push_back(p);
 
     // auto color_out = app->cell_materials[(2 * p)]->color;
@@ -846,7 +831,7 @@ void do_the_thing(app_state* app) {
     printf("\n\t Faces: %d \n", cell_faces[i].size());
 
     auto color = app->cell_materials[i + 1]->color;
-    add_patch_shape(app, cell_faces[i], color, 0.00025f);
+    add_patch_shape(app, cell_faces[i], color, 0.00025f * (i + 1));
   }
 
   // Previous Implementation
