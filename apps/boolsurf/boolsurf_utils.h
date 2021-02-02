@@ -361,11 +361,11 @@ inline vector<vec3i> compute_face_tags(
 }
 
 template <typename F>
-vector<int> flood_fill(
-    const bool_mesh& mesh, const vector<int>& start, F&& add) {
+vector<int> flood_fill(const bool_mesh& mesh, const vector<int>& start,
+    const int polygon, F&& check) {
   auto visited = vector<bool>(mesh.adjacencies.size(), false);
 
-  auto result = start;
+  auto result = vector<int>();
   auto stack  = start;
 
   while (!stack.empty()) {
@@ -375,14 +375,18 @@ vector<int> flood_fill(
     if (visited[face]) continue;
     visited[face] = true;
 
+    result.push_back(face);
+
     for (auto neighbor : mesh.adjacencies[face]) {
-      if (neighbor < 0 || visited[neighbor]) continue;
-      result.push_back(face);
-      if (add(neighbor)) {
+      if (neighbor < 0 || visited[neighbor])
+        continue;
+      else if (check(face, -polygon) && check(neighbor, -polygon))
         stack.push_back(neighbor);
-      }
+      else if (check(neighbor, polygon))
+        stack.push_back(neighbor);
     }
   }
+
   return result;
 }
 

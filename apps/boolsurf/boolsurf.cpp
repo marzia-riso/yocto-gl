@@ -807,16 +807,16 @@ void do_the_thing(app_state* app) {
   auto cell_faces = unordered_map<int, vector<int>>();
 
   for (auto p = 1; p < app->polygons.size(); p++) {
-    //(marzia) Merge into a single condition ?
-    auto add_out = [&](int face) { return find_in_vec(tags[face], -p) == -1; };
-    auto add_in  = [&](int face) { return find_in_vec(tags[face], p) == -1; };
+    auto add = [&](int face, int polygon) {
+      return find_in_vec(tags[face], polygon) == -1;
+    };
 
     auto start_out   = app->polygons[p].outer_faces;
-    auto visited_out = flood_fill(app->mesh, start_out, add_out);
+    auto visited_out = flood_fill(app->mesh, start_out, -p, add);
     for (auto o : visited_out) face_polygons[o].push_back(-p);
 
     auto start_in   = app->polygons[p].inner_faces;
-    auto visited_in = flood_fill(app->mesh, start_in, add_in);
+    auto visited_in = flood_fill(app->mesh, start_in, p, add);
     for (auto i : visited_in) face_polygons[i].push_back(p);
 
     // auto color_out = app->cell_materials[(2 * p)]->color;
