@@ -4,6 +4,8 @@
 #include "ext/glad/glad.h"
 //
 #include <ft2build.h>
+
+#include <cassert>
 #include FT_FREETYPE_H
 #include FT_OUTLINE_H
 
