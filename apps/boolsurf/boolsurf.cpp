@@ -71,8 +71,9 @@ void debug_draw(app_state* app, const vector<vec3i>& triangles,
     auto e = vec2i{find_idx(is, s.start_vertex), find_idx(is, s.end_vertex)};
     edges.push_back({e.x, e.y, e.y});
   }
-  auto ext1 = ".edges" + to_string(count) + ".png";
-  draw_triangulation(replace_extension(base, ext1), edges, n);
+
+  // auto ext1 = ".edges" + to_string(count) + ".png";
+  // draw_triangulation(replace_extension(base, ext1), edges, n);
 
   save_test(app, "data/tests/crash.json");
   count += 1;
@@ -225,6 +226,10 @@ void do_the_thing(app_state* app) {
     for (auto s = 0; s < polygon.segments.size(); s++) {
       auto& segment = polygon.segments[s];
       hashgrid[segment.face].push_back({p, s, segment.start, segment.end});
+
+      if (segment.start == segment.end)
+        printf("P: %d S: %d -> (%f %f) - (%f %f)\n", p, s, segment.start.x,
+            segment.start.y, segment.end.x, segment.end.y);
     }
   }
 
@@ -284,14 +289,12 @@ void do_the_thing(app_state* app) {
 
     // Per ogni segmento del poligono.
     for (auto segment_id = 0; segment_id < segments.size(); segment_id++) {
-      auto& segment  = segments[segment_id];
-      auto  start_uv = segment.start;
-      auto  pos      = eval_position(
-          app->mesh.triangles, app->mesh.positions, {segment.face, start_uv});
+      auto& segment = segments[segment_id];
 
-      // Aggiungiamo nuovo vertice alla mesh.
-      auto start_vertex = (int)app->mesh.positions.size();
-      app->mesh.positions.push_back(pos);
+      auto start_uv     = segment.start;
+      auto start_vertex = compute_vertex(app->mesh, {segment.face, start_uv});
+
+      if (segment_id == 0) first_id = start_vertex;
 
       // Se questo segmento aveva una o piu' interesezioni con altri segmenti...
       if (intersections.find({polygon_id, segment_id}) != intersections.end()) {
@@ -309,18 +312,20 @@ void do_the_thing(app_state* app) {
         }
       }
 
-      auto end_vertex = -1;
+      auto end_uv = segment.end;
+
+      // L'indice del prossimo vertice che aggiungeremo al prossimo giro.
+      auto end_vertex = compute_vertex(
+          app->mesh, {segment.face, end_uv}, false);
 
       if (segment_id == segments.size() - 1) {
         // Se e' l'ultimo vertice del poligono, gia' ce l'ho: e' il primo.
         end_vertex = first_id;
-      } else {
-        // L'indice del prossimo vertice che aggiungeremo al prossimo giro.
-        end_vertex = (int)app->mesh.positions.size();
       }
 
       triangle_segments[segment.face].push_back(
-          {polygon_id, start_vertex, end_vertex, start_uv, segment.end});
+          {polygon_id, start_vertex, end_vertex, start_uv, end_uv});
+      start_vertex = end_vertex;
     }
   }
 
@@ -393,9 +398,6 @@ void do_the_thing(app_state* app) {
       edges.push_back({edge_start, edge_end});
     }
 
-    // printf("Segments: %d\n", segments.size());
-    // printf("Edges: %d\n", edges.size());
-
     for (auto& [tri_edge, points] : edgemap) {
       if (points.size() == 0) {
         edges.push_back(tri_edge);
@@ -422,6 +424,10 @@ void do_the_thing(app_state* app) {
       }
     }
 
+    // printf("Face: %d Nodes: %d Edges: %d\n", face, nodes.size(),
+    // edges.size());
+
+    if (nodes.size() == 3) continue;
     debug_nodes[face]     = nodes;
     debug_indices[face]   = indices;
     debug_triangles[face] = constrained_triangulation(nodes, edges);

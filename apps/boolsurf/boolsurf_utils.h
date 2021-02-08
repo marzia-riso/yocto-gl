@@ -59,7 +59,8 @@ inline bool is_closed(const mesh_polygon& polygon) {
   return (polygon.points.front() == polygon.points.back());
 }
 
-inline int add_vertex(bool_mesh& mesh, const mesh_point& point) {
+inline int compute_vertex(
+    bool_mesh& mesh, const mesh_point& point, const bool add = true) {
   float eps = 0.0001;
   auto  uv  = point.uv;
   auto  tr  = mesh.triangles[point.face];
@@ -67,8 +68,10 @@ inline int add_vertex(bool_mesh& mesh, const mesh_point& point) {
   if (uv.x > 1 - eps && uv.y < eps) return tr.y;
   if (uv.y > 1 - eps && uv.x < eps) return tr.z;
   auto vertex = (int)mesh.positions.size();
-  auto pos    = eval_position(mesh.triangles, mesh.positions, point);
-  mesh.positions.push_back(pos);
+  if (add) {
+    auto pos = eval_position(mesh.triangles, mesh.positions, point);
+    mesh.positions.push_back(pos);
+  }
   return vertex;
 }
 
@@ -308,16 +311,16 @@ inline vector<vec3i> triangulate(const vector<vec2f>& nodes) {
     triangles.push_back(verts);
   }
 
-  // Area of whole triangle must be 1.
-  auto real_area = cross(nodes[1] - nodes[0], nodes[2] - nodes[0]);
-  assert(fabs(real_area - 1) < 0.001);
+  // // Area of whole triangle must be 1.
+  // auto real_area = cross(nodes[1] - nodes[0], nodes[2] - nodes[0]);
+  // assert(fabs(real_area - 1) < 0.001);
 
-  // Check total area.
-  auto area = 0.0f;
-  for (auto& tr : triangles) {
-    area += cross(nodes[tr.y] - nodes[tr.x], nodes[tr.z] - nodes[tr.x]);
-  }
-  assert(fabs(area - real_area) < 0.001);
+  // // Check total area.
+  // auto area = 0.0f;
+  // for (auto& tr : triangles) {
+  //   area += cross(nodes[tr.y] - nodes[tr.x], nodes[tr.z] - nodes[tr.x]);
+  // }
+  // assert(fabs(area - real_area) < 0.001);
 
   return triangles;
 }
@@ -356,15 +359,15 @@ inline vector<vec3i> constrained_triangulation(
   }
 
   // Area of whole triangle must be 1.
-//  auto real_area = cross(nodes[1] - nodes[0], nodes[2] - nodes[0]);
-//  assert(fabs(real_area - 1) < 0.001);
-//
-//  // Check total area.
-//  auto area = 0.0f;
-//  for (auto& tr : triangles) {
-//    area += cross(nodes[tr.y] - nodes[tr.x], nodes[tr.z] - nodes[tr.x]);
-//  }
-//  assert(fabs(area - real_area) < 0.001);
+  //  auto real_area = cross(nodes[1] - nodes[0], nodes[2] - nodes[0]);
+  //  assert(fabs(real_area - 1) < 0.001);
+  //
+  //  // Check total area.
+  //  auto area = 0.0f;
+  //  for (auto& tr : triangles) {
+  //    area += cross(nodes[tr.y] - nodes[tr.x], nodes[tr.z] - nodes[tr.x]);
+  //  }
+  //  assert(fabs(area - real_area) < 0.001);
 
   return triangles;
 }
