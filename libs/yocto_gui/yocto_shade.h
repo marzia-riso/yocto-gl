@@ -121,6 +121,7 @@ struct shade_instance {
   shade_material* material    = nullptr;
   bool            hidden      = false;
   bool            highlighted = false;
+  ogl_depth_test  depth_test  = {};
 };
 
 // Opengl environment

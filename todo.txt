@@ -1,5 +1,8 @@
 # Todo
 - Fix: poligoni con vertici ripetuti.
+- L'estermo di un segment puo' coincidere con un vertice della mesh. Questi punti non vanno aggiunti, basta usare i vertici gia' esistenti.
 
-Giacomo:
-- Bordo dei poligoni sparisce quando vengono visualizzati i mesh edges.
+
+# Giacomo:
+- Fix windows build
+- Fix windows rendering

@@ -5,6 +5,7 @@ inline void draw_triangulation(const string& filename,
     const vector<vec3i>& triangles, const vector<vec2f>& positions) {
   auto font = opengl_font{};
   init_glfont(font, "data/Menlo-Regular.ttf", 100);
+  set_ogl_depth_test(ogl_depth_test::always);
 
   auto size = vec2i{2048, 2048};
 
@@ -62,25 +63,7 @@ inline void draw_triangulation(const string& filename,
   set_ogl_viewport(size);
   clear_ogl_framebuffer({0, 0, 0.1, 1}, true);
 
-  auto text_size = 0.0004;
-  for (int i = 0; i < positions.size(); i++) {
-    auto text   = to_string(i);
-    auto coords = (positions[i] - vec2f{0.5f, 0.5f}) * 1.5f;
-    draw_glfont(font, text, coords.x, coords.y, text_size, {0.8, 0.4, 0.1});
-  }
-
-  draw_glfont(font, "triangles", 0.49, 0.9, text_size, {0.8, 0.4, 0.1});
-  for (int i = 0; i < triangles.size(); i++) {
-    auto [a, b, c] = triangles[i];
-    auto text = "(" + to_string(a) + ", " + to_string(b) + ", " + to_string(c) +
-                ")";
-    auto coords = vec2f{0.5, 0.9};
-    coords.y -= (i + 1) * 2 * font.characters.at('I').size.y * text_size;
-    draw_glfont(font, text, coords.x, coords.y, text_size, {0.8, 0.4, 0.1});
-  }
-
   bind_program(program);
-
   set_uniform(program, "alpha", 1.0f);
   set_uniform(program, "color", vec3f{1, 1, 1});
   draw_shape(edges);
@@ -91,6 +74,38 @@ inline void draw_triangulation(const string& filename,
   set_uniform(program, "alpha", 0.5f);
   set_uniform(program, "color", vec3f{0.5, 0.5, 0.5});
   draw_shape(faces);
+
+  auto text_size = 0.0004;
+  for (int i = 0; i < positions.size(); i++) {
+    auto text   = to_string(i);
+    auto coords = (positions[i] - vec2f{0.5f, 0.5f}) * 1.5f;
+    draw_glfont(font, text, coords.x, coords.y, text_size, {0.8, 0.4, 0.1});
+  }
+
+  {
+    float y             = 0.9;
+    float x             = 0.4;
+    auto  color         = vec3f{0.8, 0.4, 0.1};
+    float vertical_step = 2 * font.characters.at('I').size.y * text_size;
+    draw_glfont(font, "triangles", x - 0.01, y, text_size, color);
+    for (int i = 0; i < triangles.size(); i++) {
+      auto [a, b, c] = triangles[i];
+      auto text      = "(" + to_string(a) + ", " + to_string(b) + ", " +
+                  to_string(c) + ")";
+      y -= vertical_step;
+      draw_glfont(font, text, x, y, text_size, color);
+    }
+
+    y -= 2 * vertical_step;
+    draw_glfont(font, "positions", x - 0.01, y, text_size, color);
+    for (int i = 3; i < positions.size(); i++) {
+      auto [a, b] = positions[i];
+      auto text   = to_string(i) + ": (" + to_string(a) + ", " + to_string(b) +
+                  ")";
+      y -= vertical_step;
+      draw_glfont(font, text, x, y, text_size, color);
+    }
+  }
 
   unbind_framebuffer();
   auto img = get_texture(texture);
@@ -230,8 +245,9 @@ void update_path_shape(shade_shape* shape, const bool_mesh& mesh,
     float radius) {
   auto shape = add_shape(scene);
   update_path_shape(shape, mesh, path, radius);
-  add_instance(scene, identity3x4f, shape, material, false);
-  return add_instance(scene, identity3x4f, shape, material, false);
+  auto instance = add_instance(scene, identity3x4f, shape, material, false);
+  instance->depth_test = ogl_depth_test::always;
+  return instance;
 }
 
 [[nodiscard]] shade_instance* draw_intersections(shade_scene* scene,
@@ -309,14 +325,14 @@ void update_path_shape(shade_shape* shape, const bool_mesh& mesh,
   return instances;
 }
 
-void set_patch_shape(shade_shape* shape, const bool_mesh& mesh,
+inline void set_patch_shape(shade_shape* shape, const bool_mesh& mesh,
     const vector<int>& faces, const float distance) {
   auto positions = vector<vec3f>(faces.size() * 3);
   for (int i = 0; i < faces.size(); i++) {
     auto [a, b, c]       = mesh.triangles[faces[i]];
-    positions[3 * i + 0] = mesh.positions[a] + distance * mesh.normals[a];
-    positions[3 * i + 1] = mesh.positions[b] + distance * mesh.normals[b];
-    positions[3 * i + 2] = mesh.positions[c] + distance * mesh.normals[c];
+    positions[3 * i + 0] = mesh.positions[a];
+    positions[3 * i + 1] = mesh.positions[b];
+    positions[3 * i + 2] = mesh.positions[c];
   }
   set_positions(shape, positions);
   set_instances(shape, {});

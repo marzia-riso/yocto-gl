@@ -649,6 +649,7 @@ void draw_instances(const shade_scene* scene, const shade_view& view,
   set_ogl_wireframe(params.wireframe);
   for (auto instance : scene->instances) {
     if (instance->hidden) continue;
+    set_ogl_depth_test(instance->depth_test);
     set_instance_uniforms(
         program, instance->frame, instance->shape, instance->material, params);
     draw_shape(instance->shape);

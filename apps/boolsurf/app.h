@@ -43,11 +43,11 @@ struct app_state {
   vector<mesh_point>   points   = {};  // Click inserted points
 
   // rendering state
-  shade_scene*  glscene        = new shade_scene{};
-  shade_camera* glcamera       = nullptr;
-  shade_shape*  mesh_shape     = nullptr;
-  shade_shape*  edges_shape    = nullptr;
-  shade_shape*  vertices_shape = nullptr;
+  shade_scene*    glscene           = new shade_scene{};
+  shade_camera*   glcamera          = nullptr;
+  shade_instance* mesh_instance     = nullptr;
+  shade_instance* edges_instance    = nullptr;
+  shade_instance* vertices_instance = nullptr;
 
   shade_material* mesh_material   = nullptr;
   shade_material* edges_material  = nullptr;
@@ -107,34 +107,36 @@ void init_edges_and_vertices_shapes_and_points(
   avg_edge_length /= edges.size();
   auto cylinder_radius = 0.01f * avg_edge_length;
 
+  auto edges_shape = app->edges_instance->shape;
   if (thin) {
-    set_quads(app->edges_shape, {});
-    set_positions(app->edges_shape, app->mesh.positions);
-    set_lines(app->edges_shape, edges);
-    set_normals(app->edges_shape, {});
-    set_texcoords(app->edges_shape, {});
-    set_instances(app->edges_shape, {});
-    // app->edges_shape->shape->elements = ogl_element_type::line_strip;
+    set_quads(edges_shape, {});
+    set_positions(edges_shape, app->mesh.positions);
+    set_lines(edges_shape, edges);
+    set_normals(edges_shape, {});
+    set_texcoords(edges_shape, {});
+    set_instances(edges_shape, {});
+    // edges_shape->shape->elements = ogl_element_type::line_strip;
   } else {
     auto cylinder = make_uvcylinder({8, 1, 1}, {cylinder_radius, 1});
     for (auto& p : cylinder.positions) {
       p.z = p.z * 0.5 + 0.5;
     }
-    set_quads(app->edges_shape, cylinder.quads);
-    set_positions(app->edges_shape, cylinder.positions);
-    set_normals(app->edges_shape, cylinder.normals);
-    set_texcoords(app->edges_shape, cylinder.texcoords);
-    set_instances(app->edges_shape, froms, tos);
+    set_quads(edges_shape, cylinder.quads);
+    set_positions(edges_shape, cylinder.positions);
+    set_normals(edges_shape, cylinder.normals);
+    set_texcoords(edges_shape, cylinder.texcoords);
+    set_instances(edges_shape, froms, tos);
   }
 
+  auto vertices_shape  = app->vertices_instance->shape;
   auto vertices_radius = 3.0f * cylinder_radius;
   auto vertices        = make_sphere(3, vertices_radius);
-  set_quads(app->vertices_shape, vertices.quads);
-  set_positions(app->vertices_shape, vertices.positions);
-  set_normals(app->vertices_shape, vertices.normals);
-  set_texcoords(app->vertices_shape, vertices.texcoords);
-  set_instances(app->vertices_shape, app->mesh.positions);
-  // app->vertices_shape  = add_shape(glscene, {}, {}, {}, vertices.quads,
+  set_quads(vertices_shape, vertices.quads);
+  set_positions(vertices_shape, vertices.positions);
+  set_normals(vertices_shape, vertices.normals);
+  set_texcoords(vertices_shape, vertices.texcoords);
+  set_instances(vertices_shape, app->mesh.positions);
+  // vertices_shape  = add_shape(glscene, {}, {}, {}, vertices.quads,
   //     vertices.positions, vertices.normals, vertices.texcoords, {});
   // set_instances(vertices_shape, app->mesh.positions);
 }
@@ -198,21 +200,22 @@ void init_glscene(app_state* app, shade_scene* glscene, const bool_mesh& mesh,
 
   // shapes
   if (progress_cb) progress_cb("convert shape", progress.x++, progress.y);
-  app->mesh_shape = add_shape(glscene, {}, {}, app->mesh.triangles, {},
+  auto mesh_shape = add_shape(glscene, {}, {}, app->mesh.triangles, {},
       app->mesh.positions, app->mesh.normals, {}, {}, true);
 
-  if (!is_initialized(get_normals(app->mesh_shape))) {
+  if (!is_initialized(get_normals(mesh_shape))) {
     app->drawgl_prms.faceted = true;
   }
-  set_instances(app->mesh_shape, {}, {});
+  set_instances(mesh_shape, {}, {});
 
-  app->edges_shape    = add_shape(glscene);
-  app->vertices_shape = add_shape(glscene);
-  add_instance(glscene, identity3x4f, app->mesh_shape, app->mesh_material);
-  add_instance(
-      glscene, identity3x4f, app->edges_shape, app->edges_material, true);
-  add_instance(
-      glscene, identity3x4f, app->vertices_shape, app->points_material, true);
+  auto edges_shape    = add_shape(glscene);
+  auto vertices_shape = add_shape(glscene);
+  app->mesh_instance  = add_instance(
+      glscene, identity3x4f, mesh_shape, app->mesh_material);
+  app->edges_instance = add_instance(
+      glscene, identity3x4f, edges_shape, app->edges_material, true);
+  app->vertices_instance = add_instance(
+      glscene, identity3x4f, vertices_shape, app->points_material, true);
   init_edges_and_vertices_shapes_and_points(app);
 }
 
@@ -271,8 +274,7 @@ shade_instance* add_patch_shape(app_state* app, const vector<int>& faces,
     const vec3f& color, const float distance) {
   auto patch_shape    = add_shape(app->glscene, {}, {}, {}, {}, {}, {}, {}, {});
   auto patch_material = add_material(
-      app->glscene, {0, 0, 0}, color, 1, 0, 0.4);  // @Leak
-  patch_material->opacity = 0.3;
+      app->glscene, {0, 0, 0}, color * 0.1, 1, 0, 0.4);  // @Leak
   set_patch_shape(patch_shape, app->mesh, faces, distance);
   return add_instance(app->glscene, identity3x4f, patch_shape, patch_material);
 }

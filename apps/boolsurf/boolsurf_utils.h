@@ -59,6 +59,19 @@ inline bool is_closed(const mesh_polygon& polygon) {
   return (polygon.points.front() == polygon.points.back());
 }
 
+inline int add_vertex(bool_mesh& mesh, const mesh_point& point) {
+  float eps = 0.0001;
+  auto  uv  = point.uv;
+  auto  tr  = mesh.triangles[point.face];
+  if (uv.x < eps && uv.y < eps) return tr.x;
+  if (uv.x > 1 - eps && uv.y < eps) return tr.y;
+  if (uv.y > 1 - eps && uv.x < eps) return tr.z;
+  auto vertex = (int)mesh.positions.size();
+  auto pos    = eval_position(mesh.triangles, mesh.positions, point);
+  mesh.positions.push_back(pos);
+  return vertex;
+}
+
 //(marzia) Not used
 inline vec2i get_edge_points(const vector<mesh_polygon>& polygons,
     const vector<mesh_point>& points, const int polygon_id, const int edge_id) {

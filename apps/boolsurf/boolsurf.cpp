@@ -508,15 +508,13 @@ void do_the_thing(app_state* app) {
     outer.erase(unique(outer.begin(), outer.end()), outer.end());
   }
 
-  // // (marzia) Why do we need this?
-  for (auto& ist : app->instances) ist->hidden = true;
-
   app->mesh.normals = compute_normals(app->mesh.triangles, app->mesh.positions);
   app->mesh.adjacencies = face_adjacencies(app->mesh.triangles);
-  set_positions(app->mesh_shape, app->mesh.positions);
-  set_triangles(app->mesh_shape, app->mesh.triangles);
-  set_normals(app->mesh_shape, app->mesh.normals);
+  set_positions(app->mesh_instance->shape, app->mesh.positions);
+  set_triangles(app->mesh_instance->shape, app->mesh.triangles);
+  set_normals(app->mesh_instance->shape, app->mesh.normals);
   init_edges_and_vertices_shapes_and_points(app);
+  app->mesh_instance->hidden = true;
 
   auto tags          = compute_face_tags(app->mesh, app->polygons);
   auto face_polygons = unordered_map<int, vector<int>>();

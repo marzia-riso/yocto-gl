@@ -62,16 +62,31 @@ using std::vector;
 namespace yocto {
 
 // Commands to setup the opengl context and issue gpu operations.
-bool init_ogl(string& error);
-void assert_ogl_error();
-bool check_ogl_error(string& error);
-void clear_ogl_framebuffer(const vec4f& color, bool clear_depth = true);
-void set_ogl_viewport(const vec4i& viewport);
-void set_ogl_viewport(const vec2i& viewport);
-void set_ogl_wireframe(bool enabled);
-void set_ogl_blending(bool enabled);
-void set_ogl_point_size(int size);
-void set_ogl_msaa();
+bool  init_ogl(string& error);
+void  assert_ogl_error();
+bool  check_ogl_error(string& error);
+void  clear_ogl_framebuffer(const vec4f& color, bool clear_depth = true);
+void  set_ogl_viewport(const vec4i& viewport);
+void  set_ogl_viewport(const vec2i& viewport);
+vec4i get_ogl_viewport();
+vec2i get_ogl_viewport_size();
+void  set_ogl_wireframe(bool enabled);
+void  set_ogl_blending(bool enabled);
+void  set_ogl_point_size(int size);
+void  set_ogl_msaa();
+
+enum struct ogl_depth_test {
+  less = 0,
+  equal,
+  lequal,
+  greater,
+  notequal,
+  gequal,
+  always,
+  never,
+};
+
+void set_ogl_depth_test(ogl_depth_test test);
 
 // OpenGL texture
 struct ogl_texture {

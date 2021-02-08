@@ -123,6 +123,18 @@ void set_ogl_viewport(const vec2i& viewport) {
   glViewport(0, 0, viewport.x, viewport.y);
 }
 
+vec4i get_ogl_viewport() {
+  auto viewport = vec4i{};
+  glGetIntegerv(GL_VIEWPORT, &viewport.x);
+  return viewport;
+}
+
+vec2i get_ogl_viewport_size() {
+  auto viewport = vec4i{};
+  glGetIntegerv(GL_VIEWPORT, &viewport.x);
+  return {viewport.z - viewport.x, viewport.w - viewport.y};
+}
+
 void set_ogl_wireframe(bool enabled) {
   if (enabled)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -142,6 +154,19 @@ void set_ogl_blending(bool enabled) {
 
 void set_ogl_point_size(int size) { glPointSize(size); }
 void set_ogl_msaa() { glEnable(GL_MULTISAMPLE); }
+
+void set_ogl_depth_test(ogl_depth_test test) {
+  switch (test) {
+    case ogl_depth_test::less: glDepthFunc(GL_LESS); break;
+    case ogl_depth_test::equal: glDepthFunc(GL_EQUAL); break;
+    case ogl_depth_test::lequal: glDepthFunc(GL_LEQUAL); break;
+    case ogl_depth_test::greater: glDepthFunc(GL_GREATER); break;
+    case ogl_depth_test::notequal: glDepthFunc(GL_NOTEQUAL); break;
+    case ogl_depth_test::gequal: glDepthFunc(GL_GEQUAL); break;
+    case ogl_depth_test::always: glDepthFunc(GL_ALWAYS); break;
+    case ogl_depth_test::never: glDepthFunc(GL_NEVER); break;
+  }
+}
 
 void set_texture(ogl_texture* texture, const vec2i& size, int num_channels,
     const byte* img, bool as_srgb, bool linear, bool mipmap, bool wrap_repeat) {

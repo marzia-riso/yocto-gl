@@ -134,6 +134,12 @@ void draw_glfont(const opengl_font& font, const string& text, float x, float y,
   assert(glGetError() == GL_NO_ERROR);
   glActiveTexture(GL_TEXTURE0);
 
+  float aspect = 1.0f;
+  {
+    auto size = get_ogl_viewport_size();
+    aspect    = float(size.x) / size.y;
+  }
+
   for (int i = 0; i < text.size(); ++i) {
     auto& ch = font.characters.at(text[i]);
 
@@ -149,16 +155,16 @@ void draw_glfont(const opengl_font& font, const string& text, float x, float y,
     float height = ch.size.y * scale;
 
     auto center  = vec2f{xpos, ypos};
-    auto scaling = vec2f{width, height};
+    auto scaling = vec2f{width / aspect, height};
 
     set_uniform(shader, "center", center);
     set_uniform(shader, "scale", scaling);
+
     // auto scale = vec2f{width * 0.5f, height * 0.5f} * dxy;
     // auto smat = mat2f{{scale.x, 1}, {1, scale.y}};
     // smat.x.x /= ratio;
     // auto mat = rot * smat;
     // set_uniform(shader, "mat", mat);
-    // set_uniform(shader, "aspect", ratio);
 
     glBindTexture(GL_TEXTURE_2D, ch.texture_id);
     draw_shape(font.quad);
@@ -166,6 +172,6 @@ void draw_glfont(const opengl_font& font, const string& text, float x, float y,
 
     // Advance cursors for next glyph (advance is number of 1/64 pixels)
     // line_pos.x += (ch.advance / 64.0);
-    x += (ch.advance >> 6) * scale;
+    x += (ch.advance >> 6) * scale / aspect;
   }
 }
