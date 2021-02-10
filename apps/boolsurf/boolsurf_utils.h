@@ -485,6 +485,49 @@ vector<int> flood_fill(
   return result;
 }
 
+inline vector<int> find_boundary_faces(const vector<vec3i>& adjacencies) {
+  auto boundary = vector<int>();
+  for (auto face = 0; face < adjacencies.size(); face++) {
+    auto& [f0, f1, f2] = adjacencies[face];
+    if ((f0 == -1) || (f1 == -1) || (f2 == -1)) boundary.push_back(face);
+  }
+  return boundary;
+}
+
+inline vector<int> visit_mesh(
+    const bool_mesh& mesh, vector<bool>& visited, const int start) {
+  auto result = vector<int>();
+  auto stack  = vector<int>(start);
+
+  while (!stack.empty()) {
+    auto face = stack.back();
+    stack.pop_back();
+
+    if (visited[face]) continue;
+    visited[face] = true;
+    result.push_back(face);
+
+    for (auto neighbor : mesh.adjacencies[face]) {
+      if (neighbor < 0 || visited[neighbor]) continue;
+      stack.push_back(neighbor);
+    }
+  }
+  return result;
+}
+
+inline vector<vector<int>> compute_mesh_components(const bool_mesh& mesh) {
+  auto visited    = vector<bool>(mesh.adjacencies.size(), false);
+  auto components = vector<vector<int>>();
+
+  for (auto i = 0; i < visited.size(); i++) {
+    if (visited[i]) continue;
+    auto component = visit_mesh(mesh, visited, i);
+    if (!component.size()) continue;
+    components.push_back(component);
+  }
+  return components;
+}
+
 // // Polygon operations (from previous implementation)
 // inline void polygon_and(const vector<cell_polygon>& cells,
 //     vector<int>& cell_ids, const int polygon) {

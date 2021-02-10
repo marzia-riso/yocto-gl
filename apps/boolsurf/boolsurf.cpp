@@ -211,6 +211,12 @@ void do_the_thing(app_state* app) {
   auto& state             = app->state;
   auto  original_vertices = app->mesh.positions.size();
 
+  // Checking mesh invariants
+  auto pre_boundary   = find_boundary_faces(app->mesh.adjacencies);
+  auto pre_components = compute_mesh_components(app->mesh);
+  printf("Boundary faces: %d\n", pre_boundary.size());
+  printf("Components: %d\n", pre_components.size());
+
   // Riempiamo l'hashgrid con i segmenti per triangolo.
   // Hashgrid from triangle idx to <polygon idx, segment idx,
   // segment start uv, segment end uv> to handle intersections and
@@ -432,6 +438,7 @@ void do_the_thing(app_state* app) {
       temp.push_back({key, value});
     }
   }
+  assert(temp.size() == 0);
 
   // Creiamo inner_faces e outer_faces di ogni poligono.
   for (auto& [face, segments] : triangle_segments) {
@@ -504,6 +511,15 @@ void do_the_thing(app_state* app) {
 
   app->mesh_instance->hidden = true;
 
+  // Checking mesh invariants
+  auto post_boundary   = find_boundary_faces(app->mesh.adjacencies);
+  auto post_components = compute_mesh_components(app->mesh);
+  printf("Post boundary faces: %d\n", post_boundary.size());
+  printf("Post components: %d\n", post_components.size());
+
+  // assert(pre_boundary.size() == post_boundary.size());
+  assert(pre_components.size() == post_components.size());
+
   app->mesh.tags = compute_face_tags(app->mesh, state.polygons);
   auto& tags     = app->mesh.tags;
 
@@ -514,6 +530,8 @@ void do_the_thing(app_state* app) {
       for (int j = k + 1; j < 3; j++) {
         if (tags[i][j] == -tags[i][k]) {
           printf("error i: %d\n", i);
+          printf(
+              "Tags: %d - %d %d %d\n", i, tags[i][0], tags[i][1], tags[i][2]);
           exit(0);
           assert(0);
         }
@@ -544,7 +562,7 @@ void do_the_thing(app_state* app) {
 
   for (auto& tag : tags) {
     if (tag == zero3i) continue;
-    printf("Tag: %d %d %d\n", tag[0], tag[1], tag[2]);
+    // printf("Tag: %d %d %d\n", tag[0], tag[1], tag[2]);
   }
 
   auto cells      = vector<vector<int>>();
@@ -631,10 +649,9 @@ void key_input(app_state* app, const gui_input& input) {
         for (int i = 0; i < visited.size(); i++) {
           auto tag = app->mesh.tags[visited[i]];
           auto adj = app->mesh.adjacencies[visited[i]];
-          printf("%d: tag(%d %d %d) adj(%d %d %d)\n", visited[i], tag[0],
-              tag[1], tag[2], adj[0], adj[1], adj[2]);
+          // printf("%d: tag(%d %d %d) adj(%d %d %d)\n", visited[i], tag[0],
+          //     tag[1], tag[2], adj[0], adj[1], adj[2]);
         }
-      
 
         if (app->temp_patch) {
           set_patch_shape(app->temp_patch->shape, app->mesh, visited);
@@ -642,26 +659,25 @@ void key_input(app_state* app, const gui_input& input) {
           app->temp_patch = add_patch_shape(app, visited, app->materials.blue);
         }
         app->temp_patch->depth_test = ogl_depth_test::always;
+      } break;
+
+      case (int)gui_key('C'): {
+        auto old_camera = app->glcamera;
+        app->state.points.clear();
+        app->state.polygons.clear();
+        app->state.polygons.push_back(mesh_polygon{});
+        load_shape(app, app->filename);
+        clear_scene(app->glscene);
+        init_glscene(app, app->glscene, app->mesh, {});
+        app->glcamera = old_camera;
+      } break;
+
+      case (int)gui_key::enter: {
+        commit_state(app);
+        app->state.polygons.push_back({});
+      } break;
     }
-    break;
-
-    case (int)gui_key('C'): {
-      auto old_camera = app->glcamera;
-      app->state.points.clear();
-      app->state.polygons.clear();
-      app->state.polygons.push_back(mesh_polygon{});
-      load_shape(app, app->filename);
-      clear_scene(app->glscene);
-      init_glscene(app, app->glscene, app->mesh, {});
-      app->glcamera = old_camera;
-    } break;
-
-    case (int)gui_key::enter: {
-      commit_state(app);
-      app->state.polygons.push_back({});
-    } break;
   }
-}
 }
 
 void update_app(const gui_input& input, void* data) {
