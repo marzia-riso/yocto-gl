@@ -212,10 +212,13 @@ void do_the_thing(app_state* app) {
   auto  original_vertices = app->mesh.positions.size();
 
   // Checking mesh invariants
-  auto pre_boundary   = find_boundary_faces(app->mesh.adjacencies);
+  auto pre_boundary   = compute_boundary_faces(app->mesh.adjacencies);
+  auto pre_check      = check_mesh(app->mesh);
   auto pre_components = compute_mesh_components(app->mesh);
-  printf("Boundary faces: %d\n", pre_boundary.size());
-  printf("Components: %d\n", pre_components.size());
+
+  printf("Pre boundary faces: %d\n", pre_boundary.size());
+  printf("Pre adjacency check: %d\n", pre_check.size());
+  printf("Pre components: %d\n", pre_components.size());
 
   // Riempiamo l'hashgrid con i segmenti per triangolo.
   // Hashgrid from triangle idx to <polygon idx, segment idx,
@@ -512,10 +515,19 @@ void do_the_thing(app_state* app) {
   app->mesh_instance->hidden = true;
 
   // Checking mesh invariants
-  auto post_boundary   = find_boundary_faces(app->mesh.adjacencies);
+  auto post_boundary   = compute_boundary_faces(app->mesh.adjacencies);
+  auto post_check      = check_mesh(app->mesh);
   auto post_components = compute_mesh_components(app->mesh);
   printf("Post boundary faces: %d\n", post_boundary.size());
+  printf("Post adjacency check: %d\n", post_check.size());
   printf("Post components: %d\n", post_components.size());
+
+  for (auto f : post_check) {
+    auto& tri = app->mesh.triangles[f];
+    auto& adj = app->mesh.adjacencies[f];
+    printf("Face: %d - Vert: (%d %d %d) - Adj: (%d %d %d)\n", f, tri[0], tri[1],
+        tri[2], adj[0], adj[1], adj[2]);
+  }
 
   // assert(pre_boundary.size() == post_boundary.size());
   assert(pre_components.size() == post_components.size());

@@ -485,13 +485,25 @@ vector<int> flood_fill(
   return result;
 }
 
-inline vector<int> find_boundary_faces(const vector<vec3i>& adjacencies) {
-  auto boundary = vector<int>();
+inline vector<int> compute_boundary_faces(const vector<vec3i>& adjacencies) {
+  auto result = vector<int>();
   for (auto face = 0; face < adjacencies.size(); face++) {
     auto& [f0, f1, f2] = adjacencies[face];
-    if ((f0 == -1) || (f1 == -1) || (f2 == -1)) boundary.push_back(face);
+    if ((f0 == -1) || (f1 == -1) || (f2 == -1)) result.push_back(face);
   }
-  return boundary;
+  return result;
+}
+
+inline vector<int> check_mesh(const bool_mesh& mesh) {
+  auto result = vector<int>();
+  for (auto face = 0; face < mesh.adjacencies.size(); face++) {
+    auto& [v0, v1, v2] = mesh.triangles[face];
+    auto& [f0, f1, f2] = mesh.adjacencies[face];
+
+    if ((v0 == 0) && (v1 == 0) && (v2 == 0)) continue;
+    if ((f0 == f1) || (f1 == f2) || (f2 == f0)) result.push_back(face);
+  }
+  return result;
 }
 
 inline vector<int> visit_mesh(
