@@ -123,7 +123,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
     // auto size   = yocto::min(yocto::min(x, y), 1024);
 
     // ImGui::Text("pointer = %p", texture);
-    auto face = app->last_clicked_point.face;
+    auto face = app->last_clicked_point_original.face;
     draw_triangulation(texture, face);
     ImGui::Image((void*)texture->texture_id, {800, 800}, {0, 1}, {1, 0});
     ImGui::End();
@@ -170,6 +170,29 @@ void draw_widgets(app_state* app, const gui_input& input) {
     end_header(widgets);
   }
 
+  if (begin_header(widgets, "face infos")) {
+    auto face = app->last_clicked_point.face;
+    draw_label(widgets, "face", std::to_string(face));
+
+    auto [v0, v1, v2] = app->mesh.triangles[face];
+    draw_label(widgets, "verts",
+        "(" + to_string(v0) + ", " + to_string(v1) + ", " + to_string(v2) +
+            ")");
+
+    auto [a0, a1, a2] = app->mesh.adjacencies[face];
+    draw_label(widgets, "adjs",
+        "(" + to_string(a0) + ", " + to_string(a1) + ", " + to_string(a2) +
+            ")");
+
+    if (!app->mesh.tags.empty()) {
+      auto [t0, t1, t2] = app->mesh.tags[face];
+      draw_label(widgets, "tags",
+          "(" + to_string(t0) + ", " + to_string(t1) + ", " + to_string(t2) +
+              ")");
+    }
+    end_header(widgets);
+  }
+
   end_imgui(widgets);
 }
 
@@ -187,10 +210,13 @@ void mouse_input(app_state* app, const gui_input& input) {
 
   if (input.mouse_left.state != gui_button::state::releasing) return;
 
-  auto isec = intersect_shape(app, input);
+  auto [isec_original, isec] = intersect_shapes(app, input);
   if (!isec.hit) return;
-  auto point              = mesh_point{isec.element, isec.uv};
-  app->last_clicked_point = point;
+  auto point_original = mesh_point{isec_original.element, isec_original.uv};
+  auto point          = mesh_point{isec.element, isec.uv};
+
+  app->last_clicked_point_original = point_original;
+  app->last_clicked_point          = point;
 
   if (input.modifier_alt) {
     commit_state(app);
@@ -509,8 +535,7 @@ void do_the_thing(app_state* app) {
   set_triangles(app->mesh_instance->shape, app->mesh.triangles);
   set_normals(app->mesh_instance->shape, app->mesh.normals);
   init_edges_and_vertices_shapes_and_points(app);
-  //  app->bvh = make_triangles_bvh(app->mesh.triangles, app->mesh.positions,
-  //  {});
+  app->bvh = make_triangles_bvh(app->mesh.triangles, app->mesh.positions, {});
 
   app->mesh_instance->hidden = true;
 

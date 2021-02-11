@@ -47,6 +47,7 @@ struct app_state {
   bool_mesh mesh          = bool_mesh{};
   bool_mesh mesh_original = bool_mesh{};
   shape_bvh bvh           = {};
+  shape_bvh bvh_original  = {};
 
   edit_state         state         = {};
   vector<edit_state> history       = {};
@@ -81,8 +82,9 @@ struct app_state {
   int         current_patch  = 0;
   int         current_border = 0;
 
-  gui_widgets widgets            = {};
-  mesh_point  last_clicked_point = {};
+  gui_widgets widgets                     = {};
+  mesh_point  last_clicked_point          = {};
+  mesh_point  last_clicked_point_original = {};
 
   ~app_state() {
     if (glscene) delete glscene;
@@ -153,6 +155,7 @@ void load_shape(app_state* app, const string& filename) {
   app->mesh          = init_mesh(app->ioshape);
   app->mesh_original = app->mesh;
   app->bvh = make_triangles_bvh(app->mesh.triangles, app->mesh.positions, {});
+  app->bvh_original = app->bvh;
 }
 
 void init_edges_and_vertices_shapes_and_points(
@@ -334,6 +337,25 @@ shape_intersection intersect_shape(
       app->mesh_original.positions, ray);
 
   return isec;
+}
+
+tuple<shape_intersection, shape_intersection> intersect_shapes(
+    const app_state* app, const gui_input& input) {
+  auto mouse_uv = vec2f{input.mouse_pos.x / float(input.window_size.x),
+      input.mouse_pos.y / float(input.window_size.y)};
+  auto ray      = camera_ray(app->glcamera->frame, app->glcamera->lens,
+      app->glcamera->aspect, app->glcamera->film, mouse_uv);
+
+  // TODO(giacomo): we always use the same original mesh for intersection to
+  // support triangulation viewer, but we don't want to do that in the future.
+  // We need two kinds of intersect.
+  auto isec_original = intersect_triangles_bvh(app->bvh_original,
+      app->mesh_original.triangles, app->mesh_original.positions, ray);
+
+  auto isec = intersect_triangles_bvh(
+      app->bvh, app->mesh.triangles, app->mesh.positions, ray);
+
+  return {isec_original, isec};
 }
 
 shade_instance* add_patch_shape(
