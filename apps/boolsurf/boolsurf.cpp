@@ -692,6 +692,10 @@ void key_input(app_state* app, const gui_input& input) {
         debug_borders(app);
       } break;
 
+      case (int)gui_key('V'): {
+        debug_visits(app);
+      } break;
+
       case (int)gui_key('F'): {
         auto add = [&](int face, int neighbor) -> bool {
           for (int k = 0; k < 3; k++) {
