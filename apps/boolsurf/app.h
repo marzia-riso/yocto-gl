@@ -68,19 +68,21 @@ struct app_state {
   shade_material* isecs_material  = nullptr;
 
   struct {
-    shade_material* red   = nullptr;
-    shade_material* blue  = nullptr;
-    shade_material* green = nullptr;
-    shade_material* white = nullptr;
+    shade_material* red        = nullptr;
+    shade_material* blue       = nullptr;
+    shade_material* green      = nullptr;
+    shade_material* light_blue = nullptr;
+    shade_material* white      = nullptr;
   } materials;
 
   vector<shade_material*> cell_materials = {};
   vector<shade_instance*> instances      = {};
 
   //(marzia) Useful while debugging!
-  vector<int> cell_patches   = {};
-  int         current_patch  = 0;
-  int         current_border = 0;
+  vector<int> cell_patches    = {};
+  int         current_patch   = 0;
+  int         current_border  = 0;
+  int         current_polygon = 0;
 
   gui_widgets widgets                     = {};
   mesh_point  last_clicked_point          = {};
@@ -263,6 +265,8 @@ void init_glscene(app_state* app, shade_scene* glscene, const bool_mesh& mesh,
   app->materials.green = add_material(glscene, {0, 0, 0}, {0, 1, 0}, 1, 0, 1);
   app->materials.blue  = add_material(glscene, {0, 0, 0}, {0, 0, 1}, 1, 0, 1);
   app->materials.white = add_material(glscene, {0, 0, 0}, {1, 1, 1}, 1, 0, 1);
+  app->materials.light_blue = add_material(
+      glscene, {0, 0, 0}, {0, 1, 1}, 1, 0, 1);
 
   // shapes
   if (progress_cb) progress_cb("convert shape", progress.x++, progress.y);

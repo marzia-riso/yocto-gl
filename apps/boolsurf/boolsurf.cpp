@@ -91,6 +91,19 @@ void debug_borders(app_state* app) {
   app->current_border = (app->current_border + 1) % app->state.polygons.size();
 }
 
+void debug_visits(app_state* app) {
+  printf("Debugging polygon visit: %d\n", app->current_polygon);
+  for (auto i = 0; i < app->state.polygons.size(); i++) {
+    if (app->state.polygons[i].points.size()) {
+      app->state.polygons[i].inner_visit->hidden = (i != app->current_polygon);
+      app->state.polygons[i].outer_visit->hidden = (i != app->current_polygon);
+    }
+  }
+
+  app->current_polygon = (app->current_polygon + 1) %
+                         app->state.polygons.size();
+}
+
 #include <yocto_gui/ext/imgui/imgui.h>
 #include <yocto_gui/ext/imgui/imgui_impl_glfw.h>
 #include <yocto_gui/ext/imgui/imgui_impl_opengl3.h>
@@ -606,18 +619,27 @@ void do_the_thing(app_state* app) {
   auto cell_faces = unordered_map<int, vector<int>>();
 
   for (auto p = 1; p < state.polygons.size(); p++) {
-    if (!state.polygons[p].points.size()) continue;
+    auto& polygon = state.polygons[p];
+
+    if (!polygon.points.size()) continue;
     auto check = [&](int face, int polygon) {
       return find_in_vec(tags[face], polygon) == -1;
     };
 
-    auto start_out   = state.polygons[p].outer_faces;
+    auto start_out   = polygon.outer_faces;
     auto visited_out = flood_fill(app->mesh, start_out, -p, check);
     for (auto o : visited_out) face_polygons[o].push_back(-p);
 
-    auto start_in   = state.polygons[p].inner_faces;
+    auto start_in   = polygon.inner_faces;
     auto visited_in = flood_fill(app->mesh, start_in, p, check);
     for (auto i : visited_in) face_polygons[i].push_back(p);
+
+    auto a                      = app->materials.blue;
+    auto b                      = app->materials.light_blue;
+    polygon.inner_visit         = add_patch_shape(app, visited_in, a);
+    polygon.outer_visit         = add_patch_shape(app, visited_out, b);
+    polygon.inner_visit->hidden = true;
+    polygon.outer_visit->hidden = true;
   }
 
   // Inverting face_polygons map

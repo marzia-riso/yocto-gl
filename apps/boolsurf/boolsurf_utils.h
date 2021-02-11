@@ -35,8 +35,12 @@ struct mesh_polygon {
   vector<int>          outer_faces = {};
 
   shade_instance* polyline_shape = nullptr;
-  shade_instance* inner_shape    = nullptr;
-  shade_instance* outer_shape    = nullptr;
+
+  shade_instance* inner_shape = nullptr;
+  shade_instance* outer_shape = nullptr;
+
+  shade_instance* inner_visit = nullptr;
+  shade_instance* outer_visit = nullptr;
 };
 
 struct hashgrid_segment {
