@@ -345,18 +345,22 @@ inline vector<vec3i> triangulate(const vector<vec2f>& nodes) {
 
 // Constrained Delaunay Triangulation
 inline vector<vec3i> constrained_triangulation(
-    vector<vec2f> nodes, const vector<vec2i>& edges) {
+    const int face, vector<vec2f> nodes, const vector<vec2i>& edges) {
   for (auto& n : nodes) n *= 1e9;
 
-  auto cdt = CDT::Triangulation<float>(CDT::FindingClosestPoint::ClosestRandom);
+  auto cdt = CDT::Triangulation<double>(
+      CDT::FindingClosestPoint::ClosestRandom);
+
   cdt.insertVertices(
-      nodes.begin(), nodes.end(), [](const vec2f& point) { return point.x; },
-      [](const vec2f& point) { return point.y; });
+      nodes.begin(), nodes.end(),
+      [](const vec2f& point) -> double { return point.x; },
+      [](const vec2f& point) -> double { return point.y; });
   cdt.insertEdges(
       edges.begin(), edges.end(), [](const vec2i& edge) { return edge.x; },
       [](const vec2i& edge) { return edge.y; });
 
-  cdt.eraseSuperTriangle();
+  // cdt.eraseSuperTriangle();
+  cdt.eraseOuterTriangles();
   auto triangles = vector<vec3i>();
   triangles.reserve(cdt.triangles.size());
 
@@ -370,7 +374,7 @@ inline vector<vec3i> constrained_triangulation(
     auto& c           = nodes[verts.z];
     auto  orientation = cross(b - a, c - b);
     if (fabs(orientation) < 0.00001) {
-      printf("Detected collinearity\n");
+      printf("Face: %d - Collinearity () %f\n", face, orientation);
       continue;
     }
 
@@ -407,6 +411,7 @@ inline void update_face_edgemap(unordered_map<vec2i, vec2i>& face_edgemap,
   }
 }
 
+// (marzia) Refactor, perché è veramente brutta
 inline vector<vec3i> compute_face_tags(
     const bool_mesh& mesh, const vector<mesh_polygon>& polygons) {
   auto tags = vector<vec3i>(mesh.triangles.size(), zero3i);
@@ -451,12 +456,12 @@ vector<int> flood_fill(const bool_mesh& mesh, const vector<int>& start,
 
     for (auto neighbor : mesh.adjacencies[face]) {
       if (neighbor < 0 || visited[neighbor]) continue;
-      // else if (check(face, -polygon) && check(neighbor, -polygon))
-      //   // Check if "face" is not inner and "neighbor" is outer
-      //   stack.push_back(neighbor);
-      // else if (check(neighbor, polygon))
-      //   stack.push_back(neighbor);
-      if (check(neighbor, polygon)) stack.push_back(neighbor);
+      else if (check(face, -polygon) && check(neighbor, -polygon))
+        // Check if "face" is not inner and "neighbor" is outer
+        stack.push_back(neighbor);
+      else if (check(neighbor, polygon))
+        stack.push_back(neighbor);
+      // if (check(neighbor, polygon)) stack.push_back(neighbor);
     }
   }
 

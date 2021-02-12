@@ -432,7 +432,7 @@ void do_the_thing(app_state* app) {
     }
 
     if (nodes.size() == 3) continue;
-    auto triangles        = constrained_triangulation(nodes, edges);
+    auto triangles        = constrained_triangulation(face, nodes, edges);
     debug_nodes[face]     = nodes;
     debug_indices[face]   = indices;
     debug_triangles[face] = triangles;
@@ -549,7 +549,6 @@ void do_the_thing(app_state* app) {
   set_normals(app->mesh_instance->shape, app->mesh.normals);
   init_edges_and_vertices_shapes_and_points(app);
   app->bvh = make_triangles_bvh(app->mesh.triangles, app->mesh.positions, {});
-
   app->mesh_instance->hidden = true;
 
   // Checking mesh invariants
@@ -567,53 +566,11 @@ void do_the_thing(app_state* app) {
         tri[2], adj[0], adj[1], adj[2]);
   }
 
-  // assert(pre_boundary.size() == post_boundary.size());
   assert(pre_components.size() == post_components.size());
 
-  app->mesh.tags = compute_face_tags(app->mesh, state.polygons);
-  auto& tags     = app->mesh.tags;
-
-  // Check if face is both outside and inside
-  for (int i = 0; i < tags.size(); i++) {
-    for (int k = 0; k < 2; k++) {
-      if (tags[i][k] == 0) continue;
-      for (int j = k + 1; j < 3; j++) {
-        if (tags[i][j] == -tags[i][k]) {
-          printf("error i: %d\n", i);
-          printf(
-              "Tags: %d - %d %d %d\n", i, tags[i][0], tags[i][1], tags[i][2]);
-          exit(0);
-          assert(0);
-        }
-      }
-    }
-  }
-
-  for (int i = 0; i < tags.size(); i++) {
-    for (int k = 0; k < 3; k++) {
-      if (tags[i][k] == 0) continue;
-      auto found = false;
-      for (int n = 0; n < 3; n++) {
-        auto neighbor = app->mesh.adjacencies[i][n];
-        auto id       = find_in_vec(tags[neighbor], -tags[i][k]);
-        if (id != -1) {
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        assert(0);
-        exit(0);
-      }
-    }
-  }
-
-  auto face_polygons = unordered_map<int, vector<int>>();
-
-  for (auto& tag : tags) {
-    if (tag == zero3i) continue;
-    // printf("Tag: %d %d %d\n", tag[0], tag[1], tag[2]);
-  }
+  app->mesh.tags      = compute_face_tags(app->mesh, state.polygons);
+  auto& tags          = app->mesh.tags;
+  auto  face_polygons = unordered_map<int, vector<int>>();
 
   auto cells      = vector<vector<int>>();
   auto cell_faces = unordered_map<int, vector<int>>();
