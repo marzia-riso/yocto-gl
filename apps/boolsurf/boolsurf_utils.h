@@ -310,7 +310,7 @@ inline vec2i get_edge(const vec3i& triangle, int k) {
   }
 }
 
-// (Previous implementation) Simple Delaunay Triangulation
+// (Previous implementation - NOT USED) Simple Delaunay Triangulation
 inline vector<vec3i> triangulate(const vector<vec2f>& nodes) {
   auto coords = vector<double>();
   coords.reserve(nodes.size() * 2);
@@ -408,26 +408,9 @@ inline vector<vec3i> constrained_triangulation(
   return triangles;
 }
 
-// inline void update_face_edgemap(unordered_map<vec2i, vec2i>& face_edgemap,
-//     const vec2i& edge, const int face) {
-//   auto key = make_edge_key(edge);
-
-//   if (face_edgemap.find(key) != face_edgemap.end()) {
-//     auto& faces = face_edgemap[key];
-//     if (faces.x == -1) {
-//       assert(faces.y == -1);
-//       faces.x = face;
-//     } else {
-//       assert(faces.y == -1);
-//       faces.y = face;
-//     }
-//   }
-// }
-
 inline void update_face_edgemap(unordered_map<vec2i, vec2i>& face_edgemap,
     const vec2i& edge, const int face) {
   auto key = make_edge_key(edge);
-  if (key == vec2i{17128, 17180}) printf("Eccallà\n");
 
   if (face_edgemap.find(key) != face_edgemap.end()) {
     face_edgemap[key].y = face;
@@ -479,7 +462,6 @@ vector<int> flood_fill(const bool_mesh& mesh, const vector<int>& start,
         stack.push_back(neighbor);
       else if (check(neighbor, polygon))
         stack.push_back(neighbor);
-      // if (check(neighbor, polygon)) stack.push_back(neighbor);
     }
   }
 

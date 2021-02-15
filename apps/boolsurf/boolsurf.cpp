@@ -321,30 +321,6 @@ void do_the_thing(app_state* app) {
 
       if (start_vertex < original_vertices && end_vertex < original_vertices) {
         triangulated_faces[segment.face] = {segment.face};
-        // auto get_edge = [&](const vec3i& triangle,
-        //                     vec2i        edge) -> tuple<vec2i, int> {
-        //   if (edge.x > edge.y) swap(edge.x, edge.y);
-        //   for (auto i = 0; i < 3; i++) {
-        //     auto x = triangle[i];
-        //     auto y = triangle[(i + 1) % 3];
-
-        //     if ((vec2i{x, y} == edge) || (vec2i{y, x} == edge))
-        //       return {edge, i};
-        //   }
-        // };
-
-        printf("Are we skipping this?: %d %d - first face: %d\n", start_vertex,
-            end_vertex, segment.face);
-
-        // auto& triangle = app->mesh.triangles[segment.face];
-        // auto [edge, k] = get_edge(triangle, {start_vertex, end_vertex});
-
-        // auto neighbor = app->mesh.adjacencies[segment.face][k];
-        // auto& triangle_neigh = app->mesh.triangles[neighbor];
-
-        // update_face_edgemap(face_edgemap, edge, segment.face);
-        // update_face_edgemap(face_edgemap, edge, neighbor);
-
         triangle_segments[segment.face].push_back(
             {polygon_id, start_vertex, end_vertex, zero2f, zero2f});
         continue;
@@ -421,11 +397,7 @@ void do_the_thing(app_state* app) {
         }
       }
 
-      // Per adesso, ad ogni nuovo edge associamo due facce adiacenti nulle.
-      // Ora serve per debugging.
-      auto edge = make_edge_key({start_vertex, end_vertex});
-      // face_edgemap[edge] = {-1, -1};
-
+      // Aggiungo il nuovo arco di vincolo
       edges.push_back({edge_start, edge_end});
     }
 
@@ -461,23 +433,23 @@ void do_the_thing(app_state* app) {
     debug_indices[face]   = indices;
     debug_triangles[face] = triangles;
 
-    for (auto ee : edges) {
-      auto found = false;
-      for (auto& tr : triangles) {
-        int k = 0;
-        for (k = 0; k < 3; k++) {
-          auto edge = vec2i{tr[k], tr[(k + 1) % 3]};
-          if (make_edge_key(edge) == make_edge_key(ee)) {
-            found = true;
-            break;
-          }
-        }
-      }
-      if (!found) {
-        debug_draw(app, face, segments);
-        assert(0);
-      }
-    }
+    // for (auto ee : edges) {
+    //   auto found = false;
+    //   for (auto& tr : triangles) {
+    //     int k = 0;
+    //     for (k = 0; k < 3; k++) {
+    //       auto edge = vec2i{tr[k], tr[(k + 1) % 3]};
+    //       if (make_edge_key(edge) == make_edge_key(ee)) {
+    //         found = true;
+    //         break;
+    //       }
+    //     }
+    //   }
+    //   if (!found) {
+    //     debug_draw(app, face, segments);
+    //     assert(0);
+    //   }
+    // }
 
     // Aggiungiamo i nuovi triangoli e aggiorniamo la face_edgemap.
     triangulated_faces[face].clear();
@@ -499,28 +471,7 @@ void do_the_thing(app_state* app) {
 
     // Rendi triangolo originale degenere per farlo sparire.
     app->mesh.triangles[face] = {0, 0, 0};
-  }  // end for triangle_segments
-
-  auto temp = vector<pair<vec2i, vec2i>>{};
-  for (auto& [key, value] : face_edgemap) {
-    if (key == vec2i{17128, 17180}) {
-      printf("Key: %d %d - %d %d\n", key.x, key.y, value.x, value.y);
-    }
-
-    if (key == vec2i{16784, 16786}) {
-      printf("Key: %d %d - %d %d\n", key.x, key.y, value.x, value.y);
-    }
-
-    if (key == vec2i{39944, 40049}) {
-      printf("Key: %d %d - %d %d\n", key.x, key.y, value.x, value.y);
-    }
-
-    if (value.x == -1 || value.y == -1) {
-      temp.push_back({key, value});
-      // printf("Key: %d %d - %d %d", key.x, key.y, value.x, value.y);
-    }
   }
-  // assert(temp.size() == 0);
 
   // Creiamo inner_faces e outer_faces di ogni poligono.
   for (auto& [face, segments] : triangle_segments) {
@@ -541,7 +492,7 @@ void do_the_thing(app_state* app) {
             if (edge_key == e) {
               auto neigh = app->mesh.adjacencies[f][k];
               faces      = {f, neigh};
-              goto nonloso;
+              goto update;
             }
           }
         }
@@ -549,15 +500,12 @@ void do_the_thing(app_state* app) {
         faces = it->second;
       }
 
-    nonloso:
+    update:
       if (faces.x == -1 || faces.y == -1) {
         auto qualcosa = hashgrid[face];
-
         // debug_draw(app, face, segments);
-
         auto ff = app->mesh.adjacencies[face][1];
         // debug_draw(app, ff, segments, "other");
-
         assert(0);
       }
 
@@ -593,8 +541,8 @@ void do_the_thing(app_state* app) {
   // Draw inner and outer faces
   for (auto i = 0; i < state.polygons.size(); i++) {
     auto& polygon               = state.polygons[i];
-    auto  a                     = app->materials.red;
-    auto  b                     = app->materials.green;
+    auto& a                     = app->materials.red;
+    auto& b                     = app->materials.green;
     polygon.inner_shape         = add_patch_shape(app, polygon.inner_faces, a);
     polygon.outer_shape         = add_patch_shape(app, polygon.outer_faces, b);
     polygon.inner_shape->hidden = true;
@@ -617,15 +565,6 @@ void do_the_thing(app_state* app) {
   printf("Post boundary faces: %d\n", post_boundary.size());
   printf("Post adjacency check: %d\n", post_check.size());
   printf("Post components: %d\n", post_components.size());
-
-  for (auto f : post_check) {
-    auto& tri = app->mesh.triangles[f];
-    auto& adj = app->mesh.adjacencies[f];
-    printf("Face: %d - Vert: (%d %d %d) - Adj: (%d %d %d)\n", f, tri[0], tri[1],
-        tri[2], adj[0], adj[1], adj[2]);
-  }
-
-  assert(pre_components.size() == post_components.size());
 
   app->mesh.tags      = compute_face_tags(app->mesh, state.polygons);
   auto& tags          = app->mesh.tags;
@@ -650,8 +589,8 @@ void do_the_thing(app_state* app) {
     auto  visited_in = flood_fill(app->mesh, start_in, p, check);
     for (auto i : visited_in) face_polygons[i].push_back(p);
 
-    auto a                      = app->materials.blue;
-    auto b                      = app->materials.light_blue;
+    auto& a                     = app->materials.blue;
+    auto& b                     = app->materials.light_blue;
     polygon.inner_visit         = add_patch_shape(app, visited_in, a);
     polygon.outer_visit         = add_patch_shape(app, visited_out, b);
     polygon.inner_visit->hidden = true;
@@ -724,13 +663,6 @@ void key_input(app_state* app, const gui_input& input) {
         };
         auto start   = app->last_clicked_point.face;
         auto visited = flood_fill(app->mesh, {start}, add);
-
-        for (int i = 0; i < visited.size(); i++) {
-          auto tag = app->mesh.tags[visited[i]];
-          auto adj = app->mesh.adjacencies[visited[i]];
-          // printf("%d: tag(%d %d %d) adj(%d %d %d)\n", visited[i], tag[0],
-          //     tag[1], tag[2], adj[0], adj[1], adj[2]);
-        }
 
         if (app->temp_patch) {
           set_patch_shape(app->temp_patch->shape, app->mesh, visited);
