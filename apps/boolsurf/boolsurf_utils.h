@@ -297,6 +297,19 @@ inline tuple<vec2i, float> get_mesh_edge(
     return {zero2i, -1};
 }
 
+inline vec2i get_edge(const vec3i& triangle, int k) {
+  if (k == 0)
+    return {triangle.x, triangle.y};
+  else if (k == 1)
+    return {triangle.y, triangle.z};
+  else if (k == 2)
+    return {triangle.z, triangle.x};
+  else {
+    assert(0);
+    return {-1, -1};
+  }
+}
+
 // (Previous implementation) Simple Delaunay Triangulation
 inline vector<vec3i> triangulate(const vector<vec2f>& nodes) {
   auto coords = vector<double>();

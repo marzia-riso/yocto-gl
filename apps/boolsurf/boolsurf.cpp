@@ -271,8 +271,9 @@ void do_the_thing(app_state* app) {
   auto intersections = compute_intersections(hashgrid, app->mesh, state.points);
 
   // Mappa ogni faccia alla lista di triangle_segments di quella faccia.
-  auto triangle_segments = unordered_map<int, vector<triangle_segment>>{};
-  auto face_edgemap      = unordered_map<vec2i, vec2i>{};
+  auto triangle_segments  = unordered_map<int, vector<triangle_segment>>{};
+  auto face_edgemap       = unordered_map<vec2i, vec2i>{};
+  auto triangulated_faces = unordered_map<int, vector<int>>{};
 
   // Aggiungiamo gli estremi dei segmenti come vertici della mesh.
   // Dobbiamo inserire nei punti giusti anche i punti di intersezione che
@@ -319,29 +320,31 @@ void do_the_thing(app_state* app) {
       auto end_vertex = vertices[(segment_id + 1) % vertices.size()];
 
       if (start_vertex < original_vertices && end_vertex < original_vertices) {
-        auto get_edge = [&](const vec3i& triangle,
-                            vec2i        edge) -> tuple<vec2i, int> {
-          if (edge.x > edge.y) swap(edge.x, edge.y);
-          for (auto i = 0; i < 3; i++) {
-            auto x = triangle[i];
-            auto y = triangle[(i + 1) % 3];
+        triangulated_faces[segment.face] = {segment.face};
+        // auto get_edge = [&](const vec3i& triangle,
+        //                     vec2i        edge) -> tuple<vec2i, int> {
+        //   if (edge.x > edge.y) swap(edge.x, edge.y);
+        //   for (auto i = 0; i < 3; i++) {
+        //     auto x = triangle[i];
+        //     auto y = triangle[(i + 1) % 3];
 
-            if ((vec2i{x, y} == edge) || (vec2i{y, x} == edge))
-              return {edge, i};
-          }
-        };
+        //     if ((vec2i{x, y} == edge) || (vec2i{y, x} == edge))
+        //       return {edge, i};
+        //   }
+        // };
 
         printf("Are we skipping this?: %d %d - first face: %d\n", start_vertex,
             end_vertex, segment.face);
 
-        auto& triangle = app->mesh.triangles[segment.face];
-        auto [edge, k] = get_edge(triangle, {start_vertex, end_vertex});
+        // auto& triangle = app->mesh.triangles[segment.face];
+        // auto [edge, k] = get_edge(triangle, {start_vertex, end_vertex});
 
-        auto  neighbor       = app->mesh.adjacencies[segment.face][k];
-        auto& triangle_neigh = app->mesh.triangles[neighbor];
+        // auto neighbor = app->mesh.adjacencies[segment.face][k];
+        // auto& triangle_neigh = app->mesh.triangles[neighbor];
 
-        update_face_edgemap(face_edgemap, edge, segment.face);
-        update_face_edgemap(face_edgemap, edge, neighbor);
+        // update_face_edgemap(face_edgemap, edge, segment.face);
+        // update_face_edgemap(face_edgemap, edge, neighbor);
+
         triangle_segments[segment.face].push_back(
             {polygon_id, start_vertex, end_vertex, zero2f, zero2f});
         continue;
@@ -477,6 +480,7 @@ void do_the_thing(app_state* app) {
     }
 
     // Aggiungiamo i nuovi triangoli e aggiorniamo la face_edgemap.
+    triangulated_faces[face].clear();
     for (auto i = 0; i < triangles.size(); i++) {
       auto& [x, y, z] = triangles[i];
       auto v0         = indices[x];
@@ -489,6 +493,8 @@ void do_the_thing(app_state* app) {
       update_face_edgemap(face_edgemap, {v0, v1}, triangle_idx);
       update_face_edgemap(face_edgemap, {v1, v2}, triangle_idx);
       update_face_edgemap(face_edgemap, {v2, v0}, triangle_idx);
+
+      triangulated_faces[face].push_back(triangle_idx);
     }
 
     // Rendi triangolo originale degenere per farlo sparire.
@@ -523,15 +529,34 @@ void do_the_thing(app_state* app) {
       auto edge     = vec2i{start_vertex, end_vertex};
       auto edge_key = make_edge_key(edge);
 
-      auto faces = face_edgemap.at(edge_key);
+      auto faces = vec2i{-1, -1};
 
+      auto it = face_edgemap.find(edge_key);
+      if (it == face_edgemap.end()) {
+        auto& t_faces = triangulated_faces.at(face);
+        for (auto f : t_faces) {
+          auto& tr = app->mesh.triangles[f];
+          for (auto k = 0; k < 3; k++) {
+            auto e = make_edge_key(get_edge(tr, k));
+            if (edge_key == e) {
+              auto neigh = app->mesh.adjacencies[f][k];
+              faces      = {f, neigh};
+              goto nonloso;
+            }
+          }
+        }
+      } else {
+        faces = it->second;
+      }
+
+    nonloso:
       if (faces.x == -1 || faces.y == -1) {
         auto qualcosa = hashgrid[face];
 
-        debug_draw(app, face, segments);
+        // debug_draw(app, face, segments);
 
         auto ff = app->mesh.adjacencies[face][1];
-        debug_draw(app, ff, segments, "other");
+        // debug_draw(app, ff, segments, "other");
 
         assert(0);
       }
@@ -617,12 +642,12 @@ void do_the_thing(app_state* app) {
       return find_in_vec(tags[face], polygon) == -1;
     };
 
-    auto start_out   = polygon.outer_faces;
-    auto visited_out = flood_fill(app->mesh, start_out, -p, check);
+    auto& start_out   = polygon.outer_faces;
+    auto  visited_out = flood_fill(app->mesh, start_out, -p, check);
     for (auto o : visited_out) face_polygons[o].push_back(-p);
 
-    auto start_in   = polygon.inner_faces;
-    auto visited_in = flood_fill(app->mesh, start_in, p, check);
+    auto& start_in   = polygon.inner_faces;
+    auto  visited_in = flood_fill(app->mesh, start_in, p, check);
     for (auto i : visited_in) face_polygons[i].push_back(p);
 
     auto a                      = app->materials.blue;
