@@ -395,19 +395,31 @@ inline vector<vec3i> constrained_triangulation(
   return triangles;
 }
 
+// inline void update_face_edgemap(unordered_map<vec2i, vec2i>& face_edgemap,
+//     const vec2i& edge, const int face) {
+//   auto key = make_edge_key(edge);
+
+//   if (face_edgemap.find(key) != face_edgemap.end()) {
+//     auto& faces = face_edgemap[key];
+//     if (faces.x == -1) {
+//       assert(faces.y == -1);
+//       faces.x = face;
+//     } else {
+//       assert(faces.y == -1);
+//       faces.y = face;
+//     }
+//   }
+// }
+
 inline void update_face_edgemap(unordered_map<vec2i, vec2i>& face_edgemap,
     const vec2i& edge, const int face) {
   auto key = make_edge_key(edge);
+  if (key == vec2i{17128, 17180}) printf("Eccallà\n");
 
   if (face_edgemap.find(key) != face_edgemap.end()) {
-    auto& faces = face_edgemap[key];
-    if (faces.x == -1) {
-      assert(faces.y == -1);
-      faces.x = face;
-    } else {
-      assert(faces.y == -1);
-      faces.y = face;
-    }
+    face_edgemap[key].y = face;
+  } else {
+    face_edgemap[key] = {face, -1};
   }
 }
 
@@ -417,21 +429,13 @@ inline vector<vec3i> compute_face_tags(
   auto tags = vector<vec3i>(mesh.triangles.size(), zero3i);
   for (auto p = 1; p < polygons.size(); p++) {
     for (auto f : polygons[p].inner_faces) {
-      for (auto k = 0; k < 3; k++) {
-        if (tags[f][k] == 0) {
-          tags[f][k] = -p;
-          break;
-        }
-      }
+      auto it = find_in_vec(tags[f], 0);
+      if (it != -1) tags[f][it] = -p;
     }
 
     for (auto f : polygons[p].outer_faces) {
-      for (auto k = 0; k < 3; k++) {
-        if (tags[f][k] == 0) {
-          tags[f][k] = p;
-          break;
-        }
-      }
+      auto it = find_in_vec(tags[f], 0);
+      if (it != -1) tags[f][it] = p;
     }
   }
   return tags;
@@ -455,7 +459,8 @@ vector<int> flood_fill(const bool_mesh& mesh, const vector<int>& start,
     result.push_back(face);
 
     for (auto neighbor : mesh.adjacencies[face]) {
-      if (neighbor < 0 || visited[neighbor]) continue;
+      if (neighbor < 0 || visited[neighbor])
+        continue;
       else if (check(face, -polygon) && check(neighbor, -polygon))
         // Check if "face" is not inner and "neighbor" is outer
         stack.push_back(neighbor);

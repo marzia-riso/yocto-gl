@@ -272,11 +272,13 @@ void do_the_thing(app_state* app) {
 
   // Mappa ogni faccia alla lista di triangle_segments di quella faccia.
   auto triangle_segments = unordered_map<int, vector<triangle_segment>>{};
+  auto face_edgemap      = unordered_map<vec2i, vec2i>{};
 
   // Aggiungiamo gli estremi dei segmenti come vertici della mesh.
   // Dobbiamo inserire nei punti giusti anche i punti di intersezione che
   // spezzano i segmenti.
   // Inoltre popoliamo triangle_segments.
+
   for (auto polygon_id = 0; polygon_id < state.polygons.size(); polygon_id++) {
     auto& segments = state.polygons[polygon_id].segments;
 
@@ -316,14 +318,32 @@ void do_the_thing(app_state* app) {
       // L'indice del prossimo vertice che aggiungeremo al prossimo giro.
       auto end_vertex = vertices[(segment_id + 1) % vertices.size()];
 
-      // auto is_vertex_uv = [](const vec2f& uv) {
-      //   return uv == vec2f{0, 0} || uv == vec2f{1, 0} || uv == vec2f{0, 1};
-      // };
-      // if (is_vertex_uv(start_uv) && is_vertex_uv(end_uv)) {
-      //   continue;
-      // }
-
       if (start_vertex < original_vertices && end_vertex < original_vertices) {
+        auto get_edge = [&](const vec3i& triangle,
+                            vec2i        edge) -> tuple<vec2i, int> {
+          if (edge.x > edge.y) swap(edge.x, edge.y);
+          for (auto i = 0; i < 3; i++) {
+            auto x = triangle[i];
+            auto y = triangle[(i + 1) % 3];
+
+            if ((vec2i{x, y} == edge) || (vec2i{y, x} == edge))
+              return {edge, i};
+          }
+        };
+
+        printf("Are we skipping this?: %d %d - first face: %d\n", start_vertex,
+            end_vertex, segment.face);
+
+        auto& triangle = app->mesh.triangles[segment.face];
+        auto [edge, k] = get_edge(triangle, {start_vertex, end_vertex});
+
+        auto  neighbor       = app->mesh.adjacencies[segment.face][k];
+        auto& triangle_neigh = app->mesh.triangles[neighbor];
+
+        update_face_edgemap(face_edgemap, edge, segment.face);
+        update_face_edgemap(face_edgemap, edge, neighbor);
+        triangle_segments[segment.face].push_back(
+            {polygon_id, start_vertex, end_vertex, zero2f, zero2f});
         continue;
       }
 
@@ -346,7 +366,6 @@ void do_the_thing(app_state* app) {
   debug_indices.clear();
 
   // Mappa a ogni edge generato le due facce generate adiacenti.
-  auto face_edgemap = unordered_map<vec2i, vec2i>{};
   for (auto& [face, segments] : triangle_segments) {
     auto [a, b, c] = app->mesh.triangles[face];
     auto nodes     = vector<vec2f>{{0, 0}, {1, 0}, {0, 1}};
@@ -365,6 +384,8 @@ void do_the_thing(app_state* app) {
     for (auto s = 0; s < segments.size(); s++) {
       auto& [polygon_id, start_vertex, end_vertex, start_uv, end_uv] =
           segments[s];
+
+      if ((start_uv == zero2f) && (end_uv == zero2f)) continue;
 
       // Aggiungi senza duplicati. Aggiornando indices insieme a nodes,
       // manteniamo la corrispondenza.
@@ -399,8 +420,8 @@ void do_the_thing(app_state* app) {
 
       // Per adesso, ad ogni nuovo edge associamo due facce adiacenti nulle.
       // Ora serve per debugging.
-      auto edge          = make_edge_key({start_vertex, end_vertex});
-      face_edgemap[edge] = {-1, -1};
+      auto edge = make_edge_key({start_vertex, end_vertex});
+      // face_edgemap[edge] = {-1, -1};
 
       edges.push_back({edge_start, edge_end});
     }
@@ -476,11 +497,24 @@ void do_the_thing(app_state* app) {
 
   auto temp = vector<pair<vec2i, vec2i>>{};
   for (auto& [key, value] : face_edgemap) {
+    if (key == vec2i{17128, 17180}) {
+      printf("Key: %d %d - %d %d\n", key.x, key.y, value.x, value.y);
+    }
+
+    if (key == vec2i{16784, 16786}) {
+      printf("Key: %d %d - %d %d\n", key.x, key.y, value.x, value.y);
+    }
+
+    if (key == vec2i{39944, 40049}) {
+      printf("Key: %d %d - %d %d\n", key.x, key.y, value.x, value.y);
+    }
+
     if (value.x == -1 || value.y == -1) {
       temp.push_back({key, value});
+      // printf("Key: %d %d - %d %d", key.x, key.y, value.x, value.y);
     }
   }
-  assert(temp.size() == 0);
+  // assert(temp.size() == 0);
 
   // Creiamo inner_faces e outer_faces di ogni poligono.
   for (auto& [face, segments] : triangle_segments) {
