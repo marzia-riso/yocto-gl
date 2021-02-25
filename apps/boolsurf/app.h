@@ -22,11 +22,17 @@
 
 using namespace yocto;
 
+struct Shape {
+  int polygon;
+};
+
 struct edit_state {
   vector<mesh_polygon> polygons = {{}, {}};
   vector<mesh_point>   points   = {};
 
-  // Put cells here...
+  vector<Shape> shapes = {};
+
+  // TODO(giacomo): Put cells here...
 };
 
 // Application state
@@ -49,11 +55,12 @@ struct app_state {
   shape_bvh bvh           = {};
   shape_bvh bvh_original  = {};
 
-  edit_state         state         = {};
-  vector<mesh_cell>  arrangement   = {};
-  vector<edit_state> history       = {};
-  int                history_index = 0;
-  int                selected_cell = -1;
+  edit_state         state          = {};
+  vector<mesh_cell>  arrangement    = {};
+  vector<edit_state> history        = {};
+  int                history_index  = 0;
+  int                selected_cell  = -1;
+  int                selected_shape = -1;
 
   // rendering state
   shade_scene*    glscene           = new shade_scene{};
@@ -440,4 +447,15 @@ inline void save_tree_png(const app_state* app, const string& extra) {
   auto cmd   = "dot -Tpng "s + graph + " > " + image;
   printf("%s\n", cmd.c_str());
   system(cmd.c_str());
+}
+
+inline int shape_from_cell(const app_state* app, int cell) {
+  for (auto s = app->state.shapes.size() - 1; s >= 0; s--) {
+    auto p = app->state.shapes[s].polygon;
+    if (app->arrangement[cell].labels[p - 1] > 0) {
+      return s;
+    }
+  }
+  assert(0);
+  return 0;
 }

@@ -210,6 +210,26 @@ void draw_widgets(app_state* app, const gui_input& input) {
     end_header(widgets);
   }
 
+  if (app->selected_shape >= 0 && begin_header(widgets, "shape info")) {
+    auto& shape_id = app->selected_shape;
+    auto& shape    = app->state.shapes[shape_id];
+    draw_label(widgets, "shape", to_string(shape_id));
+    draw_label(widgets, "polygon", to_string(shape.polygon));
+    if (draw_button(widgets, "Bring forward")) {
+      if (shape_id < app->state.shapes.size() - 1) {
+        swap(app->state.shapes[shape_id], app->state.shapes[shape_id + 1]);
+        shape_id += 1;
+      }
+    }
+    if (draw_button(widgets, "Bring back")) {
+      if (shape_id >= 1) {
+        swap(app->state.shapes[shape_id], app->state.shapes[shape_id - 1]);
+        shape_id -= 1;
+      }
+    }
+    end_header(widgets);
+  }
+
   end_imgui(widgets);
 }
 
@@ -239,7 +259,8 @@ void mouse_input(app_state* app, const gui_input& input) {
     auto& cell = app->arrangement[i];
     auto  it   = find_idx(cell.faces, point.face);
     if (it != -1) {
-      app->selected_cell = i;
+      app->selected_cell  = i;
+      app->selected_shape = shape_from_cell(app, i);
       break;
     }
   }
@@ -607,13 +628,23 @@ void key_input(app_state* app, const gui_input& input) {
 #endif
         do_the_thing(app);
 
+        // TODO(giacomo): move somewhere else
+        app->state.shapes.resize(app->state.polygons.size());
+        for (int p = 0; p < app->state.polygons.size(); p++) {
+          app->state.shapes[p].polygon = p;
+        }
+
         for (int i = 0; i < app->arrangement.size(); i++) {
           auto& cell  = app->arrangement[i];
-          auto  color = vec3f{1, 1, 1};
-          // get_cell_color(app, i);
-          for (int k = 0; k < cell.labels.size(); k++) {
-            if (cell.labels[k] > 0) color = get_polygon_color(app, k);
-          }
+          auto  s     = shape_from_cell(app, i);
+          auto  color = get_polygon_color(app, s);
+          // for (int s = app->state.shapes.size() - 1; s >= 0; s--) {
+          //   auto p = app->state.shapes[s].polygon;
+          //   if (cell.labels[p - 1] > 0) {
+          //     color = get_polygon_color(app, p);
+          //     break;
+          //   }
+          // }
           app->cell_patches.push_back((int)app->glscene->instances.size());
           add_patch_shape(app, cell.faces, color);
           print_cell_info(cell, i);
