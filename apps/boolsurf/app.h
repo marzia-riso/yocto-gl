@@ -23,7 +23,9 @@
 using namespace yocto;
 
 struct Shape {
-  int polygon;
+  int         polygon = -1;
+  vec3f       color   = {0, 0, 0};
+  vector<int> cells   = {};
 };
 
 struct edit_state {
@@ -454,7 +456,7 @@ inline void save_tree_png(const app_state* app, const string& extra) {
 inline int shape_from_cell(const app_state* app, int cell) {
   for (int s = (int)app->state.shapes.size() - 1; s >= 0; s--) {
     auto p = app->state.shapes[s].polygon;
-    if(p == 0) continue;
+    if (p == 0) continue;
     if (app->arrangement[cell].labels[p - 1] > 0) {
       return s;
     }
@@ -464,17 +466,49 @@ inline int shape_from_cell(const app_state* app, int cell) {
 
 inline void update_cell_shapes(app_state* app) {
   for (int i = 0; i < app->arrangement.size(); i++) {
-    auto& cell  = app->arrangement[i];
-    auto  s     = shape_from_cell(app, i);
-    auto  color = vec3f{};
-    if (s == -1) {
-      color = {.9, .9, .9};
-    } else {
-      color = get_polygon_color(app, app->state.shapes[s].polygon);
-    }
-    app->cell_patches.push_back((int)app->glscene->instances.size());
+    auto& cell = app->arrangement[i];
+    // auto  s     = shape_from_cell(app, i);
+    // auto  color = vec3f{};
+    // if (s == -1) {
+    //   color = {.9, .9, .9};
+    // } else {
+    //   // color = get_polygon_color(app, app->state.shapes[s].polygon);
+    //   color = app->state.shapes[s].color;
+    // }
+    // app->cell_patches.push_back((int)app->glscene->instances.size());
     set_patch_shape(app->cell_shapes[i]->shape, app->mesh, cell.faces);
-    app->cell_shapes[i]->material->color = color;
+    // app->cell_shapes[i]->material->color = color;
     print_cell_info(cell, i);
+  }
+}
+
+inline void update_shapes(app_state* app) {
+  // TODO(giacomo): move somewhere else
+  app->state.shapes.resize(app->state.polygons.size() - 1);
+  for (auto& shape : app->state.shapes) {
+    shape.cells.clear();
+  }
+
+  for (int p = 0; p < app->state.polygons.size() - 1; p++) {
+    if (app->state.shapes[p].polygon == -1) {
+      app->state.shapes[p].polygon = p + 1;
+    }
+    if (app->state.shapes[p].color == vec3f{0, 0, 0}) {
+      app->state.shapes[p].color = get_polygon_color(app, p);
+    }
+  }
+
+  for (int i = 0; i < app->arrangement.size(); i++) {
+    auto s = shape_from_cell(app, i);
+    if (s == -1) continue;
+    app->state.shapes[s].cells.push_back(i);
+  }
+}
+
+inline void update_cell_colors(app_state* app) {
+  for (int i = 0; i < app->state.shapes.size(); i++) {
+    for (auto& c : app->state.shapes[i].cells) {
+      app->cell_shapes[c]->material->color = app->state.shapes[i].color;
+    }
   }
 }

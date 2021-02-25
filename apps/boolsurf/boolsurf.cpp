@@ -30,18 +30,6 @@ void init_from_test(app_state* app) {
   update_polygons(app);
 }
 
-// Rappresentazione di un segmento all'interno di una faccia. Serivra' per la
-// triangolazione. Teniamo sia la rapprezentazione discreta (come coppia di
-// vertici della mesh) che la rapprezentazione in coordiate baricentriche.
-struct triangle_segment {
-  int polygon      = -1;
-  int start_vertex = -1;
-  int end_vertex   = -1;
-
-  vec2f start = {};
-  vec2f end   = {};
-};
-
 void debug_draw(app_state* app, int face, const vector<vec2i>& edges,
     const string& header = "") {
   static int count = 0;
@@ -219,15 +207,22 @@ void draw_widgets(app_state* app, const gui_input& input) {
       if (shape_id < app->state.shapes.size() - 1) {
         swap(app->state.shapes[shape_id], app->state.shapes[shape_id + 1]);
         shape_id += 1;
-        update_cell_shapes(app);
+        update_shapes(app);
+        update_cell_colors(app);
       }
     }
+    continue_line(widgets);
     if (draw_button(widgets, "Bring back")) {
       if (shape_id >= 1) {
         swap(app->state.shapes[shape_id], app->state.shapes[shape_id - 1]);
         shape_id -= 1;
-        update_cell_shapes(app);
+        update_shapes(app);
+        update_cell_colors(app);
       }
+    }
+
+    if (draw_coloredit(widgets, "color", shape.color)) {
+      update_cell_colors(app);
     }
     end_header(widgets);
   }
@@ -630,17 +625,15 @@ void key_input(app_state* app, const gui_input& input) {
 #endif
         do_the_thing(app);
 
-        // TODO(giacomo): move somewhere else
-        app->state.shapes.resize(app->state.polygons.size() - 1);
-        for (int p = 0; p < app->state.polygons.size() - 1; p++) {
-          app->state.shapes[p].polygon = p + 1;
-        }
+        update_shapes(app);
 
         app->cell_shapes.resize(app->arrangement.size());
         for (int i = 0; i < app->arrangement.size(); i++) {
           app->cell_shapes[i] = add_patch_shape(app, {}, new shade_material{});
         }
+
         update_cell_shapes(app);
+        update_cell_colors(app);
 
         // update bvh
         app->bvh = make_triangles_bvh(
