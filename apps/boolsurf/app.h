@@ -55,8 +55,10 @@ struct app_state {
   shape_bvh bvh           = {};
   shape_bvh bvh_original  = {};
 
-  edit_state         state          = {};
-  vector<mesh_cell>  arrangement    = {};
+  edit_state              state       = {};
+  vector<mesh_cell>       arrangement = {};
+  vector<shade_instance*> cell_shapes = {};
+
   vector<edit_state> history        = {};
   int                history_index  = 0;
   int                selected_cell  = -1;
@@ -450,12 +452,29 @@ inline void save_tree_png(const app_state* app, const string& extra) {
 }
 
 inline int shape_from_cell(const app_state* app, int cell) {
-  for (auto s = app->state.shapes.size() - 1; s >= 0; s--) {
+  for (int s = (int)app->state.shapes.size() - 1; s >= 0; s--) {
     auto p = app->state.shapes[s].polygon;
+    if(p == 0) continue;
     if (app->arrangement[cell].labels[p - 1] > 0) {
       return s;
     }
   }
-  assert(0);
-  return 0;
+  return -1;
+}
+
+inline void update_cell_shapes(app_state* app) {
+  for (int i = 0; i < app->arrangement.size(); i++) {
+    auto& cell  = app->arrangement[i];
+    auto  s     = shape_from_cell(app, i);
+    auto  color = vec3f{};
+    if (s == -1) {
+      color = {.9, .9, .9};
+    } else {
+      color = get_polygon_color(app, app->state.shapes[s].polygon);
+    }
+    app->cell_patches.push_back((int)app->glscene->instances.size());
+    set_patch_shape(app->cell_shapes[i]->shape, app->mesh, cell.faces);
+    app->cell_shapes[i]->material->color = color;
+    print_cell_info(cell, i);
+  }
 }

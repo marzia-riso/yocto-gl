@@ -219,12 +219,14 @@ void draw_widgets(app_state* app, const gui_input& input) {
       if (shape_id < app->state.shapes.size() - 1) {
         swap(app->state.shapes[shape_id], app->state.shapes[shape_id + 1]);
         shape_id += 1;
+        update_cell_shapes(app);
       }
     }
     if (draw_button(widgets, "Bring back")) {
       if (shape_id >= 1) {
         swap(app->state.shapes[shape_id], app->state.shapes[shape_id - 1]);
         shape_id -= 1;
+        update_cell_shapes(app);
       }
     }
     end_header(widgets);
@@ -629,26 +631,16 @@ void key_input(app_state* app, const gui_input& input) {
         do_the_thing(app);
 
         // TODO(giacomo): move somewhere else
-        app->state.shapes.resize(app->state.polygons.size());
-        for (int p = 0; p < app->state.polygons.size(); p++) {
-          app->state.shapes[p].polygon = p;
+        app->state.shapes.resize(app->state.polygons.size() - 1);
+        for (int p = 0; p < app->state.polygons.size() - 1; p++) {
+          app->state.shapes[p].polygon = p + 1;
         }
 
+        app->cell_shapes.resize(app->arrangement.size());
         for (int i = 0; i < app->arrangement.size(); i++) {
-          auto& cell  = app->arrangement[i];
-          auto  s     = shape_from_cell(app, i);
-          auto  color = get_polygon_color(app, s);
-          // for (int s = app->state.shapes.size() - 1; s >= 0; s--) {
-          //   auto p = app->state.shapes[s].polygon;
-          //   if (cell.labels[p - 1] > 0) {
-          //     color = get_polygon_color(app, p);
-          //     break;
-          //   }
-          // }
-          app->cell_patches.push_back((int)app->glscene->instances.size());
-          add_patch_shape(app, cell.faces, color);
-          print_cell_info(cell, i);
+          app->cell_shapes[i] = add_patch_shape(app, {}, new shade_material{});
         }
+        update_cell_shapes(app);
 
         // update bvh
         app->bvh = make_triangles_bvh(
