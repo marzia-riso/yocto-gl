@@ -129,8 +129,13 @@ bool is_active(gui_widgets* widgets) {
   return io->WantTextInput || io->WantCaptureMouse || io->WantCaptureKeyboard;
 }
 
-bool begin_header(gui_widgets* widgets, const char* lbl) {
-  if (!ImGui::CollapsingHeader(lbl)) return false;
+bool begin_header(gui_widgets* widgets, const char* lbl, bool open) {
+  if (open) {
+    if (!ImGui::CollapsingHeader(lbl, ImGuiTreeNodeFlags_DefaultOpen))
+      return false;
+  } else {
+    if (!ImGui::CollapsingHeader(lbl)) return false;
+  }
   ImGui::PushID(lbl);
   return true;
 }

@@ -180,14 +180,13 @@ void draw_widgets(app_state* app, const gui_input& input) {
     end_header(widgets);
   }
 
-  if (app->selected_cell >= 0 && begin_header(widgets, "cell info")) {
-    auto& cell = app->arrangement[app->selected_cell];
+  if (app->selected_cell >= 0 && begin_header(widgets, "cell info", true)) {
+    auto& cell = app->cells[app->selected_cell];
     draw_label(widgets, "cell", to_string(app->selected_cell));
     draw_label(widgets, "faces", to_string(cell.faces.size()));
 
     auto s = ""s;
-    for (auto& [cell_id, _] : cell.adjacent_cells)
-      s += to_string(cell_id) + " ";
+    for (auto& [cell_id, _] : cell.adjacency) s += to_string(cell_id) + " ";
     draw_label(widgets, "adj", s);
 
     s = ""s;
@@ -198,7 +197,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
     end_header(widgets);
   }
 
-  if (app->selected_shape >= 0 && begin_header(widgets, "shape info")) {
+  if (app->selected_shape >= 0 && begin_header(widgets, "shape info", true)) {
     auto& shape_id = app->selected_shape;
     auto& shape    = app->state.shapes[shape_id];
     draw_label(widgets, "shape", to_string(shape_id));
@@ -252,8 +251,8 @@ void mouse_input(app_state* app, const gui_input& input) {
   auto point_original = mesh_point{isec_original.element, isec_original.uv};
   app->last_clicked_point_original = point_original;
 
-  for (int i = 0; i < app->arrangement.size(); i++) {
-    auto& cell = app->arrangement[i];
+  for (int i = 0; i < app->cells.size(); i++) {
+    auto& cell = app->cells[i];
     auto  it   = find_idx(cell.faces, point.face);
     if (it != -1) {
       app->selected_cell  = i;
@@ -537,12 +536,12 @@ void do_the_thing(app_state* app) {
   check_tags(app->mesh);
 
   // Trova l'adiacenza fra celle tramite il flood-fill
-  app->arrangement = make_mesh_cells(mesh, mesh.tags);
+  app->cells = make_mesh_cells(mesh, mesh.tags);
 
   save_tree_png(app, "0");
 
   // Trova le celle ambiente nel grafo dell'adiacenza delle celle
-  auto ambient_cells = find_ambient_cells(app->arrangement);
+  auto ambient_cells = find_ambient_cells(app->cells);
   printf("Ambient cells: ");
   for (auto cell : ambient_cells) {
     printf("%d ", cell);
@@ -553,8 +552,8 @@ void do_the_thing(app_state* app) {
 
   // Fixiamo il grafo delle adiancenze tra celle e ricalcoliamo le celle
   // ambiente
-  fix_self_intersections(app->arrangement, ambient_cells);
-  ambient_cells = find_ambient_cells(app->arrangement);
+  fix_self_intersections(app->cells, ambient_cells);
+  ambient_cells = find_ambient_cells(app->cells);
 
   printf("New ambient cells: ");
   for (auto cell : ambient_cells) {
@@ -564,9 +563,7 @@ void do_the_thing(app_state* app) {
 
   // Calcoliamo il labelling definitivo per effettuare le booleane
   auto label_size = polygons.size();
-  if (polygons.back().points.empty()) label_size -= 1;
-
-  compute_cell_labels(app->arrangement, ambient_cells, label_size);
+  compute_cell_labels(app->cells, ambient_cells, label_size);
   save_tree_png(app, "1");
 
 #if DRAW_BORDER_FACES
@@ -623,12 +620,17 @@ void key_input(app_state* app, const gui_input& input) {
         debug_nodes.clear();
         debug_indices.clear();
 #endif
+        // remove trailing empty polygons.
+        while (app->state.polygons.back().points.empty()) {
+          app->state.polygons.pop_back();
+        }
+
         do_the_thing(app);
 
         update_shapes(app);
 
-        app->cell_shapes.resize(app->arrangement.size());
-        for (int i = 0; i < app->arrangement.size(); i++) {
+        app->cell_shapes.resize(app->cells.size());
+        for (int i = 0; i < app->cells.size(); i++) {
           app->cell_shapes[i] = add_patch_shape(app, {}, new shade_material{});
         }
 
