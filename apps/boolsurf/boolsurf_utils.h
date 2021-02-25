@@ -47,17 +47,6 @@ struct hashgrid_segment {
   vec2f end   = {};
 };
 
-struct intersection {
-  int   vertex_id = -1;
-  float lerp      = -1.0f;
-};
-
-struct cell_polygon {
-  vector<int>          points    = {};
-  vector<mesh_segment> segments  = {};
-  vector<int>          embedding = {};
-};
-
 // Vector append and concatenation
 template <typename T>
 inline void operator+=(vector<T>& a, const vector<T>& b) {

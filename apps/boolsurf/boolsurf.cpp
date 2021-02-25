@@ -609,7 +609,11 @@ void key_input(app_state* app, const gui_input& input) {
 
         for (int i = 0; i < app->arrangement.size(); i++) {
           auto& cell  = app->arrangement[i];
-          auto  color = get_cell_color(app, i);
+          auto  color = vec3f{1, 1, 1};
+          // get_cell_color(app, i);
+          for (int k = 0; k < cell.labels.size(); k++) {
+            if (cell.labels[k] > 0) color = get_polygon_color(app, k);
+          }
           app->cell_patches.push_back((int)app->glscene->instances.size());
           add_patch_shape(app, cell.faces, color);
           print_cell_info(cell, i);
