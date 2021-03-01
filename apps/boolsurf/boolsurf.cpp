@@ -549,7 +549,6 @@ void do_the_thing(app_state* app) {
   // Trova le celle ambiente nel grafo dell'adiacenza delle celle
   auto ambient_cells = find_ambient_cells(app->arrangement, skip_polygons);
 
-  printf("Ambient cells: ");
   for (auto ambient : ambient_cells) {
     auto cells = app->arrangement;
     compute_cell_labels(cells, {ambient}, skip_polygons);
@@ -630,13 +629,13 @@ void key_input(app_state* app, const gui_input& input) {
 #endif
         do_the_thing(app);
 
-        for (int i = 0; i < app->arrangement.size(); i++) {
-          auto& cell  = app->arrangement[i];
-          auto  color = get_cell_color(app, i);
-          app->cell_patches.push_back((int)app->glscene->instances.size());
-          add_patch_shape(app, cell.faces, color);
-          print_cell_info(cell, i);
-        }
+        // for (int i = 0; i < app->arrangement.size(); i++) {
+        //   auto& cell  = app->arrangement[i];
+        //   auto  color = get_cell_color(app, i);
+        //   app->cell_patches.push_back((int)app->glscene->instances.size());
+        //   add_patch_shape(app, cell.faces, color);
+        //   print_cell_info(cell, i);
+        // }
 
         // update bvh
         app->bvh = make_triangles_bvh(
@@ -649,53 +648,94 @@ void key_input(app_state* app, const gui_input& input) {
             app->mesh.triangles, app->mesh.positions);
         set_normals(app->mesh_instance->shape, app->mesh.normals);
         init_edges_and_vertices_shapes_and_points(app);
+
+        // (marzia) Questo è momentaneo
+        // app->mesh_instance->hidden = true;
+        printf("Computed cells\n");
+
+      } break;
+
+      case (int)gui_key('P'): {
+        // (marzia) Questo è momentaneo
         app->mesh_instance->hidden = true;
 
-      } break;
+        // Questo poi si può mettere nei poligoni
+        auto polygon_cells = vector<vector<int>>(app->state.polygons.size());
+        for (auto& p : polygon_cells) p = vector<int>(app->arrangement.size());
 
-      case (int)gui_key('N'): {
-        debug_cells(app);
-      } break;
-
-      case (int)gui_key('B'): {
-        debug_borders(app);
-      } break;
-
-      case (int)gui_key('F'): {
-        auto add = [&](int face, int neighbor) -> bool {
-          for (int k = 0; k < 3; k++) {
-            if (app->mesh.tags[face][k] == 0) continue;
-            if (find_in_vec(
-                    app->mesh.tags[neighbor], -app->mesh.tags[face][k]) != -1)
-              return false;
+        for (auto c = 0; c < app->arrangement.size(); c++) {
+          for (auto l = 0; l < app->arrangement[c].labels.size(); l++) {
+            if (app->arrangement[c].labels[l]) polygon_cells[l][c] = 1;
           }
-          return true;
-        };
-        auto start = app->last_clicked_point.face;
-
-        if (debug_restart) {
-          debug_visited = vector<bool>(app->mesh.adjacencies.size(), false);
-          debug_stack   = {start};
-          debug_result.clear();
-          debug_restart = false;
-        }
-        flood_fill_debug(app->mesh, {start}, add);
-        auto visited = debug_result;
-
-        for (int i = 0; i < visited.size(); i++) {
-          auto tag = app->mesh.tags[visited[i]];
-          auto adj = app->mesh.adjacencies[visited[i]];
-          // printf("%d: tag(%d %d %d) adj(%d %d %d)\n", visited[i], tag[0],
-          //     tag[1], tag[2], adj[0], adj[1], adj[2]);
         }
 
-        if (app->temp_patch) {
-          set_patch_shape(app->temp_patch->shape, app->mesh, visited);
-        } else {
-          app->temp_patch = add_patch_shape(app, visited, app->materials.blue);
+        auto result = vector<int>(app->arrangement.size());
+
+        // Executing sample operation ( P1 && P2 ) || P3
+        polygon_and(polygon_cells[1], polygon_cells[2], result);
+        polygon_or(result, polygon_cells[3], result);
+
+        // Riscostruisco e disegno a patch risultato
+        auto result_faces = vector<int>();
+        auto other_faces  = vector<int>();
+
+        for (auto r = 0; r < result.size(); r++) {
+          if (result[r])
+            result_faces += app->arrangement[r].faces;
+          else
+            other_faces += app->arrangement[r].faces;
         }
-        app->temp_patch->depth_test = ogl_depth_test::always;
+
+        add_patch_shape(app, other_faces, app->cell_materials[0]);
+        add_patch_shape(app, result_faces, app->materials.red);
+
       } break;
+
+        // case (int)gui_key('N'): {
+        //   debug_cells(app);
+        // } break;
+
+        // case (int)gui_key('B'): {
+        //   debug_borders(app);
+        // } break;
+
+        // case (int)gui_key('F'): {
+        //   auto add = [&](int face, int neighbor) -> bool {
+        //     for (int k = 0; k < 3; k++) {
+        //       if (app->mesh.tags[face][k] == 0) continue;
+        //       if (find_in_vec(
+        //               app->mesh.tags[neighbor], -app->mesh.tags[face][k]) !=
+        //               -1)
+        //         return false;
+        //     }
+        //     return true;
+        //   };
+        //   auto start = app->last_clicked_point.face;
+
+        //   if (debug_restart) {
+        //     debug_visited = vector<bool>(app->mesh.adjacencies.size(),
+        //     false); debug_stack   = {start}; debug_result.clear();
+        //     debug_restart = false;
+        //   }
+        //   flood_fill_debug(app->mesh, {start}, add);
+        //   auto visited = debug_result;
+
+        //   for (int i = 0; i < visited.size(); i++) {
+        //     auto tag = app->mesh.tags[visited[i]];
+        //     auto adj = app->mesh.adjacencies[visited[i]];
+        //     // printf("%d: tag(%d %d %d) adj(%d %d %d)\n", visited[i],
+        //     tag[0],
+        //     //     tag[1], tag[2], adj[0], adj[1], adj[2]);
+        //   }
+
+        //   if (app->temp_patch) {
+        //     set_patch_shape(app->temp_patch->shape, app->mesh, visited);
+        //   } else {
+        //     app->temp_patch = add_patch_shape(app, visited,
+        //     app->materials.blue);
+        //   }
+        //   app->temp_patch->depth_test = ogl_depth_test::always;
+        // } break;
 
       case (int)gui_key('G'): {
         auto add = [&](int face, int neighbor) -> bool {
