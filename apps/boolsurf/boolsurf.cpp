@@ -88,7 +88,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
   begin_imgui(widgets, "boolsurf", {0, 0}, {320, 720});
 
   if (draw_filedialog_button(widgets, "load test", true, "load file",
-          app->test_filename, false, "data/", "test.json", "*.json")) {
+          app->test_filename, false, "data/tests/", "test.json", "*.json")) {
     load_test(app->test, app->test_filename);
     init_from_test(app);
   }
@@ -96,7 +96,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
 
   static auto filename = ""s;
   if (draw_filedialog_button(widgets, "save test", true, "save file", filename,
-          true, "data/", "test.json", "*.json")) {
+          true, "data/tests", "test.json", "*.json")) {
     save_test(app, filename);
   }
 
