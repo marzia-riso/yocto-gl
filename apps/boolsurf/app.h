@@ -57,9 +57,10 @@ struct app_state {
   shape_bvh bvh           = {};
   shape_bvh bvh_original  = {};
 
-  edit_state              state       = {};
-  vector<mesh_cell>       cells       = {};
-  vector<shade_instance*> cell_shapes = {};
+  edit_state              state        = {};
+  vector<mesh_cell>       cells        = {};
+  int                     ambient_cell = -1;
+  vector<shade_instance*> cell_shapes  = {};
 
   vector<edit_state> history        = {};
   int                history_index  = 0;
@@ -453,21 +454,21 @@ inline void save_tree_png(const app_state* app, const string& extra) {
   system(cmd.c_str());
 }
 
-inline int shape_from_cell(const app_state* app, int cell) {
+inline int front_polygon_containing_this_cell(const app_state* app, int cell) {
   for (int s = (int)app->state.shapes.size() - 1; s >= 0; s--) {
     auto p = app->state.shapes[s].polygon;
     if (app->cells[cell].labels[p] > 0) {
       return s;
     }
   }
-//  assert(0);
+  //  assert(0);
   return 0;
 }
 
 inline void update_cell_shapes(app_state* app) {
   for (int i = 0; i < app->cells.size(); i++) {
     auto& cell = app->cells[i];
-    // auto  s     = shape_from_cell(app, i);
+    // auto  s     = front_polygon_containing_this_cell(app, i);
     // auto  color = vec3f{};
     // if (s == -1) {
     //   color = {.9, .9, .9};
@@ -483,27 +484,55 @@ inline void update_cell_shapes(app_state* app) {
 }
 
 inline void update_shapes(app_state* app) {
-  // TODO(giacomo): move somewhere else
-  app->state.shapes.resize(app->state.polygons.size());
-  for (auto& shape : app->state.shapes) {
+  // Start with one shape for each polygon.
+    auto& shapes = app->state.shapes;
+  shapes.resize(app->state.polygons.size());
+  for (auto& shape : shapes) {
     shape.cells.clear();
   }
 
+  // Assign a polygon and a color to each shape.
   for (int p = 0; p < app->state.polygons.size(); p++) {
-    if (app->state.shapes[p].polygon == -1) {
-      app->state.shapes[p].polygon = p;
+    if (shapes[p].polygon == -1) {
+      shapes[p].polygon = p;
     }
-    if (app->state.shapes[p].color == vec3f{0, 0, 0}) {
-      app->state.shapes[p].color = get_polygon_color(app, p);
+    if (shapes[p].color == vec3f{0, 0, 0}) {
+      shapes[p].color = get_polygon_color(app, p);
     }
   }
 
   for (int i = 0; i < app->cells.size(); i++) {
-    auto s = shape_from_cell(app, i);
-    if (s == 0) continue;
-    app->state.shapes[s].cells.push_back(i);
+    auto s = front_polygon_containing_this_cell(app, i);
+    if (s == 0) {
+      shapes[s].cells.push_back(app->ambient_cell);
+    } else {
+      shapes[s].cells.push_back(i);
+    }
   }
 }
+
+// inline void compute_operations(app_state* app) {
+//   // TODO(giacomo): move somewhere else
+//   app->state.shapes.resize(app->state.polygons.size());
+//   for (auto& shape : app->state.shapes) {
+//     shape.cells.clear();
+//   }
+
+//   for (int p = 0; p < app->state.polygons.size(); p++) {
+//     if (app->state.shapes[p].polygon == -1) {
+//       app->state.shapes[p].polygon = p;
+//     }
+//     if (app->state.shapes[p].color == vec3f{0, 0, 0}) {
+//       app->state.shapes[p].color = get_polygon_color(app, p);
+//     }
+//   }
+
+//   for (int i = 0; i < app->cells.size(); i++) {
+//     auto s = front_polygon_containing_this_cell(app, i);
+//     if (s == 0) continue;
+//     app->state.shapes[s].cells.push_back(i);
+//   }
+// }
 
 inline void update_cell_colors(app_state* app) {
   for (int i = 0; i < app->state.shapes.size(); i++) {

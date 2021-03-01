@@ -116,6 +116,7 @@ inline int find_idx(const vector<T>& vec, const T& x) {
   return -1;
 }
 
+// TODO(gicomo): rename
 template <class T, typename F>
 inline int find_xxx(const vector<T>& vec, F&& f) {
   for (auto i = 0; i < vec.size(); i++)
@@ -409,7 +410,7 @@ inline vector<int> find_ambient_cells(
   return result;
 }
 
-//inline void fix_self_intersections(
+// inline void fix_self_intersections(
 //    vector<mesh_cell>& cells, const vector<int>& start) {
 //  // auto visited   = vector<bool>(cells.size(), false);
 //  // 0 = not visited, 1 = partially visited, 2 = fully visited
@@ -440,7 +441,8 @@ inline vector<int> find_ambient_cells(
 //          if (item.polygon == polygon) {
 //            auto& polygon_sequences = sequences[polygon];
 //
-//            // Se una catena già esistente termina con il nodo padre di neighbor
+//            // Se una catena già esistente termina con il nodo padre di
+//            neighbor
 //            // allora aggiungo neighbor alla catena
 //            auto found = false;
 //            for (auto& sequence : polygon_sequences) {

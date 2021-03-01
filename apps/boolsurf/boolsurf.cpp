@@ -255,9 +255,18 @@ void mouse_input(app_state* app, const gui_input& input) {
     auto& cell = app->cells[i];
     auto  it   = find_idx(cell.faces, point.face);
     if (it != -1) {
-      app->selected_cell  = i;
-      app->selected_shape = shape_from_cell(app, i);
+      app->selected_cell = i;
       break;
+    }
+  }
+
+  if (app->selected_cell != -1) {
+    for (int s = 0; s < app->state.shapes.size(); s++) {
+      auto& shape = app->state.shapes[s];
+      if (find_idx(shape.cells, app->selected_cell) != -1) {
+        app->selected_shape = s;
+        break;
+      }
     }
   }
 
@@ -273,7 +282,8 @@ void mouse_input(app_state* app, const gui_input& input) {
     // Add point to state.
     app->state.points.push_back(point);
 
-    // TODO(giacomo): recomputing all paths of the polygon at every click is bad
+    // TODO(giacomo): recomputing all paths of the polygon at every click is
+    // bad
     update_polygon(app, polygon_id);
   }
 }
@@ -386,8 +396,8 @@ void triangulate(bool_mesh& mesh, unordered_map<vec2i, vec2i>& face_edgemap,
           local_vertex = (int)indices.size() - 1;
         }
 
-        // Se non stiamo processando il primo nodo allora consideriamo anche il
-        // nodo precedente e creiamo gli archi
+        // Se non stiamo processando il primo nodo allora consideriamo anche
+        // il nodo precedente e creiamo gli archi
         if (i != 0) {
           auto vertex_start       = polyline.vertices[i - 1];
           auto uv_start           = polyline.points[i - 1];
@@ -406,8 +416,8 @@ void triangulate(bool_mesh& mesh, unordered_map<vec2i, vec2i>& face_edgemap,
           }
 
           // Se l'arco che ho trovato è un arco originale della mesh allora
-          // salviamo la faccia corrispondente nel mapping da facce originale a
-          // facce triangolate
+          // salviamo la faccia corrispondente nel mapping da facce originale
+          // a facce triangolate
           if (vertex_start < mesh.original_positions &&
               vertex < mesh.original_positions) {
             triangulated_faces[face] = {face};
@@ -505,7 +515,7 @@ void triangulate(bool_mesh& mesh, unordered_map<vec2i, vec2i>& face_edgemap,
   }
 }
 
-void do_the_thing(app_state* app) {
+void compute_cells(app_state* app) {
   auto& polygons = app->state.polygons;
   auto& mesh     = app->mesh;
 
@@ -571,8 +581,11 @@ void do_the_thing(app_state* app) {
     auto cells = app->cells;
     compute_cell_labels(cells, {ambient}, skip_polygons);
 
-    auto found = false;
-    for (auto& cell : cells) {
+    auto found        = false;
+    auto ambient_cell = -1;
+    for (int i = 0; i < cells.size(); i++) {
+      auto& cell = cells[i];
+      // for (auto& cell : cells) {
       auto it = find_xxx(
           cell.labels, [](const int& label) { return label < 0; });
       if (it != -1) {
@@ -582,7 +595,8 @@ void do_the_thing(app_state* app) {
     }
 
     if (!found) {
-      app->cells = cells;
+      app->cells        = cells;
+      app->ambient_cell = ambient;
       break;
     }
   }
@@ -650,7 +664,7 @@ void key_input(app_state* app, const gui_input& input) {
           app->state.polygons.pop_back();
         }
 
-        do_the_thing(app);
+        compute_cells(app);
 
         update_shapes(app);
 
