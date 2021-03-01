@@ -30,18 +30,6 @@ void init_from_test(app_state* app) {
   update_polygons(app);
 }
 
-// Rappresentazione di un segmento all'interno di una faccia. Serivra' per la
-// triangolazione. Teniamo sia la rapprezentazione discreta (come coppia di
-// vertici della mesh) che la rapprezentazione in coordiate baricentriche.
-struct triangle_segment {
-  int polygon      = -1;
-  int start_vertex = -1;
-  int end_vertex   = -1;
-
-  vec2f start = {};
-  vec2f end   = {};
-};
-
 void debug_draw(app_state* app, int face, const vector<vec2i>& edges,
     const string& header = "") {
   static int count = 0;
@@ -192,14 +180,13 @@ void draw_widgets(app_state* app, const gui_input& input) {
     end_header(widgets);
   }
 
-  if (app->selected_cell >= 0 && begin_header(widgets, "cell info")) {
-    auto& cell = app->arrangement[app->selected_cell];
+  if (app->selected_cell >= 0 && begin_header(widgets, "cell info", true)) {
+    auto& cell = app->cells[app->selected_cell];
     draw_label(widgets, "cell", to_string(app->selected_cell));
     draw_label(widgets, "faces", to_string(cell.faces.size()));
 
     auto s = ""s;
-    for (auto& [cell_id, _] : cell.adjacent_cells)
-      s += to_string(cell_id) + " ";
+    for (auto& [cell_id, _] : cell.adjacency) s += to_string(cell_id) + " ";
     draw_label(widgets, "adj", s);
 
     s = ""s;
@@ -207,6 +194,35 @@ void draw_widgets(app_state* app, const gui_input& input) {
       s += to_string(cell.labels[p]) + " ";
     draw_label(widgets, "label", s);
 
+    end_header(widgets);
+  }
+
+  if (app->selected_shape >= 0 && begin_header(widgets, "shape info", true)) {
+    auto& shape_id = app->selected_shape;
+    auto& shape    = app->state.shapes[shape_id];
+    draw_label(widgets, "shape", to_string(shape_id));
+    draw_label(widgets, "polygon", to_string(shape.polygon));
+    if (draw_button(widgets, "Bring forward")) {
+      if (shape_id < app->state.shapes.size() - 1) {
+        swap(app->state.shapes[shape_id], app->state.shapes[shape_id + 1]);
+        shape_id += 1;
+        update_shapes(app);
+        update_cell_colors(app);
+      }
+    }
+    continue_line(widgets);
+    if (draw_button(widgets, "Bring back")) {
+      if (shape_id >= 1) {
+        swap(app->state.shapes[shape_id], app->state.shapes[shape_id - 1]);
+        shape_id -= 1;
+        update_shapes(app);
+        update_cell_colors(app);
+      }
+    }
+
+    if (draw_coloredit(widgets, "color", shape.color)) {
+      update_cell_colors(app);
+    }
     end_header(widgets);
   }
 
@@ -235,11 +251,12 @@ void mouse_input(app_state* app, const gui_input& input) {
   auto point_original = mesh_point{isec_original.element, isec_original.uv};
   app->last_clicked_point_original = point_original;
 
-  for (int i = 0; i < app->arrangement.size(); i++) {
-    auto& cell = app->arrangement[i];
+  for (int i = 0; i < app->cells.size(); i++) {
+    auto& cell = app->cells[i];
     auto  it   = find_idx(cell.faces, point.face);
     if (it != -1) {
-      app->selected_cell = i;
+      app->selected_cell  = i;
+      app->selected_shape = shape_from_cell(app, i);
       break;
     }
   }
@@ -519,11 +536,11 @@ void do_the_thing(app_state* app) {
   check_tags(app->mesh);
 
   // Trova l'adiacenza fra celle tramite il flood-fill
-  app->arrangement = make_mesh_cells(mesh, mesh.tags);
+  app->cells = make_mesh_cells(mesh, mesh.tags);
 
   save_tree_png(app, "0");
 
-  auto cycles = compute_graph_cycles(app->arrangement);
+  auto cycles = compute_graph_cycles(app->cells);
 
   auto skip_polygons = vector<int>();
   for (auto& cycle : cycles) {
@@ -536,22 +553,22 @@ void do_the_thing(app_state* app) {
   auto label_size = polygons.size();
   if (polygons.back().points.empty()) label_size -= 1;
 
-  for (auto& cell : app->arrangement) {
+  for (auto& cell : app->cells) {
     cell.labels = vector<int>(label_size, 0);
   }
 
   for (auto& cycle : cycles) {
     for (auto& c : cycle) {
-      app->arrangement[c.x].labels[c.y] = 1;
+      app->cells[c.x].labels[c.y] = 1;
     }
   }
 
   // Trova le celle ambiente nel grafo dell'adiacenza delle celle
-  auto ambient_cells = find_ambient_cells(app->arrangement, skip_polygons);
+  auto ambient_cells = find_ambient_cells(app->cells, skip_polygons);
 
   printf("Ambient cells: ");
   for (auto ambient : ambient_cells) {
-    auto cells = app->arrangement;
+    auto cells = app->cells;
     compute_cell_labels(cells, {ambient}, skip_polygons);
 
     auto found = false;
@@ -565,7 +582,7 @@ void do_the_thing(app_state* app) {
     }
 
     if (!found) {
-      app->arrangement = cells;
+      app->cells = cells;
       break;
     }
   }
@@ -628,15 +645,22 @@ void key_input(app_state* app, const gui_input& input) {
         debug_nodes.clear();
         debug_indices.clear();
 #endif
+        // remove trailing empty polygons.
+        while (app->state.polygons.back().points.empty()) {
+          app->state.polygons.pop_back();
+        }
+
         do_the_thing(app);
 
-        for (int i = 0; i < app->arrangement.size(); i++) {
-          auto& cell  = app->arrangement[i];
-          auto  color = get_cell_color(app, i);
-          app->cell_patches.push_back((int)app->glscene->instances.size());
-          add_patch_shape(app, cell.faces, color);
-          print_cell_info(cell, i);
+        update_shapes(app);
+
+        app->cell_shapes.resize(app->cells.size());
+        for (int i = 0; i < app->cells.size(); i++) {
+          app->cell_shapes[i] = add_patch_shape(app, {}, new shade_material{});
         }
+
+        update_cell_shapes(app);
+        update_cell_colors(app);
 
         // update bvh
         app->bvh = make_triangles_bvh(

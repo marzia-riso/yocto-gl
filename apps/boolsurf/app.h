@@ -22,11 +22,19 @@
 
 using namespace yocto;
 
+struct Shape {
+  int         polygon = -1;
+  vec3f       color   = {0, 0, 0};
+  vector<int> cells   = {};
+};
+
 struct edit_state {
   vector<mesh_polygon> polygons = {{}, {}};
   vector<mesh_point>   points   = {};
 
-  // Put cells here...
+  vector<Shape> shapes = {};
+
+  // TODO(giacomo): Put cells here...
 };
 
 // Application state
@@ -49,11 +57,14 @@ struct app_state {
   shape_bvh bvh           = {};
   shape_bvh bvh_original  = {};
 
-  edit_state         state         = {};
-  vector<mesh_cell>  arrangement   = {};
-  vector<edit_state> history       = {};
-  int                history_index = 0;
-  int                selected_cell = -1;
+  edit_state              state       = {};
+  vector<mesh_cell>       cells       = {};
+  vector<shade_instance*> cell_shapes = {};
+
+  vector<edit_state> history        = {};
+  int                history_index  = 0;
+  int                selected_cell  = -1;
+  int                selected_shape = -1;
 
   // rendering state
   shade_scene*    glscene           = new shade_scene{};
@@ -382,7 +393,7 @@ inline vec3f get_polygon_color(const app_state* app, int polygon) {
 
 inline vec3f get_cell_color(const app_state* app, int cell_id) {
   auto  color = vec3f{0, 0, 0};
-  auto& cell  = app->arrangement[cell_id];
+  auto& cell  = app->cells[cell_id];
   int   count = 0;
   for (int p = 0; p < cell.labels.size(); p++) {
     auto label = cell.labels[p];
@@ -415,7 +426,7 @@ inline string tree_to_string(
         i, color.x, color.y, color.z);
     result += std::string(str);
 
-    for (auto [neighbor, polygon] : cell.adjacent_cells) {
+    for (auto [neighbor, polygon] : cell.adjacency) {
       if (polygon < 0) continue;
       int  c     = neighbor;
       auto color = rgb_to_hsv(get_polygon_color(app, polygon));
@@ -433,11 +444,71 @@ inline void save_tree_png(const app_state* app, const string& extra) {
   if (filename.empty()) filename = "test.json";
   auto  graph = replace_extension(filename, extra + ".txt");
   FILE* file  = fopen(graph.c_str(), "w");
-  fprintf(file, "%s", tree_to_string(app, app->arrangement).c_str());
+  fprintf(file, "%s", tree_to_string(app, app->cells).c_str());
   fclose(file);
 
   auto image = replace_extension(filename, extra + ".png");
   auto cmd   = "dot -Tpng "s + graph + " > " + image;
   printf("%s\n", cmd.c_str());
   system(cmd.c_str());
+}
+
+inline int shape_from_cell(const app_state* app, int cell) {
+  for (int s = (int)app->state.shapes.size() - 1; s >= 0; s--) {
+    auto p = app->state.shapes[s].polygon;
+    if (app->cells[cell].labels[p] > 0) {
+      return s;
+    }
+  }
+//  assert(0);
+  return 0;
+}
+
+inline void update_cell_shapes(app_state* app) {
+  for (int i = 0; i < app->cells.size(); i++) {
+    auto& cell = app->cells[i];
+    // auto  s     = shape_from_cell(app, i);
+    // auto  color = vec3f{};
+    // if (s == -1) {
+    //   color = {.9, .9, .9};
+    // } else {
+    //   // color = get_polygon_color(app, app->state.shapes[s].polygon);
+    //   color = app->state.shapes[s].color;
+    // }
+    // app->cell_patches.push_back((int)app->glscene->instances.size());
+    set_patch_shape(app->cell_shapes[i]->shape, app->mesh, cell.faces);
+    // app->cell_shapes[i]->material->color = color;
+    print_cell_info(cell, i);
+  }
+}
+
+inline void update_shapes(app_state* app) {
+  // TODO(giacomo): move somewhere else
+  app->state.shapes.resize(app->state.polygons.size());
+  for (auto& shape : app->state.shapes) {
+    shape.cells.clear();
+  }
+
+  for (int p = 0; p < app->state.polygons.size(); p++) {
+    if (app->state.shapes[p].polygon == -1) {
+      app->state.shapes[p].polygon = p;
+    }
+    if (app->state.shapes[p].color == vec3f{0, 0, 0}) {
+      app->state.shapes[p].color = get_polygon_color(app, p);
+    }
+  }
+
+  for (int i = 0; i < app->cells.size(); i++) {
+    auto s = shape_from_cell(app, i);
+    if (s == 0) continue;
+    app->state.shapes[s].cells.push_back(i);
+  }
+}
+
+inline void update_cell_colors(app_state* app) {
+  for (int i = 0; i < app->state.shapes.size(); i++) {
+    for (auto& c : app->state.shapes[i].cells) {
+      app->cell_shapes[c]->material->color = app->state.shapes[i].color;
+    }
+  }
 }

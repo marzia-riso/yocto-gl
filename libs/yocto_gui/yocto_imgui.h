@@ -70,7 +70,7 @@ void end_imgui(gui_widgets* widgets);
 
 bool is_active(gui_widgets* widgets);
 
-bool begin_header(gui_widgets* widgets, const char* title);
+bool begin_header(gui_widgets* widgets, const char* title, bool open = false);
 void end_header(gui_widgets* widgets);
 
 void draw_label(gui_widgets* widgets, const char* lbl, const string& text);

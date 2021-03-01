@@ -47,17 +47,6 @@ struct hashgrid_segment {
   vec2f end   = {};
 };
 
-struct intersection {
-  int   vertex_id = -1;
-  float lerp      = -1.0f;
-};
-
-struct cell_polygon {
-  vector<int>          points    = {};
-  vector<mesh_segment> segments  = {};
-  vector<int>          embedding = {};
-};
-
 // Vector append and concatenation
 template <typename T>
 inline void operator+=(vector<T>& a, const vector<T>& b) {
@@ -299,9 +288,9 @@ inline vector<vector<int>> add_vertices(
 }
 
 struct mesh_cell {
-  vector<int>          faces          = {};
-  unordered_set<vec2i> adjacent_cells = {};  // {cell_id, crossed_polygon_id}
-  vector<int>          labels         = {};
+  vector<int>          faces     = {};
+  unordered_set<vec2i> adjacency = {};  // {cell_id, crossed_polygon_id}
+  vector<int>          labels    = {};
 };
 
 void flood_fill_new(vector<mesh_cell>& result, vector<mesh_cell>& cell_stack,
@@ -341,8 +330,8 @@ void flood_fill_new(vector<mesh_cell>& result, vector<mesh_cell>& cell_stack,
             if (find_in_vec(mesh.tags[neighbor], -p) != -1) {
               // Sto attraversando il bordo di un poligono, quindi
               // connetto la cella a se stessa.
-              cell.adjacent_cells.insert({cell_id, +p});
-              cell.adjacent_cells.insert({cell_id, -p});
+              cell.adjacency.insert({cell_id, +p});
+              cell.adjacency.insert({cell_id, -p});
 
             } else {
               continue;
@@ -351,12 +340,12 @@ void flood_fill_new(vector<mesh_cell>& result, vector<mesh_cell>& cell_stack,
             // Non sto visitando la stessa cella.
             if (p > 0) {
               // Sto entrando nel poligono p.
-              cell.adjacent_cells.insert({neighbor_cell, +p});
-              result[neighbor_cell].adjacent_cells.insert({cell_id, -p});
+              cell.adjacency.insert({neighbor_cell, +p});
+              result[neighbor_cell].adjacency.insert({cell_id, -p});
             } else {
               // Sto uscendo dal poligono p.
-              result[neighbor_cell].adjacent_cells.insert({cell_id, -p});
-              cell.adjacent_cells.insert({neighbor_cell, +p});
+              result[neighbor_cell].adjacency.insert({cell_id, -p});
+              cell.adjacency.insert({neighbor_cell, +p});
             }
           }
         } else {
@@ -392,7 +381,7 @@ inline void print_cell_info(const mesh_cell& cell, int idx) {
   printf("[cell %d]\n", idx);
   printf("  faces: %d\n", (int)cell.faces.size());
   printf("  adjacent cells: ");
-  for (auto& [cell_id, polygon_id] : cell.adjacent_cells)
+  for (auto& [cell_id, polygon_id] : cell.adjacency)
     printf("(%d %d) ", cell_id, polygon_id);
   printf("\n");
 
@@ -407,7 +396,7 @@ inline vector<int> find_ambient_cells(
     const vector<mesh_cell>& cells, const vector<int>& skip_polygons) {
   auto adjacency = vector<int>(cells.size(), 0);
   for (auto& cell : cells) {
-    for (auto& [adj, p] : cell.adjacent_cells) {
+    for (auto& [adj, p] : cell.adjacency) {
       if (find_idx(skip_polygons, p) != -1) continue;
       if (p > 0) adjacency[adj] += 1;
     }
@@ -446,7 +435,7 @@ inline vector<int> find_ambient_cells(
 //      state[item.cell] = 1;  // Set to partialy visited
 //
 //      auto& cell = cells[item.cell];
-//      for (auto& [neighbor, polygon] : cell.adjacent_cells) {
+//      for (auto& [neighbor, polygon] : cell.adjacency) {
 //        if (state[neighbor] == 0) {
 //          if (item.polygon == polygon) {
 //            auto& polygon_sequences = sequences[polygon];
@@ -462,7 +451,7 @@ inline vector<int> find_ambient_cells(
 //            }
 //
 //    auto& cell = cells[item.cell];
-//    for (auto& [neighbor, polygon] : cell.adjacent_cells) {
+//    for (auto& [neighbor, polygon] : cell.adjacency) {
 //      // if (visited[neighbor]) {
 //      //   // auto tmp = cell.labels;
 //      //   // tmp[polygon] += 1;
@@ -506,7 +495,7 @@ inline vector<int> find_ambient_cells(
 //  //   visited[item.cell] = true;
 //
 //  //   auto& cell = cells[item.cell];
-//  //   for (auto& [neighbor, polygon] : cell.adjacent_cells) {
+//  //   for (auto& [neighbor, polygon] : cell.adjacency) {
 //  //     // if (visited[neighbor]) {
 //  //     //   // auto tmp = cell.labels;
 //  //     //   // tmp[polygon] += 1;
@@ -552,8 +541,8 @@ inline vector<int> find_ambient_cells(
 //        auto s2 = sequence[s + 1];
 //
 //        // Eliminiamo l'arco in un verso e lo creiamo nell'altro
-//        cells[s1].adjacent_cells.erase({s2, polygon});
-//        cells[s2].adjacent_cells.insert({s1, polygon});
+//        cells[s1].adjacency.erase({s2, polygon});
+//        cells[s2].adjacency.insert({s1, polygon});
 //      }
 //    }
 //  }
@@ -593,7 +582,7 @@ inline void compute_cycles(const vector<mesh_cell>& cells, int node,
   parents[node] = parent;
   visited[node] = 1;
 
-  for (auto& [neighbor, polygon] : cells[node].adjacent_cells) {
+  for (auto& [neighbor, polygon] : cells[node].adjacency) {
     // Se stiamo percorrendo lo stesso arco ma al contrario allora continuo,
     // altrimenti esploriamo il vicino
     if (polygon > 0) continue;
@@ -632,7 +621,7 @@ inline void compute_cell_labels(vector<mesh_cell>& cells,
     visited[cell_id] = true;
 
     auto& cell = cells[cell_id];
-    for (auto& [neighbor, polygon] : cell.adjacent_cells) {
+    for (auto& [neighbor, polygon] : cell.adjacency) {
       if (find_idx(skip_polygons, polygon) != -1) continue;
       if (visited[neighbor]) {
         auto tmp = cell.labels;
