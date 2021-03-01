@@ -205,16 +205,18 @@ void draw_widgets(app_state* app, const gui_input& input) {
       if (shape_id < app->state.shapes.size() - 1) {
         swap(app->state.shapes[shape_id], app->state.shapes[shape_id + 1]);
         shape_id += 1;
-        //        update_shapes(app); // TODO(giaomo): fix
+        //        update_shapes(app); // TODO(giacomo): fix
+        set_default_shapes(app);
         update_cell_colors(app);
       }
     }
     continue_line(widgets);
     if (draw_button(widgets, "Bring back")) {
-      if (shape_id >= 1) {
+      if (shape_id >= 2) {
         swap(app->state.shapes[shape_id], app->state.shapes[shape_id - 1]);
         shape_id -= 1;
-        // update_shapes(app);  // TODO(giaomo): fix
+        // update_shapes(app);  // TODO(giacomo): fix
+        set_default_shapes(app);
         update_cell_colors(app);
       }
     }
@@ -680,6 +682,7 @@ void key_input(app_state* app, const gui_input& input) {
 
         compute_cells(app);
 
+        init_shapes(app);
         set_default_shapes(app);
         for (auto& op : app->test.operations) {
           compute_bool_operation(app->state.shapes, op);

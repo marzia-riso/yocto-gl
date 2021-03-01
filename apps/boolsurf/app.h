@@ -505,11 +505,18 @@ inline void init_shapes(app_state* app) {
 }
 
 inline void set_default_shapes(app_state* app) {
-  init_shapes(app);
-  for (int i = 0; i < app->cells.size(); i++) {
-    auto s = front_polygon_containing_this_cell(app, i);
-    if (s == 0) continue;
-    app->state.shapes[s].cells.push_back(i);
+  // init_shapes(app);
+  for (auto& shape : app->state.shapes) {
+    shape.cells.clear();
+  }
+  app->state.shapes[0].cells = {app->ambient_cell};
+
+  // Distribute cells to shapes
+  for (int cell = 0; cell < app->cells.size(); cell++) {
+    auto p = front_polygon_containing_this_cell(app, cell);
+    if (p > 0) {
+      app->state.shapes[p].cells.push_back(cell);
+    }
   }
 }
 
