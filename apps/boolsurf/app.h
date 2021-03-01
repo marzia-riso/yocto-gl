@@ -274,10 +274,10 @@ void init_glscene(app_state* app, shade_scene* glscene, const bool_mesh& mesh,
         glscene, {0, 0, 0}, colors[i], 1, 0, 0.4);
   }
 
-  app->materials.red   = add_material(glscene, {0, 0, 0}, {1, 0, 0}, 1, 0, 1);
-  app->materials.green = add_material(glscene, {0, 0, 0}, {0, 1, 0}, 1, 0, 1);
-  app->materials.blue  = add_material(glscene, {0, 0, 0}, {0, 0, 1}, 1, 0, 1);
-  app->materials.white = add_material(glscene, {0, 0, 0}, {1, 1, 1}, 1, 0, 1);
+  app->materials.red   = add_material(glscene, {0, 0, 0}, {1, 0, 0}, 1, 0, 0.4);
+  app->materials.green = add_material(glscene, {0, 0, 0}, {0, 1, 0}, 1, 0, 0.4);
+  app->materials.blue  = add_material(glscene, {0, 0, 0}, {0, 0, 1}, 1, 0, 0.4);
+  app->materials.white = add_material(glscene, {0, 0, 0}, {1, 1, 1}, 1, 0, 0.4);
 
   // shapes
   if (progress_cb) progress_cb("convert shape", progress.x++, progress.y);
@@ -376,8 +376,9 @@ tuple<shape_intersection, shape_intersection> intersect_shapes(
 shade_instance* add_patch_shape(
     app_state* app, const vector<int>& faces, const vec3f& color) {
   auto patch_shape    = add_shape(app->glscene, {}, {}, {}, {}, {}, {}, {}, {});
-  auto patch_material = add_material(
-      app->glscene, {0, 0, 0}, color, 1, 0, 0.4);  // @Leak
+  auto patch_material = add_material(app->glscene);  // @Leak
+  *patch_material     = *app->mesh_material;
+  patch_material->color = color;
   set_patch_shape(patch_shape, app->mesh, faces);
   return add_instance(app->glscene, identity3x4f, patch_shape, patch_material);
 }

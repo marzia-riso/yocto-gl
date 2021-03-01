@@ -235,7 +235,9 @@ void draw_widgets(app_state* app, const gui_input& input) {
   draw_combobox(widgets, "operation", op, bool_operation::type_names);
   app->operation.type = (bool_operation::Type)op;
   if (draw_button(widgets, "Apply")) {
+    compute_bool_operation(app->state.shapes, app->operation);
     app->test.operations += app->operation;
+    update_cell_colors(app);
   }
 
   end_imgui(widgets);
@@ -685,11 +687,16 @@ void key_input(app_state* app, const gui_input& input) {
 
         app->cell_shapes.resize(app->cells.size());
         for (int i = 0; i < app->cells.size(); i++) {
-          app->cell_shapes[i] = add_patch_shape(app, {}, new shade_material{});
+          app->cell_shapes[i] = add_patch_shape(app, {}, vec3f{});
         }
 
         update_cell_shapes(app);
         update_cell_colors(app);
+        for (auto& polygon : app->state.polygons) {
+          if (polygon.polyline_shape) {
+            polygon.polyline_shape->hidden = true;
+          }
+        }
 
         // update bvh
         app->bvh = make_triangles_bvh(
