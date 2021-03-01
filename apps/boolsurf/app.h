@@ -40,10 +40,11 @@ struct edit_state {
 // Application state
 struct app_state {
   // loading parameters
-  string      model_filename = "";
-  string      test_filename  = "";
-  bool_test   test           = {};
-  gui_window* window         = nullptr;
+  string         model_filename = "";
+  string         test_filename  = "";
+  bool_test      test           = {};
+  bool_operation operation      = {};
+  gui_window*    window         = nullptr;
 
   // options
   shade_params drawgl_prms = {};
@@ -483,9 +484,9 @@ inline void update_cell_shapes(app_state* app) {
   }
 }
 
-inline void update_shapes(app_state* app) {
+inline void init_shapes(app_state* app) {
   // Start with one shape for each polygon.
-    auto& shapes = app->state.shapes;
+  auto& shapes = app->state.shapes;
   shapes.resize(app->state.polygons.size());
   for (auto& shape : shapes) {
     shape.cells.clear();
@@ -500,39 +501,26 @@ inline void update_shapes(app_state* app) {
       shapes[p].color = get_polygon_color(app, p);
     }
   }
+}
 
+inline void set_default_shapes(app_state* app) {
+  init_shapes(app);
   for (int i = 0; i < app->cells.size(); i++) {
     auto s = front_polygon_containing_this_cell(app, i);
-    if (s == 0) {
-      shapes[s].cells.push_back(app->ambient_cell);
-    } else {
-      shapes[s].cells.push_back(i);
-    }
+    if (s == 0) continue;
+    app->state.shapes[s].cells.push_back(i);
   }
 }
 
-// inline void compute_operations(app_state* app) {
-//   // TODO(giacomo): move somewhere else
-//   app->state.shapes.resize(app->state.polygons.size());
-//   for (auto& shape : app->state.shapes) {
-//     shape.cells.clear();
-//   }
-
-//   for (int p = 0; p < app->state.polygons.size(); p++) {
-//     if (app->state.shapes[p].polygon == -1) {
-//       app->state.shapes[p].polygon = p;
-//     }
-//     if (app->state.shapes[p].color == vec3f{0, 0, 0}) {
-//       app->state.shapes[p].color = get_polygon_color(app, p);
-//     }
-//   }
-
-//   for (int i = 0; i < app->cells.size(); i++) {
-//     auto s = front_polygon_containing_this_cell(app, i);
-//     if (s == 0) continue;
-//     app->state.shapes[s].cells.push_back(i);
-//   }
-// }
+inline void compute_bool_operation(
+    vector<Shape>& shapes, const bool_operation& op) {
+  auto& a = shapes[op.shape_a];
+  auto& b = shapes[op.shape_b];
+  if (op.type == bool_operation::Type::op_union) {
+    a.cells += b.cells;
+    b.cells.clear();
+  }
+}
 
 inline void update_cell_colors(app_state* app) {
   for (int i = 0; i < app->state.shapes.size(); i++) {

@@ -9,9 +9,8 @@ using namespace yocto;
 #endif
 
 void save_test(app_state* app, const string& filename) {
-  app->test        = {};
-  app->test.model  = app->model_filename;
   app->test.points = app->state.points;
+  app->test.polygons.clear();
   for (auto& mesh_polygon : app->state.polygons) {
     app->test.polygons.push_back(mesh_polygon.points);
   }
@@ -206,7 +205,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
       if (shape_id < app->state.shapes.size() - 1) {
         swap(app->state.shapes[shape_id], app->state.shapes[shape_id + 1]);
         shape_id += 1;
-        update_shapes(app);
+        //        update_shapes(app); // TODO(giaomo): fix
         update_cell_colors(app);
       }
     }
@@ -215,7 +214,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
       if (shape_id >= 1) {
         swap(app->state.shapes[shape_id], app->state.shapes[shape_id - 1]);
         shape_id -= 1;
-        update_shapes(app);
+        // update_shapes(app);  // TODO(giaomo): fix
         update_cell_colors(app);
       }
     }
@@ -224,6 +223,19 @@ void draw_widgets(app_state* app, const gui_input& input) {
       update_cell_colors(app);
     }
     end_header(widgets);
+  }
+
+  auto ff = [&](int i) { return to_string(i); };
+  draw_combobox(
+      widgets, "a", app->operation.shape_a, (int)app->state.shapes.size(), ff);
+  draw_combobox(
+      widgets, "b", app->operation.shape_b, (int)app->state.shapes.size(), ff);
+
+  auto op = (int)app->operation.type;
+  draw_combobox(widgets, "operation", op, bool_operation::type_names);
+  app->operation.type = (bool_operation::Type)op;
+  if (draw_button(widgets, "Apply")) {
+    app->test.operations += app->operation;
   }
 
   end_imgui(widgets);
@@ -577,16 +589,14 @@ void compute_cells(app_state* app) {
   auto ambient_cells = find_ambient_cells(app->cells, skip_polygons);
 
   printf("Ambient cells: ");
-  for (auto ambient : ambient_cells) {
+  for (auto ambient_cell : ambient_cells) {
     auto cells = app->cells;
-    compute_cell_labels(cells, {ambient}, skip_polygons);
+    compute_cell_labels(cells, {ambient_cell}, skip_polygons);
 
-    auto found        = false;
-    auto ambient_cell = -1;
+    auto found = false;
     for (int i = 0; i < cells.size(); i++) {
       auto& cell = cells[i];
-      // for (auto& cell : cells) {
-      auto it = find_xxx(
+      auto  it   = find_xxx(
           cell.labels, [](const int& label) { return label < 0; });
       if (it != -1) {
         found = true;
@@ -596,7 +606,7 @@ void compute_cells(app_state* app) {
 
     if (!found) {
       app->cells        = cells;
-      app->ambient_cell = ambient;
+      app->ambient_cell = ambient_cell;
       break;
     }
   }
@@ -640,6 +650,8 @@ void compute_cells(app_state* app) {
 }
 
 void key_input(app_state* app, const gui_input& input) {
+  if (is_active(&app->widgets)) return;
+
   for (auto idx = 0; idx < input.key_buttons.size(); idx++) {
     auto button = input.key_buttons[idx];
     if (button.state != gui_button::state::pressing) continue;
@@ -666,7 +678,10 @@ void key_input(app_state* app, const gui_input& input) {
 
         compute_cells(app);
 
-        update_shapes(app);
+        set_default_shapes(app);
+        for (auto& op : app->test.operations) {
+          compute_bool_operation(app->state.shapes, op);
+        }
 
         app->cell_shapes.resize(app->cells.size());
         for (int i = 0; i < app->cells.size(); i++) {
@@ -824,6 +839,7 @@ int main(int argc, const char* argv[]) {
   }
 
   load_shape(app, app->model_filename);
+  app->test.model = app->model_filename;
 
   init_glscene(app, app->glscene, app->mesh, {});
   if (window->msaa > 1) set_ogl_msaa();

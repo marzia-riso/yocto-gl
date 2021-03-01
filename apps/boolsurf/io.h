@@ -28,16 +28,16 @@ inline void from_json(const json& js, mesh_point& value) {
 }
 
 struct bool_operation {
-  enum struct type {
+  enum struct Type {
     op_union,
     op_difference,
     op_intersection,
   };
   int  shape_a = -1;
   int  shape_b = -1;
-  type type    = type::op_union;
+  Type type    = Type::op_union;
 
-  inline static const char* type_names[3] = {
+  inline static const auto type_names = vector<string>{
       "op_union", "op_difference", "op_intersection"};
 };
 
@@ -87,6 +87,7 @@ inline bool save_test(const bool_test& test, const string& filename) {
   js["points"]   = test.points;
   js["polygons"] = test.polygons;
   js["model"]    = test.model;
+  js["operations"] = test.operations;
 
   auto error = ""s;
   if (!save_text(filename, js.dump(2), error)) {
