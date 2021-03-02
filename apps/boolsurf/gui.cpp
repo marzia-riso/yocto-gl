@@ -299,11 +299,11 @@ void key_input(app_state* app, const gui_input& input) {
         save_tree_png(app->state, app->test_filename);
 #endif
 
-        // init_shapes(app);
-        // set_default_shapes(app);
-        // for (auto& op : app->test.operations) {
-        //   compute_bool_operation(app->state, op);
-        // }
+        init_shapes(app);
+        set_default_shapes(app);
+        for (auto& op : app->test.operations) {
+          compute_bool_operation(app->state, op);
+        }
 
         app->cell_shapes.resize(app->state.cells.size());
         for (int i = 0; i < app->state.cells.size(); i++) {
