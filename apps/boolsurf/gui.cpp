@@ -115,7 +115,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
     // draw_slider(widgets, "far", params.far, 1000.0f, 10000.0f);
     end_header(widgets);
   }
-  if (begin_header(widgets, "Mesh")) {
+  if (begin_header(widgets, "mesh")) {
     draw_label(widgets, "filename", app->model_filename);
     draw_label(
         widgets, "triangles", std::to_string(app->mesh.triangles.size()));
@@ -124,7 +124,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
     end_header(widgets);
   }
 
-  if (begin_header(widgets, "face infos")) {
+  if (begin_header(widgets, "face info")) {
     auto face = app->last_clicked_point.face;
     draw_label(widgets, "face", std::to_string(face));
 

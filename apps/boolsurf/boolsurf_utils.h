@@ -3,6 +3,8 @@
 #include <yocto/yocto_mesh.h>
 #include <yocto/yocto_shape.h>  // hashing vec2i
 
+#include <cassert>
+
 using namespace yocto;
 
 // Vector append and concatenation

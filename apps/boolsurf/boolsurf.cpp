@@ -876,7 +876,7 @@ void compute_cells(bool_mesh& mesh, bool_state& state) {
     }
   }
 
-   assert(state.ambient_cell != -1);
+  assert(state.ambient_cell != -1);
 
   //  save_tree_png(app, "1");
 }
@@ -884,8 +884,22 @@ void compute_cells(bool_mesh& mesh, bool_state& state) {
 void compute_bool_operation(bool_state& state, const bool_operation& op) {
   auto& a = state.shapes[op.shape_a];
   auto& b = state.shapes[op.shape_b];
+
+  auto result = vector<int>(a.cells.size() + b.cells.size());
+  auto it     = std::vector<int>::iterator();
+
   if (op.type == bool_operation::Type::op_union) {
-    a.cells += b.cells;
-    b.cells.clear();
+    it = set_union(a.cells.begin(), a.cells.end(), b.cells.begin(),
+        b.cells.end(), result.begin());
+  } else if (op.type == bool_operation::Type::op_intersection) {
+    it = set_intersection(a.cells.begin(), a.cells.end(), b.cells.begin(),
+        b.cells.end(), result.begin());
+  } else if (op.type == bool_operation::Type::op_difference) {
+    it = set_difference(a.cells.begin(), a.cells.end(), b.cells.begin(),
+        b.cells.end(), result.begin());
   }
+
+  result.resize(it - result.begin());
+  a.cells = result;
+  b.cells.clear();
 }

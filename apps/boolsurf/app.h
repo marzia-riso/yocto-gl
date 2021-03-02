@@ -429,6 +429,10 @@ inline void set_default_shapes(app_state* app) {
       app->state.shapes[p].cells.push_back(cell);
     }
   }
+
+  for (auto& shape : app->state.shapes) {
+    sort(shape.cells.begin(), shape.cells.end());
+  }
 }
 
 inline void update_cell_colors(app_state* app) {
@@ -455,12 +459,13 @@ inline void update_cell_colors(app_state* app) {
     app->cell_shapes[i]->material->color = get_cell_color(
         app->state.cells[i], i);
   }
-  // for (int i = 0; i < app->state.shapes.size(); i++) {
-  //   for (auto& c : app->state.shapes[i].cells) {
-  //     if (c < 0) continue;
-  //     app->cell_shapes[c]->material->color = app->state.shapes[i].color;
-  //   }
-  // }
+
+  for (int i = 0; i < app->state.shapes.size(); i++) {
+    for (auto& c : app->state.shapes[i].cells) {
+      if (c < 0) continue;
+      app->cell_shapes[c]->material->color = app->state.shapes[i].color;
+    }
+  }
 }
 
 void save_test(app_state* app, const string& filename) {
