@@ -96,14 +96,13 @@ int main(int num_args, const char* args[]) {
   auto& camera = scene.cameras.emplace_back();
   camera       = test.camera;
 
-#if 0
-
   for (int i = 0; i < state.cells.size(); i++) {
     auto& cell = state.cells[i];
 
-    auto instance      = add_instance(scene);
-    instance->material = add_material(scene);
-    auto shape_id      = 0;
+    auto& instance    = scene.instances.emplace_back();
+    instance.material = (int)scene.materials.size();
+    auto& material    = scene.materials.emplace_back();
+    auto  shape_id    = 0;
     for (int s = (int)state.shapes.size() - 1; s >= 0; s--) {
       if (state.shapes[s].cells.count(i)) {
         shape_id = s;
@@ -111,23 +110,23 @@ int main(int num_args, const char* args[]) {
       }
     }
 
-    // instance->material->color     = get_cell_color(cell.labels, i);
-    instance->material->color     = get_color(shape_id);
-    instance->material->specular  = 0.04;
-    instance->material->roughness = 0.2;
-    instance->shape               = add_shape(scene);
+    material.color     = get_color(shape_id);
+      material.type = material_type::plastic;
+    material.roughness = 0.2;
+    instance.shape     = (int)scene.shapes.size();
+    auto& shape        = scene.shapes.emplace_back();
 
     // TODO(giacomo): Too many copies of positions.
-    instance->shape->positions = mesh.positions;
+    shape.positions = mesh.positions;
     for (auto face : cell.faces) {
-      instance->shape->triangles.push_back(mesh.triangles[face]);
+      shape.triangles.push_back(mesh.triangles[face]);
     }
-    instance->shape->normals = compute_normals(
-        instance->shape->triangles, instance->shape->positions);
+    shape.normals = compute_normals(shape);
   }
 
+#if 0
   // auto light_material      = add_material(scene);
-  // light_material->emission = {40, 40, 40};
+  // light_material.emission = {40, 40, 40};
 
   // auto light_shape       = add_shape(scene);
   // auto quad_shape        = make_rect({1, 1}, {0.2, 0.2});
@@ -143,11 +142,10 @@ int main(int num_args, const char* args[]) {
   //   ist->material = light_material;
   // }
 
+#endif
   auto params    = trace_params{};
   params.sampler = trace_sampler_type::eyelight;
   params.samples = 16;
-  auto image     = trace_image(scene, camera, params);
+  auto image     = trace_image(scene, params);
   save_image(output_filename, image, error);
-
-#endif
 }
