@@ -267,30 +267,30 @@ bool is_initialized(const shade_texture* texture) {
 void clear_texture(shade_texture* texture) { clear_texture(texture->texture); }
 
 // set texture
-void set_texture(shade_texture* texture, const image<vec4b>& img, bool as_srgb,
+void set_texture(shade_texture* texture, const image_data& img, bool as_srgb,
     bool linear, bool mipmap) {
   set_texture(texture->texture, img, as_srgb, linear, mipmap);
 }
-void set_texture(shade_texture* texture, const image<vec4f>& img, bool as_float,
-    bool linear, bool mipmap) {
-  set_texture(texture->texture, img, as_float, linear, mipmap);
-}
-void set_texture(shade_texture* texture, const image<vec3b>& img, bool as_srgb,
-    bool linear, bool mipmap) {
-  set_texture(texture->texture, img, as_srgb, linear, mipmap);
-}
-void set_texture(shade_texture* texture, const image<vec3f>& img, bool as_float,
-    bool linear, bool mipmap) {
-  set_texture(texture->texture, img, as_float, linear, mipmap);
-}
-void set_texture(shade_texture* texture, const image<byte>& img, bool as_srgb,
-    bool linear, bool mipmap) {
-  set_texture(texture->texture, img, as_srgb, linear, mipmap);
-}
-void set_texture(shade_texture* texture, const image<float>& img, bool as_float,
-    bool linear, bool mipmap) {
-  set_texture(texture->texture, img, as_float, linear, mipmap);
-}
+//void set_texture(shade_texture* texture, const image<vec4f>& img, bool as_float,
+//    bool linear, bool mipmap) {
+//  set_texture(texture->texture, img, as_float, linear, mipmap);
+//}
+//void set_texture(shade_texture* texture, const image<vec3b>& img, bool as_srgb,
+//    bool linear, bool mipmap) {
+//  set_texture(texture->texture, img, as_srgb, linear, mipmap);
+//}
+//void set_texture(shade_texture* texture, const image<vec3f>& img, bool as_float,
+//    bool linear, bool mipmap) {
+//  set_texture(texture->texture, img, as_float, linear, mipmap);
+//}
+//void set_texture(shade_texture* texture, const image<byte>& img, bool as_srgb,
+//    bool linear, bool mipmap) {
+//  set_texture(texture->texture, img, as_srgb, linear, mipmap);
+//}
+//void set_texture(shade_texture* texture, const image<float>& img, bool as_float,
+//    bool linear, bool mipmap) {
+//  set_texture(texture->texture, img, as_float, linear, mipmap);
+//}
 
 // cleanup
 shade_shape::~shade_shape() { delete shape; }

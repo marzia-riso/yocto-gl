@@ -52,25 +52,6 @@ using namespace std::string_literals;
 }  // namespace yocto
 
 // -----------------------------------------------------------------------------
-// VECTOR HASHING
-// -----------------------------------------------------------------------------
-namespace std {
-
-// Hash functor for vector for use with hash_map
-template <>
-struct hash<yocto::vec2i> {
-  size_t operator()(const yocto::vec2i& v) const {
-    static const auto hasher = std::hash<int>();
-    auto              h      = (size_t)0;
-    h ^= hasher(v.x) + 0x9e3779b9 + (h << 6) + (h >> 2);
-    h ^= hasher(v.y) + 0x9e3779b9 + (h << 6) + (h >> 2);
-    return h;
-  }
-};
-
-}  // namespace std
-
-// -----------------------------------------------------------------------------
 // LOW-LEVEL OPENGL HELPERS
 // -----------------------------------------------------------------------------
 namespace yocto {
@@ -289,45 +270,46 @@ void clear_texture(ogl_texture* texture) {
   assert_ogl_error();
 }
 
-void set_texture(ogl_texture* texture, const image<vec4b>& img, bool as_srgb,
+void set_texture(ogl_texture* texture, const image_data& img, bool as_srgb,
     bool linear, bool mipmap) {
-  set_texture(texture, img.imsize(), 4, (const byte*)img.data(), as_srgb,
+    set_texture(texture, {img.width, img.height}, 4, (const byte*)img.pixelsb.data(), as_srgb,
       linear, mipmap);
 }
-void set_texture(ogl_texture* texture, const image<vec4f>& img, bool as_float,
-    bool linear, bool mipmap) {
-  set_texture(texture, img.imsize(), 4, (const float*)img.data(), as_float,
-      linear, mipmap);
-}
+//void set_texture(ogl_texture* texture, const image<vec4f>& img, bool as_float,
+//    bool linear, bool mipmap) {
+//  set_texture(texture, img.imsize(), 4, (const float*)img.data(), as_float,
+//      linear, mipmap);
+//}
+//
+//void set_texture(ogl_texture* texture, const image<vec3b>& img, bool as_srgb,
+//    bool linear, bool mipmap) {
+//  set_texture(texture, img.imsize(), 3, (const byte*)img.data(), as_srgb,
+//      linear, mipmap);
+//}
+//void set_texture(ogl_texture* texture, const image<vec3f>& img, bool as_float,
+//    bool linear, bool mipmap) {
+//  set_texture(texture, img.imsize(), 3, (const float*)img.data(), as_float,
+//      linear, mipmap);
+//}
+//
+//void set_texture(ogl_texture* texture, const image<byte>& img, bool as_srgb,
+//    bool linear, bool mipmap) {
+//  set_texture(texture, img.imsize(), 1, (const byte*)img.data(), as_srgb,
+//      linear, mipmap);
+//}
+//void set_texture(ogl_texture* texture, const image<float>& img, bool as_float,
+//    bool linear, bool mipmap) {
+//  set_texture(texture, img.imsize(), 1, (const float*)img.data(), as_float,
+//      linear, mipmap);
+//}
 
-void set_texture(ogl_texture* texture, const image<vec3b>& img, bool as_srgb,
-    bool linear, bool mipmap) {
-  set_texture(texture, img.imsize(), 3, (const byte*)img.data(), as_srgb,
-      linear, mipmap);
-}
-void set_texture(ogl_texture* texture, const image<vec3f>& img, bool as_float,
-    bool linear, bool mipmap) {
-  set_texture(texture, img.imsize(), 3, (const float*)img.data(), as_float,
-      linear, mipmap);
-}
-
-void set_texture(ogl_texture* texture, const image<byte>& img, bool as_srgb,
-    bool linear, bool mipmap) {
-  set_texture(texture, img.imsize(), 1, (const byte*)img.data(), as_srgb,
-      linear, mipmap);
-}
-void set_texture(ogl_texture* texture, const image<float>& img, bool as_float,
-    bool linear, bool mipmap) {
-  set_texture(texture, img.imsize(), 1, (const float*)img.data(), as_float,
-      linear, mipmap);
-}
-
-image<vec4b> get_texture(const ogl_texture* texture) {
-  auto result = image<vec4b>{texture->size};
+image_data get_texture(const ogl_texture* texture) {
+  auto result = image_data{};
+    result.pixelsb.resize(texture->size.x * texture->size.y);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, texture->texture_id);
 
-  glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, result.data());
+  glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, result.pixelsb.data());
   return result;
 }
 
@@ -469,54 +451,54 @@ void clear_cubemap(ogl_cubemap* cubemap) {
   assert_ogl_error();
 }
 
-void set_cubemap(ogl_cubemap* cubemap, const array<image<vec4b>, 6>& img,
+void set_cubemap(ogl_cubemap* cubemap, const array<image_data, 6>& img,
     int num_channels, bool as_srgb, bool linear, bool mipmap) {
-  auto data = array<byte*, 6>{(byte*)img[0].data(), (byte*)img[1].data(),
-      (byte*)img[2].data(), (byte*)img[3].data(), (byte*)img[4].data(),
-      (byte*)img[5].data()};
+  auto data = array<byte*, 6>{(byte*)img[0].pixelsb.data(), (byte*)img[1].pixelsb.data(),
+      (byte*)img[2].pixelsb.data(), (byte*)img[3].pixelsb.data(), (byte*)img[4].pixelsb.data(),
+      (byte*)img[5].pixelsb.data()};
   set_cubemap(
-      cubemap, img[0].imsize().x, num_channels, data, as_srgb, linear, mipmap);
+              cubemap, img[0].width, num_channels, data, as_srgb, linear, mipmap);
 }
-void set_cubemap(ogl_cubemap* cubemap, const array<image<vec4f>, 6>& img,
-    int num_channels, bool as_float, bool linear, bool mipmap) {
-  auto data = array<float*, 6>{(float*)img[0].data(), (float*)img[1].data(),
-      (float*)img[2].data(), (float*)img[3].data(), (float*)img[4].data(),
-      (float*)img[5].data()};
-  set_cubemap(
-      cubemap, img[0].imsize().x, num_channels, data, as_float, linear, mipmap);
-}
-void set_cubemap(ogl_cubemap* cubemap, const array<image<vec3b>, 6>& img,
-    int num_channels, bool as_srgb, bool linear, bool mipmap) {
-  auto data = array<byte*, 6>{(byte*)img[0].data(), (byte*)img[1].data(),
-      (byte*)img[2].data(), (byte*)img[3].data(), (byte*)img[4].data(),
-      (byte*)img[5].data()};
-  set_cubemap(
-      cubemap, img[0].imsize().x, num_channels, data, as_srgb, linear, mipmap);
-}
-void set_cubemap(ogl_cubemap* cubemap, const array<image<vec3f>, 6>& img,
-    int num_channels, bool as_float, bool linear, bool mipmap) {
-  auto data = array<float*, 6>{(float*)img[0].data(), (float*)img[1].data(),
-      (float*)img[2].data(), (float*)img[3].data(), (float*)img[4].data(),
-      (float*)img[5].data()};
-  set_cubemap(
-      cubemap, img[0].imsize().x, num_channels, data, as_float, linear, mipmap);
-}
-void set_cubemap(ogl_cubemap* cubemap, const array<image<byte>, 6>& img,
-    int num_channels, bool as_srgb, bool linear, bool mipmap) {
-  auto data = array<byte*, 6>{(byte*)img[0].data(), (byte*)img[1].data(),
-      (byte*)img[2].data(), (byte*)img[3].data(), (byte*)img[4].data(),
-      (byte*)img[5].data()};
-  set_cubemap(
-      cubemap, img[0].imsize().x, num_channels, data, as_srgb, linear, mipmap);
-}
-void set_cubemap(ogl_cubemap* cubemap, const array<image<float>, 6>& img,
-    int num_channels, bool as_float, bool linear, bool mipmap) {
-  auto data = array<float*, 6>{(float*)img[0].data(), (float*)img[1].data(),
-      (float*)img[2].data(), (float*)img[3].data(), (float*)img[4].data(),
-      (float*)img[5].data()};
-  set_cubemap(
-      cubemap, img[0].imsize().x, num_channels, data, as_float, linear, mipmap);
-}
+//void set_cubemap(ogl_cubemap* cubemap, const array<image<vec4f>, 6>& img,
+//    int num_channels, bool as_float, bool linear, bool mipmap) {
+//  auto data = array<float*, 6>{(float*)img[0].data(), (float*)img[1].data(),
+//      (float*)img[2].data(), (float*)img[3].data(), (float*)img[4].data(),
+//      (float*)img[5].data()};
+//  set_cubemap(
+//      cubemap, img[0].imsize().x, num_channels, data, as_float, linear, mipmap);
+//}
+//void set_cubemap(ogl_cubemap* cubemap, const array<image<vec3b>, 6>& img,
+//    int num_channels, bool as_srgb, bool linear, bool mipmap) {
+//  auto data = array<byte*, 6>{(byte*)img[0].data(), (byte*)img[1].data(),
+//      (byte*)img[2].data(), (byte*)img[3].data(), (byte*)img[4].data(),
+//      (byte*)img[5].data()};
+//  set_cubemap(
+//      cubemap, img[0].imsize().x, num_channels, data, as_srgb, linear, mipmap);
+//}
+//void set_cubemap(ogl_cubemap* cubemap, const array<image<vec3f>, 6>& img,
+//    int num_channels, bool as_float, bool linear, bool mipmap) {
+//  auto data = array<float*, 6>{(float*)img[0].data(), (float*)img[1].data(),
+//      (float*)img[2].data(), (float*)img[3].data(), (float*)img[4].data(),
+//      (float*)img[5].data()};
+//  set_cubemap(
+//      cubemap, img[0].imsize().x, num_channels, data, as_float, linear, mipmap);
+//}
+//void set_cubemap(ogl_cubemap* cubemap, const array<image<byte>, 6>& img,
+//    int num_channels, bool as_srgb, bool linear, bool mipmap) {
+//  auto data = array<byte*, 6>{(byte*)img[0].data(), (byte*)img[1].data(),
+//      (byte*)img[2].data(), (byte*)img[3].data(), (byte*)img[4].data(),
+//      (byte*)img[5].data()};
+//  set_cubemap(
+//      cubemap, img[0].imsize().x, num_channels, data, as_srgb, linear, mipmap);
+//}
+//void set_cubemap(ogl_cubemap* cubemap, const array<image<float>, 6>& img,
+//    int num_channels, bool as_float, bool linear, bool mipmap) {
+//  auto data = array<float*, 6>{(float*)img[0].data(), (float*)img[1].data(),
+//      (float*)img[2].data(), (float*)img[3].data(), (float*)img[4].data(),
+//      (float*)img[5].data()};
+//  set_cubemap(
+//      cubemap, img[0].imsize().x, num_channels, data, as_float, linear, mipmap);
+//}
 
 // cleanup
 ogl_arraybuffer::~ogl_arraybuffer() { clear_arraybuffer(this); }
@@ -1301,13 +1283,13 @@ void clear_image(ogl_image* image) {
 
 // update image data
 void set_image(
-    ogl_image* oimg, const image<vec4f>& img, bool linear, bool mipmap) {
+    ogl_image* oimg, const image_data& img, bool linear, bool mipmap) {
   set_texture(oimg->texture, img, false, linear, mipmap);
 }
-void set_image(
-    ogl_image* oimg, const image<vec4b>& img, bool linear, bool mipmap) {
-  set_texture(oimg->texture, img, false, linear, mipmap);
-}
+//void set_image(
+//    ogl_image* oimg, const image<vec4b>& img, bool linear, bool mipmap) {
+//  set_texture(oimg->texture, img, false, linear, mipmap);
+//}
 
 // draw image
 void draw_image(ogl_image* image, const ogl_image_params& params) {

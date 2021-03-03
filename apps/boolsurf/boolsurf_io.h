@@ -1,4 +1,4 @@
-#include <yocto/yocto_commonio.h>
+#include <yocto/yocto_cli.h>
 #include <yocto/yocto_trace.h>
 
 #include "boolsurf.h"
@@ -49,7 +49,7 @@ inline void from_json(const json& js, bool_operation& op) {
   js.at("type").get_to(op.type);
 }
 
-inline void to_json(json& js, const trace_camera& camera) {
+inline void to_json(json& js, const scene_camera& camera) {
   js["frame"]        = camera.frame;
   js["orthographic"] = camera.orthographic;
   js["lens"]         = camera.lens;
@@ -59,7 +59,7 @@ inline void to_json(json& js, const trace_camera& camera) {
   js["aperture"]     = camera.aperture;
 }
 
-inline void from_json(const json& js, trace_camera& camera) {
+inline void from_json(const json& js, scene_camera& camera) {
   js.at("frame").get_to(camera.frame);
   js.at("orthographic").get_to(camera.orthographic);
   js.at("lens").get_to(camera.lens);
@@ -93,7 +93,7 @@ struct bool_test {
   vector<vector<int>> polygons;
 
   vector<bool_operation> operations = {};
-  trace_camera           camera     = {};
+  scene_camera           camera     = {};
   bool                   has_camera = false;
 };
 
@@ -126,7 +126,7 @@ inline bool load_test(bool_test& test, const string& filename) {
       test.operations = js["operations"].get<vector<bool_operation>>();
     }
     if (js.find("camera") != js.end()) {
-      test.camera     = js["camera"].get<trace_camera>();
+      test.camera     = js["camera"].get<scene_camera>();
       test.has_camera = true;
     }
     test.model = js["model"].get<string>();

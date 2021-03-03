@@ -350,8 +350,7 @@ void key_input(app_state* app, const gui_input& input) {
         // update gpu data
         set_positions(app->mesh_instance->shape, app->mesh.positions);
         set_triangles(app->mesh_instance->shape, app->mesh.triangles);
-        app->mesh.normals = compute_normals(
-            app->mesh.triangles, app->mesh.positions);
+        app->mesh.normals = compute_normals(app->mesh);
         set_normals(app->mesh_instance->shape, app->mesh.normals);
         init_edges_and_vertices_shapes_and_points(app);
         app->mesh_instance->hidden = true;
@@ -440,7 +439,7 @@ void key_input(app_state* app, const gui_input& input) {
         app->state.polygons.push_back(mesh_polygon{});
         load_shape(app, app->model_filename);
         clear_scene(app->glscene);
-        init_glscene(app, app->glscene, app->mesh, {});
+        init_glscene(app, app->glscene, app->mesh);
         app->glcamera = old_camera;
       } break;
 
@@ -483,8 +482,8 @@ int main(int argc, const char* argv[]) {
       cli, "--resolution,-r", app->drawgl_prms.resolution, "Image resolution.");
   add_option(cli, "--lighting", app->drawgl_prms.lighting, "Lighting type.",
       shade_lighting_names);
-  add_option(cli, "input", input,
-      "Input filename. Either a model or a json test file", true);
+  add_argument(cli, "input", input,
+      "Input filename. Either a model or a json test file");
   add_option(cli, "--msaa", window->msaa, "Multisample anti-aliasing.");
   add_option(cli, "--test", app->test_filename, "Test filename.");
   add_option(cli, "--svg", app->svg_filename, "Svg filename.");
@@ -507,7 +506,7 @@ int main(int argc, const char* argv[]) {
   load_shape(app, app->model_filename);
   app->test.model = app->model_filename;
 
-  init_glscene(app, app->glscene, app->mesh, {});
+  init_glscene(app, app->glscene, app->mesh);
   if (window->msaa > 1) set_ogl_msaa();
   set_ogl_blending(true);
 

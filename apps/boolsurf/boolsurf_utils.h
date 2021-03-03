@@ -1,10 +1,13 @@
 #pragma once
 
 #include <yocto/yocto_mesh.h>
+#include <yocto/yocto_scene.h>
 #include <yocto/yocto_shape.h>  // hashing vec2i
 
 #include <cassert>
 using namespace yocto;
+
+inline int mod3(int i) { return (i > 2) ? i - 3 : i; }
 
 // Vector append and concatenation
 template <typename T>

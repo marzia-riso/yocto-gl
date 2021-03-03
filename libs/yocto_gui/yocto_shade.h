@@ -227,18 +227,18 @@ bool is_initialized(const shade_texture* texture);
 void clear_texture(shade_texture* texture);
 
 // set texture
-void set_texture(shade_texture* texture, const image<vec4b>& img,
+void set_texture(shade_texture* texture, const image_data& img,
     bool as_srgb = true, bool linear = true, bool mipmap = true);
-void set_texture(shade_texture* texture, const image<vec4f>& img,
-    bool as_float = false, bool linear = true, bool mipmap = true);
-void set_texture(shade_texture* texture, const image<vec3b>& img,
-    bool as_srgb = true, bool linear = true, bool mipmap = true);
-void set_texture(shade_texture* texture, const image<vec3f>& img,
-    bool as_float = false, bool linear = true, bool mipmap = true);
-void set_texture(shade_texture* texture, const image<byte>& img,
-    bool as_srgb = true, bool linear = true, bool mipmap = true);
-void set_texture(shade_texture* texture, const image<float>& img,
-    bool as_float = false, bool linear = true, bool mipmap = true);
+//void set_texture(shade_texture* texture, const image<vec4f>& img,
+//    bool as_float = false, bool linear = true, bool mipmap = true);
+//void set_texture(shade_texture* texture, const image<vec3b>& img,
+//    bool as_srgb = true, bool linear = true, bool mipmap = true);
+//void set_texture(shade_texture* texture, const image<vec3f>& img,
+//    bool as_float = false, bool linear = true, bool mipmap = true);
+//void set_texture(shade_texture* texture, const image<byte>& img,
+//    bool as_srgb = true, bool linear = true, bool mipmap = true);
+//void set_texture(shade_texture* texture, const image<float>& img,
+//    bool as_float = false, bool linear = true, bool mipmap = true);
 
 // material properties
 void set_emission(shade_material* material, const vec3f& emission,

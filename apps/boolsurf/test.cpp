@@ -1,6 +1,7 @@
-#include <yocto/yocto_commonio.h>
+#include <yocto/yocto_cli.h>
 #include <yocto/yocto_sampling.h>
 #include <yocto/yocto_shape.h>
+#include <yocto/yocto_sceneio.h>
 #include <yocto/yocto_trace.h>
 
 #include "boolsurf.h"
@@ -56,7 +57,7 @@ int main(int num_args, const char* args[]) {
 
   // parse command line
   auto cli = make_cli("test", "test boolsurf algorithms");
-  add_option(cli, "input", test_filename, "Input test filename (.json).", true);
+  add_argument(cli, "input", test_filename, "Input test filename (.json).");
   add_option(
       cli, "--output/-o", output_filename, "Output image filename (.png).");
   parse_cli(cli, num_args, args);
@@ -71,11 +72,10 @@ int main(int num_args, const char* args[]) {
   vector<vec3f> colors;
   string        error;
 
-  if (!load_mesh(test.model, mesh.triangles, mesh.positions, mesh.normals,
-          texcoords, colors, error)) {
-    printf("%s\n", error.c_str());
-    print_fatal("Error loading model " + test.model);
-  }
+      if (!load_shape(test_filename, mesh, error)) {
+        printf("%s\n", error.c_str());
+        print_fatal("Error loading model " + test_filename);
+      }
   init_mesh(mesh);
   printf("triangles: %d\n", (int)mesh.triangles.size());
   printf("positions: %d\n\n", (int)mesh.positions.size());
@@ -92,7 +92,8 @@ int main(int num_args, const char* args[]) {
     compute_bool_operation(state, operation);
   }
 
-  auto scene  = new trace_scene{};
+#if 0
+  auto scene  = scene_scene{};
   auto camera = add_camera(scene);
   *camera     = test.camera;
 
@@ -146,4 +147,6 @@ int main(int num_args, const char* args[]) {
   params.samples = 16;
   auto image     = trace_image(scene, camera, params);
   save_image(output_filename, image, error);
+    
+#endif
 }

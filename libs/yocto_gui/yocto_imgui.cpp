@@ -29,7 +29,7 @@
 
 #include "yocto_imgui.h"
 
-#include <yocto/yocto_cli.h>
+#include <yocto/yocto_sceneio.h>
 
 #include <algorithm>
 #include <mutex>
@@ -61,6 +61,7 @@ namespace yocto {
 // using directives
 using std::mutex;
 using std::unordered_map;
+using namespace std::string_literals;
 
 }  // namespace yocto
 
