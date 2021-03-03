@@ -307,6 +307,27 @@ void key_input(app_state* app, const gui_input& input) {
         redo_state(app);
       } break;
 
+      case (int)gui_key('B'): {
+        auto& mesh           = app->mesh;
+        auto  control_points = vector<mesh_point>{};
+        auto& polygon        = app->state.polygons.back();
+        for (auto& p : polygon.points) {
+          control_points.push_back(app->state.points[p]);
+        }
+        auto points = compute_bezier_path(mesh.dual_solver, mesh.triangles,
+            mesh.positions, mesh.adjacencies, control_points);
+
+        polygon.points   = {};
+        polygon.segments = {};
+        for (auto& p : points) {
+          polygon.points += (int)app->state.points.size();
+          app->state.points += p;
+        }
+
+        update_polygons(app);
+
+      } break;
+
       case (int)gui_key('I'): {
 #ifdef MY_DEBUG
         debug_triangles.clear();
@@ -368,10 +389,6 @@ void key_input(app_state* app, const gui_input& input) {
 #ifdef MY_DEBUG
       case (int)gui_key('N'): {
         debug_cells(app);
-      } break;
-
-      case (int)gui_key('B'): {
-        debug_borders(app);
       } break;
 
       case (int)gui_key('F'): {
