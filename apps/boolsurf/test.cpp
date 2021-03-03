@@ -1,7 +1,7 @@
 #include <yocto/yocto_cli.h>
 #include <yocto/yocto_sampling.h>
-#include <yocto/yocto_shape.h>
 #include <yocto/yocto_sceneio.h>
+#include <yocto/yocto_shape.h>
 #include <yocto/yocto_trace.h>
 
 #include "boolsurf.h"
@@ -72,10 +72,10 @@ int main(int num_args, const char* args[]) {
   vector<vec3f> colors;
   string        error;
 
-      if (!load_shape(test_filename, mesh, error)) {
-        printf("%s\n", error.c_str());
-        print_fatal("Error loading model " + test_filename);
-      }
+  if (!load_shape(test.model, mesh, error)) {
+    printf("%s\n", error.c_str());
+    print_fatal("Error loading model " + test_filename);
+  }
   init_mesh(mesh);
   printf("triangles: %d\n", (int)mesh.triangles.size());
   printf("positions: %d\n\n", (int)mesh.positions.size());
@@ -92,10 +92,11 @@ int main(int num_args, const char* args[]) {
     compute_bool_operation(state, operation);
   }
 
+  auto  scene  = scene_scene{};
+  auto& camera = scene.cameras.emplace_back();
+  camera       = test.camera;
+
 #if 0
-  auto scene  = scene_scene{};
-  auto camera = add_camera(scene);
-  *camera     = test.camera;
 
   for (int i = 0; i < state.cells.size(); i++) {
     auto& cell = state.cells[i];
@@ -147,6 +148,6 @@ int main(int num_args, const char* args[]) {
   params.samples = 16;
   auto image     = trace_image(scene, camera, params);
   save_image(output_filename, image, error);
-    
+
 #endif
 }

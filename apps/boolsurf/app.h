@@ -153,10 +153,6 @@ void load_shape(app_state* app, const string& filename) {
     printf("%s\n", error.c_str());
     print_fatal("Error loading model " + filename);
   }
-  if (app->mesh.quads.size()) {
-    app->mesh.triangles = quads_to_triangles(app->mesh.quads);
-    app->mesh.quads.clear();
-  }
 
   init_mesh(app->mesh);
   app->mesh_original = app->mesh;
