@@ -179,7 +179,7 @@ inline int add_vertex(bool_mesh& mesh, const mesh_point& point) {
   if (uv.x < eps && uv.y < eps) return tr.x;
   if (uv.x > 1 - eps && uv.y < eps) return tr.y;
   if (uv.y > 1 - eps && uv.x < eps) return tr.z;
-  auto vertex = mesh.positions_size();
+  auto vertex = mesh.positions.size();
   auto pos    = eval_position(mesh.triangles, mesh.positions, point);
   mesh.positions.push_back(pos);
   return vertex;
@@ -201,7 +201,7 @@ static vector<vector<int>> add_vertices(
 
 static void flood_fill_new(vector<mesh_cell>& result,
     vector<mesh_cell>& cell_stack, vector<int>& starts, const bool_mesh& mesh) {
-  auto cell_tags = vector<int>(mesh.triangles_size(), -1);
+  auto cell_tags = vector<int>(mesh.triangles.size(), -1);
 
   // consume task stack
   while (cell_stack.size()) {
@@ -518,7 +518,7 @@ static void update_face_adjacencies(
     // Converto il triangolo in triplette di vertici
     auto triangles_vec3i = vector<vec3i>(triangles.size());
     for (int i = 0; i < triangles.size(); i++) {
-      triangles_vec3i[i] = mesh.triangles_at(triangles[i]);
+      triangles_vec3i[i] = mesh.triangles[triangles[i]];
     }
 
     for (int i = 0; i < triangles.size(); i++) {
@@ -536,7 +536,7 @@ static void update_face_adjacencies(
         if (edge.x < mesh.num_positions && edge.y < mesh.num_positions) {
           // Cerco il triangolo adiacente al triangolo originale su quel lato
           for (int kk = 0; kk < 3; kk++) {
-            auto edge0 = get_edge(mesh.triangles_at(face), kk);
+            auto edge0 = get_edge(mesh.triangles[face], kk);
             if (make_edge_key(edge) == make_edge_key(edge0)) {
               // Aggiorno direttamente l'adiacenza nel nuovo triangolo e del
               // vicino
@@ -564,7 +564,7 @@ static void update_face_adjacencies(
           auto neighbor                     = it->second;
           mesh.adjacencies[triangles[i]][k] = neighbor;
           for (int kk = 0; kk < 3; ++kk) {
-            auto edge2 = get_edge(mesh.triangles_at(neighbor), kk);
+            auto edge2 = get_edge(mesh.triangles[neighbor], kk);
             edge2      = make_edge_key(edge2);
             if (edge2 == edge_key) {
               mesh.adjacencies[neighbor][kk] = triangles[i];
@@ -590,9 +590,9 @@ inline void update_face_edgemap(
 }
 
 inline bool check_tags(const bool_mesh& mesh) {
-  for (int i = 0; i < mesh.triangles_size(); i++) {
+  for (int i = 0; i < mesh.triangles.size(); i++) {
     auto face = i;
-    auto tr   = mesh.triangles_at(face);
+    auto tr   = mesh.triangles[face];
     if (tr == vec3i{0, 0, 0}) continue;
     for (int k = 0; k < 3; k++) {
       auto neighbor = mesh.adjacencies[face][k];
@@ -738,7 +738,7 @@ static void triangulate(bool_mesh& mesh, hash_map<vec2i, vec2i>& face_edgemap,
         if (x == -1) {
           x = -2;
         } else {
-          x += mesh.triangles_size();
+          x += mesh.triangles.size();
         }
       }
     }
@@ -753,7 +753,7 @@ static void triangulate(bool_mesh& mesh, hash_map<vec2i, vec2i>& face_edgemap,
       auto v1         = indices[y];
       auto v2         = indices[z];
 
-      auto triangle_idx = mesh.triangles_size();
+      auto triangle_idx = mesh.triangles.size();
       mesh.triangles.push_back({v0, v1, v2});
 
       update_face_edgemap(face_edgemap, {v0, v1}, triangle_idx);
@@ -768,7 +768,7 @@ static void triangulate(bool_mesh& mesh, hash_map<vec2i, vec2i>& face_edgemap,
 static vector<vec3i> face_tags(const bool_mesh& mesh,
     const mesh_hashgrid& hashgrid, const hash_map<vec2i, vec2i>& face_edgemap,
     const hash_map<int, vector<int>>& triangulated_faces) {
-  auto tags = vector<vec3i>(mesh.triangles_size(), zero3i);
+  auto tags = vector<vec3i>(mesh.triangles.size(), zero3i);
 
   for (auto& [face, polylines] : hashgrid) {
     for (auto& polyline : polylines) {
@@ -783,7 +783,7 @@ static vector<vec3i> face_tags(const bool_mesh& mesh,
         if (it == face_edgemap.end()) {
           auto& t_faces = triangulated_faces.at(face);
           for (auto f : t_faces) {
-            auto& tr = mesh.triangles_at(f);
+            auto& tr = mesh.triangles[f];
             for (auto k = 0; k < 3; k++) {
               auto e = make_edge_key(get_edge(tr, k));
               if (edge_key == e) {
@@ -807,7 +807,7 @@ static vector<vec3i> face_tags(const bool_mesh& mesh,
         }
 
         // Il triangolo di sinistra ha lo stesso orientamento del poligono.
-        auto& [a, b, c] = mesh.triangles_at(faces.x);
+        auto& [a, b, c] = mesh.triangles[faces.x];
 
         auto [inner, outer] = faces;
         auto k              = find_in_vec(mesh.adjacencies[inner], outer);
