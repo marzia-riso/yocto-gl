@@ -181,7 +181,7 @@ inline int add_vertex(bool_mesh& mesh, const mesh_point& point) {
   if (uv.y > 1 - eps && uv.x < eps) return tr.z;
   auto vertex = mesh.positions_size();
   auto pos    = eval_position(mesh.triangles, mesh.positions, point);
-  mesh.extra_positions.push_back(pos);
+  mesh.positions.push_back(pos);
   return vertex;
 }
 
@@ -754,7 +754,7 @@ static void triangulate(bool_mesh& mesh, hash_map<vec2i, vec2i>& face_edgemap,
       auto v2         = indices[z];
 
       auto triangle_idx = mesh.triangles_size();
-      mesh.extra_triangles.push_back({v0, v1, v2});
+      mesh.triangles.push_back({v0, v1, v2});
 
       update_face_edgemap(face_edgemap, {v0, v1}, triangle_idx);
       update_face_edgemap(face_edgemap, {v1, v2}, triangle_idx);

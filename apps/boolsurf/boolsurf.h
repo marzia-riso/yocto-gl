@@ -10,27 +10,35 @@ struct bool_mesh : shape_data {
   dual_geodesic_solver dual_solver = {};
   vector<vec3i>        border_tags = {};
 
-  int           num_triangles     = 0;
-  int           num_positions     = 0;
-  vector<vec3i> extra_triangles   = {};
-  vector<vec3f> extra_positions   = {};
-  vector<vec3f> extra_adjacencies = {};
+  int num_triangles = 0;
+  int num_positions = 0;
+  // vector<vec3i> extra_triangles   = {};
+  // vector<vec3f> extra_positions   = {};
+  // vector<vec3f> extra_adjacencies = {};
 
   inline const vec3i& triangles_at(int i) const {
-    if (i < num_triangles)
-      return triangles[i];
-    else
-      return extra_triangles[i - num_triangles];
+    // if (i < num_triangles)
+    return triangles[i];
+    // else
+    // return extra_triangles[i - num_triangles];
   }
 
   inline int triangles_size() const {
-    return (int)(num_triangles + extra_triangles.size());
+    return triangles.size();
+    // return (int)(num_triangles + extra_triangles.size());
   }
 
   inline int positions_size() const {
-    return (int)(num_positions + extra_positions.size());
+    return positions.size();
+    // return (int)(num_positions + extra_positions.size());
   }
 };
+
+static void reset_mesh(bool_mesh& mesh) {
+  mesh.triangles.resize(mesh.num_triangles);
+  mesh.adjacencies.resize(mesh.num_triangles);
+  mesh.positions.resize(mesh.num_positions);
+}
 
 struct mesh_segment {
   vec2f start = {};
