@@ -55,6 +55,12 @@ void init_mesh(bool_mesh& mesh) {
       mesh.triangles, mesh.positions, mesh.adjacencies);
 }
 
+void reset_mesh(bool_mesh& mesh) {
+  mesh.triangles.resize(mesh.num_triangles);
+  mesh.adjacencies.resize(mesh.num_triangles);  // TODO(giacomo): Not correct!
+  mesh.positions.resize(mesh.num_positions);
+}
+
 geodesic_path compute_geodesic_path(
     const bool_mesh& mesh, const mesh_point& start, const mesh_point& end) {
   auto path = geodesic_path{};

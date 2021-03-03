@@ -14,12 +14,6 @@ struct bool_mesh : shape_data {
   int num_positions = 0;
 };
 
-static void reset_mesh(bool_mesh& mesh) {
-  mesh.triangles.resize(mesh.num_triangles);
-  mesh.adjacencies.resize(mesh.num_triangles);
-  mesh.positions.resize(mesh.num_positions);
-}
-
 struct mesh_segment {
   vec2f start = {};
   vec2f end   = {};
@@ -80,6 +74,7 @@ struct bool_operation {
 }  // namespace yocto
 
 void init_mesh(bool_mesh& mesh);
+void reset_mesh(bool_mesh& mesh);
 void compute_cells(bool_mesh& mesh, bool_state& state);
 void compute_shapes(bool_state& state);
 void compute_bool_operation(bool_state& state, const bool_operation& op);
