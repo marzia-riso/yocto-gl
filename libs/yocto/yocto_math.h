@@ -9,7 +9,7 @@
 //
 // LICENSE:
 //
-// Copyright (c) 2016 -- 2020 Fabio Pellacini
+// Copyright (c) 2016 -- 2021 Fabio Pellacini
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -59,7 +59,7 @@ namespace yocto {
 
 using byte   = unsigned char;
 using uint   = unsigned int;
-using ushort = uint16_t;
+using ushort = unsigned short;
 
 inline const double pi  = 3.14159265358979323846;
 inline const float  pif = (float)pi;
@@ -105,6 +105,9 @@ inline int  clamp(int a, int min, int max);
 inline int  sign(int a);
 inline int  pow2(int a);
 inline void swap(int& a, int& b);
+
+inline size_t min(size_t a, size_t b);
+inline size_t max(size_t a, size_t b);
 
 }  // namespace yocto
 
@@ -433,15 +436,6 @@ struct vec4i {
   const int& operator[](int i) const;
 };
 
-struct vec3b {
-  byte x = 0;
-  byte y = 0;
-  byte z = 0;
-
-  byte&       operator[](int i);
-  const byte& operator[](int i) const;
-};
-
 struct vec4b {
   byte x = 0;
   byte y = 0;
@@ -452,42 +446,14 @@ struct vec4b {
   const byte& operator[](int i) const;
 };
 
-struct vec3s {
-  ushort x = 0;
-  ushort y = 0;
-  ushort z = 0;
-
-  ushort&       operator[](int i);
-  const ushort& operator[](int i) const;
-};
-
-struct vec4s {
-  ushort x = 0;
-  ushort y = 0;
-  ushort z = 0;
-  ushort w = 0;
-
-  ushort&       operator[](int i);
-  const ushort& operator[](int i) const;
-};
-
 // Zero vector constants.
 inline const auto zero2i = vec2i{0, 0};
 inline const auto zero3i = vec3i{0, 0, 0};
 inline const auto zero4i = vec4i{0, 0, 0, 0};
-inline const auto zero3b = vec3b{0, 0, 0};
 inline const auto zero4b = vec4b{0, 0, 0, 0};
-inline const auto zero3s = vec3s{0, 0, 0};
-inline const auto zero4s = vec4s{0, 0, 0, 0};
 
 // Element access
 inline vec3i xyz(const vec4i& a);
-
-// Element access
-inline vec3b xyz(const vec4b& a);
-
-// Element access
-inline vec3s xyz(const vec4s& a);
 
 // Vector sequence operations.
 inline int        size(const vec2i& a);
@@ -650,6 +616,10 @@ inline int sum(const vec4i& a);
 // Functions applied to vector elements
 inline vec4i abs(const vec4i& a);
 inline void  swap(vec4i& a, vec4i& b);
+
+// Vector comparison operations.
+inline bool operator==(const vec4b& a, const vec4b& b);
+inline bool operator!=(const vec4b& a, const vec4b& b);
 
 }  // namespace yocto
 
@@ -997,6 +967,22 @@ inline frame3f camera_fpscam(
 }  // namespace yocto
 
 // -----------------------------------------------------------------------------
+// PYTHON-LIKE ITERATORS
+// -----------------------------------------------------------------------------
+namespace yocto {
+
+// Python `range()` equivalent. Construct an object that iterates over an
+// integer sequence.
+template <typename T>
+constexpr auto range(T max);
+template <typename T>
+constexpr auto range(T min, T max);
+template <typename T>
+constexpr auto range(T min, T max, T step);
+
+}  // namespace yocto
+
+// -----------------------------------------------------------------------------
 //
 //
 // IMPLEMENTATION
@@ -1055,6 +1041,9 @@ inline int  clamp(int a, int min_, int max_) { return min(max(a, min_), max_); }
 inline int  sign(int a) { return a < 0 ? -1 : 1; }
 inline int  pow2(int a) { return 1 << a; }
 inline void swap(int& a, int& b) { std::swap(a, b); }
+
+inline size_t min(size_t a, size_t b) { return (a < b) ? a : b; }
+inline size_t max(size_t a, size_t b) { return (a > b) ? a : b; }
 
 }  // namespace yocto
 
@@ -1547,29 +1536,11 @@ inline int& vec4i::operator[](int i) { return (&x)[i]; }
 inline const int& vec4i::operator[](int i) const { return (&x)[i]; }
 
 // Vector data types
-inline byte& vec3b::operator[](int i) { return (&x)[i]; }
-inline const byte& vec3b::operator[](int i) const { return (&x)[i]; }
-
-// Vector data types
 inline byte& vec4b::operator[](int i) { return (&x)[i]; }
 inline const byte& vec4b::operator[](int i) const { return (&x)[i]; }
 
-// Vector data types
-inline ushort& vec3s::operator[](int i) { return (&x)[i]; }
-inline const ushort& vec3s::operator[](int i) const { return (&x)[i]; }
-
-// Vector data types
-inline ushort& vec4s::operator[](int i) { return (&x)[i]; }
-inline const ushort& vec4s::operator[](int i) const { return (&x)[i]; }
-
 // Element access
 inline vec3i xyz(const vec4i& a) { return {a.x, a.y, a.z}; }
-
-// Element access
-inline vec3b xyz(const vec4b& a) { return {a.x, a.y, a.z}; }
-
-// Element access
-inline vec3s xyz(const vec4s& a) { return {a.x, a.y, a.z}; }
 
 // Vector sequence operations.
 inline int        size(const vec2i& a) { return 2; }
@@ -1829,6 +1800,14 @@ inline vec4i abs(const vec4i& a) {
   return {abs(a.x), abs(a.y), abs(a.z), abs(a.w)};
 }
 inline void swap(vec4i& a, vec4i& b) { std::swap(a, b); }
+
+// Vector comparison operations.
+inline bool operator==(const vec4b& a, const vec4b& b) {
+  return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
+}
+inline bool operator!=(const vec4b& a, const vec4b& b) {
+  return a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w;
+}
 
 }  // namespace yocto
 
@@ -2565,6 +2544,40 @@ inline void update_fpscam(
   auto pos = frame.o + transl.x * x + transl.y * y + transl.z * z;
 
   frame = {rot.x, rot.y, rot.z, pos};
+}
+
+}  // namespace yocto
+
+// -----------------------------------------------------------------------------
+// PYTHON-LIKE ITERATORS
+// -----------------------------------------------------------------------------
+namespace yocto {
+
+// Python `range()` equivalent. Construct an object to iterate over a sequence.
+template <typename T>
+constexpr auto range(T max) {
+  return range((T)0, max, (T)1);
+}
+template <typename T>
+constexpr auto range(T min, T max) {
+  return range(min, max, (T)1);
+}
+template <typename T>
+constexpr auto range(T min, T max, T step) {
+  struct iterator {
+    T    index;
+    void operator++() { ++index; }
+    bool operator!=(const iterator& other) const {
+      return index != other.index;
+    }
+    T operator*() const { return index; }
+  };
+  struct range_helper {
+    T        begin_ = 0, end_ = 0;
+    iterator begin() const { return {begin_}; }
+    iterator end() const { return {end_}; }
+  };
+  return range_helper{min, max};
 }
 
 }  // namespace yocto

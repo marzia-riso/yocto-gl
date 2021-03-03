@@ -5,7 +5,7 @@
 #include "ext/CDT/CDT/include/CDT.h"
 
 void init_mesh(bool_mesh& mesh) {
-  mesh.normals            = compute_normals(mesh.triangles, mesh.positions);
+  mesh.normals            = compute_normals(mesh);
   mesh.adjacencies        = face_adjacencies(mesh.triangles);
   mesh.original_positions = mesh.positions.size();
 

@@ -1,5 +1,4 @@
 add_library(yocto
-  yocto_common.h
   yocto_math.h yocto_color.h yocto_geometry.h
   yocto_noise.h yocto_sampling.h yocto_shading.h
   yocto_modelio.h yocto_modelio.cpp
@@ -7,11 +6,11 @@ add_library(yocto
   yocto_shape.h yocto_shape.cpp
   yocto_mesh.h yocto_mesh.cpp 
   yocto_image.h yocto_image.cpp
+  yocto_scene.h yocto_scene.cpp
   yocto_trace.h yocto_trace.cpp
   yocto_sceneio.h yocto_sceneio.cpp
-  yocto_commonio.h yocto_commonio.cpp
+  yocto_cli.h
   ext/stb_image.h ext/stb_image_resize.h ext/stb_image_write.h ext/stb_image.cpp
-  ext/cgltf.h ext/cgltf_write.h ext/cgltf.cpp
   ext/json.hpp
   ext/tinyexr.h ext/tinyexr.cpp
 )

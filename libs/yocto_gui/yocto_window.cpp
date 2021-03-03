@@ -29,7 +29,7 @@
 
 #include "yocto_window.h"
 
-#include <yocto/yocto_commonio.h>
+#include <yocto/yocto_cli.h>
 
 #include <array>
 #include <cassert>

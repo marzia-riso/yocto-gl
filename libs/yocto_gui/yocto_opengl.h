@@ -36,6 +36,7 @@
 
 #include <yocto/yocto_image.h>
 #include <yocto/yocto_math.h>
+#include <yocto/yocto_scene.h>
 
 #include <array>
 #include <string>
@@ -125,20 +126,20 @@ bool is_initialized(const ogl_texture* texture);
 void clear_texture(ogl_texture* texture);
 
 // set texture
-void set_texture(ogl_texture* texture, const image<vec4b>& img,
+void set_texture(ogl_texture* texture, const image_data& img,
     bool as_srgb = true, bool linear = true, bool mipmap = true);
-void set_texture(ogl_texture* texture, const image<vec4f>& img,
-    bool as_float = false, bool linear = true, bool mipmap = true);
-void set_texture(ogl_texture* texture, const image<vec3b>& img,
-    bool as_srgb = true, bool linear = true, bool mipmap = true);
-void set_texture(ogl_texture* texture, const image<vec3f>& img,
-    bool as_float = false, bool linear = true, bool mipmap = true);
-void set_texture(ogl_texture* texture, const image<byte>& img,
-    bool as_srgb = true, bool linear = true, bool mipmap = true);
-void set_texture(ogl_texture* texture, const image<float>& img,
-    bool as_float = false, bool linear = true, bool mipmap = true);
+//void set_texture(ogl_texture* texture, const image<vec4f>& img,
+//    bool as_float = false, bool linear = true, bool mipmap = true);
+//void set_texture(ogl_texture* texture, const image<vec3b>& img,
+//    bool as_srgb = true, bool linear = true, bool mipmap = true);
+//void set_texture(ogl_texture* texture, const image<vec3f>& img,
+//    bool as_float = false, bool linear = true, bool mipmap = true);
+//void set_texture(ogl_texture* texture, const image<byte>& img,
+//    bool as_srgb = true, bool linear = true, bool mipmap = true);
+//void set_texture(ogl_texture* texture, const image<float>& img,
+//    bool as_float = false, bool linear = true, bool mipmap = true);
 
-image<vec4b> get_texture(const ogl_texture* texture);
+image_data get_texture(const ogl_texture* texture);
 
 // OpenGL cubemap
 struct ogl_cubemap {
@@ -176,24 +177,24 @@ bool is_initialized(const ogl_cubemap* cubemap);
 // clear cubemap
 void clear_cubemap(ogl_cubemap* cubemap);
 
-void set_cubemap(ogl_cubemap* cubemap, const array<image<vec4b>, 6>& img,
+void set_cubemap(ogl_cubemap* cubemap, const array<image_data, 6>& img,
     int num_channels, bool as_srgb = true, bool linear = true,
     bool mipmap = true);
-void set_cubemap(ogl_cubemap* cubemap, const array<image<vec4f>, 6>& img,
-    int num_channels, bool as_float = false, bool linear = true,
-    bool mipmap = true);
-void set_cubemap(ogl_cubemap* cubemap, const array<image<vec3b>, 6>& img,
-    int num_channels, bool as_srgb = true, bool linear = true,
-    bool mipmap = true);
-void set_cubemap(ogl_cubemap* cubemap, const array<image<vec3f>, 6>& img,
-    int num_channels, bool as_float = false, bool linear = true,
-    bool mipmap = true);
-void set_cubemap(ogl_cubemap* cubemap, const array<image<byte>, 6>& img,
-    int num_channels, bool as_srgb = true, bool linear = true,
-    bool mipmap = true);
-void set_cubemap(ogl_cubemap* cubemap, const array<image<float>, 6>& img,
-    int num_channels, bool as_float = false, bool linear = true,
-    bool mipmap = true);
+//void set_cubemap(ogl_cubemap* cubemap, const array<image<vec4f>, 6>& img,
+//    int num_channels, bool as_float = false, bool linear = true,
+//    bool mipmap = true);
+//void set_cubemap(ogl_cubemap* cubemap, const array<image<vec3b>, 6>& img,
+//    int num_channels, bool as_srgb = true, bool linear = true,
+//    bool mipmap = true);
+//void set_cubemap(ogl_cubemap* cubemap, const array<image<vec3f>, 6>& img,
+//    int num_channels, bool as_float = false, bool linear = true,
+//    bool mipmap = true);
+//void set_cubemap(ogl_cubemap* cubemap, const array<image<byte>, 6>& img,
+//    int num_channels, bool as_srgb = true, bool linear = true,
+//    bool mipmap = true);
+//void set_cubemap(ogl_cubemap* cubemap, const array<image<float>, 6>& img,
+//    int num_channels, bool as_float = false, bool linear = true,
+//    bool mipmap = true);
 
 // Opengl array/element buffer
 struct ogl_arraybuffer {
@@ -506,10 +507,10 @@ bool is_initialized(const ogl_image* oimg);
 void clear_image(ogl_image* oimg);
 
 // update image data
-void set_image(ogl_image* oimg, const image<vec4f>& img, bool linear = false,
+void set_image(ogl_image* oimg, const image_data& img, bool linear = false,
     bool mipmap = false);
-void set_image(ogl_image* oimg, const image<vec4b>& img, bool linear = false,
-    bool mipmap = false);
+//void set_image(ogl_image* oimg, const image<vec4b>& img, bool linear = false,
+//    bool mipmap = false);
 
 // OpenGL image drawing params
 struct ogl_image_params {

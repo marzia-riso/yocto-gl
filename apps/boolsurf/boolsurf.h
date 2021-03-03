@@ -5,11 +5,11 @@
 using namespace yocto;
 using namespace std;
 
-struct bool_mesh {
-  vector<vec3i>        triangles          = {};
+struct bool_mesh : shape_data {
+  // vector<vec3i>        triangles          = {};
+  // vector<vec3f>        positions          = {};
+  // vector<vec3f>        normals            = {};
   vector<vec3i>        adjacencies        = {};
-  vector<vec3f>        positions          = {};
-  vector<vec3f>        normals            = {};
   dual_geodesic_solver dual_solver        = {};
   vector<vec3i>        border_tags        = {};
   int                  original_positions = -1;
