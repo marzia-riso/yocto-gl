@@ -6,10 +6,30 @@ using namespace yocto;
 using namespace std;
 
 struct bool_mesh : shape_data {
-  vector<vec3i>        adjacencies        = {};
-  dual_geodesic_solver dual_solver        = {};
-  vector<vec3i>        border_tags        = {};
-  int                  original_positions = -1;
+  vector<vec3i>        adjacencies = {};
+  dual_geodesic_solver dual_solver = {};
+  vector<vec3i>        border_tags = {};
+
+  int           num_triangles     = 0;
+  int           num_positions     = 0;
+  vector<vec3i> extra_triangles   = {};
+  vector<vec3f> extra_positions   = {};
+  vector<vec3f> extra_adjacencies = {};
+
+  inline const vec3i& triangles_at(int i) const {
+    if (i < num_triangles)
+      return triangles[i];
+    else
+      return extra_triangles[i - num_triangles];
+  }
+
+  inline int triangles_size() const {
+    return (int)(num_triangles + extra_triangles.size());
+  }
+
+  inline int positions_size() const {
+    return (int)(num_positions + extra_positions.size());
+  }
 };
 
 struct mesh_segment {
