@@ -283,6 +283,8 @@ void init_from_svg(bool_state& state, const bool_mesh& mesh,
   for (auto& shape : svg) {
     for (auto& path : shape.paths) {
       auto& polygon = state.polygons.emplace_back();
+
+      auto control_points = vector<mesh_point>{};
       // polygon.center = center;
       // polygon.frame  = mat2f{rot, vec2f{-rot.y, rot.x}};
       // polygon.color  = shape.color;
@@ -294,10 +296,10 @@ void init_from_svg(bool_state& state, const bool_mesh& mesh,
           uv -= vec2f{0.5, 0.5};
           uv *= svg_size;
           auto line = straightest_path(mesh, center, uv);
-
-          polygon.points.push_back((int)state.points.size());
-          auto& point = state.points.emplace_back();
-          point       = line.end;
+          control_points += line.end;
+          // polygon.points.push_back((int)state.points.size());
+          // auto& point = state.points.emplace_back();
+          // point       = line.end;
         }
       }
       auto& segment = path.back();
@@ -306,10 +308,17 @@ void init_from_svg(bool_state& state, const bool_mesh& mesh,
       uv -= vec2f{0.5, 0.5};
       uv *= svg_size;
       auto line = straightest_path(mesh, center, uv);
+      control_points += line.end;
+      // polygon.points.push_back((int)state.points.size());
+      // auto& point = state.points.emplace_back();
+      // point       = line.end;
+      auto bezier = compute_bezier_path(mesh.dual_solver, mesh.triangles,
+          mesh.positions, mesh.adjacencies, control_points, 2);
 
-      polygon.points.push_back((int)state.points.size());
-      auto& point = state.points.emplace_back();
-      point       = line.end;
+      for (auto& p : bezier) {
+        polygon.points += (int)state.points.size();
+        state.points += p;
+      }
     }
   }
 }

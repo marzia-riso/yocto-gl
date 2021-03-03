@@ -503,8 +503,8 @@ int main(int argc, const char* argv[]) {
       "Input filename. Either a model or a json test file");
   add_option(cli, "--msaa", window->msaa, "Multisample anti-aliasing.");
   add_option(cli, "--test", app->test_filename, "Test filename.");
-  add_option(cli, "--svg", app->svg_filename, "Svg filename.");
-  add_option(cli, "--svg-size", app->svg_size, "Svg size.");
+  add_option(cli, "svg", app->svg_filename, "Svg filename.");
+  add_option(cli, "svg-size", app->svg_size, "Svg size.");
   parse_cli(cli, argc, argv);
 
   init_window(window, {1280 + 320, 720}, "boolsurf", true);
