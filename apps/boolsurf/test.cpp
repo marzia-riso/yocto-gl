@@ -136,7 +136,8 @@ int main(int num_args, const char* args[]) {
     printf("%s\n", error.c_str());
     print_fatal("Error loading model " + test_filename);
   }
-  init_mesh(mesh);
+  auto mapping = vector<int>{};
+  init_mesh(mesh, mapping);
   printf("triangles: %d\n", (int)mesh.triangles.size());
   printf("positions: %d\n\n", (int)mesh.positions.size());
 
@@ -145,8 +146,25 @@ int main(int num_args, const char* args[]) {
   auto camera = make_camera(mesh);
   // auto state = make_test_state(mesh, bvh, camera, 0.005);
 #else
-  auto state  = state_from_test(mesh, test);
+  // auto state  = state_from_test(mesh, test);
+  auto state   = bool_state{};
+  state.points = test.points;
+  if (mapping.size()) {
+    for (auto& point : state.points) {
+      point.face = mapping[point.face];
+    }
+  }
+  state.polygons.clear();
+
+  for (auto& polygon : test.polygons) {
+    // Add new polygon to state.
+    auto& mesh_polygon  = state.polygons.emplace_back();
+    mesh_polygon.points = polygon;
+
+    recompute_polygon_segments(mesh, state, mesh_polygon);
+  }
   auto camera = test.camera;
+
 #endif
 
   {

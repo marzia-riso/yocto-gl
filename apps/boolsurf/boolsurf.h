@@ -10,9 +10,9 @@ struct bool_mesh : shape_data {
   dual_geodesic_solver dual_solver = {};
   vector<vec3i>        border_tags = {};
 
-    bbox3f bbox = {};
-  int num_triangles = 0;
-  int num_positions = 0;
+  bbox3f bbox          = {};
+  int    num_triangles = 0;
+  int    num_positions = 0;
 };
 
 struct mesh_segment {
@@ -101,7 +101,7 @@ struct bool_operation {
 };
 }  // namespace yocto
 
-void init_mesh(bool_mesh& mesh);
+void init_mesh(bool_mesh& mesh, vector<int>& mapping);
 void reset_mesh(bool_mesh& mesh);
 
 void update_polygon(bool_state& state, const bool_mesh& mesh, int polygon_id);

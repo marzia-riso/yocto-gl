@@ -4,6 +4,8 @@
 
 #include "ext/CDT/CDT/include/CDT.h"
 
+#define SORT_TRIANGLES_FOR_FLOODFILL 0
+
 // Build adjacencies between faces (sorted counter-clockwise)
 static vector<vec3i> face_adjacencies_fast(const vector<vec3i>& triangles) {
   auto get_edge = [](const vec3i& triangle, int i) -> vec2i {
@@ -36,7 +38,7 @@ static vector<vec3i> face_adjacencies_fast(const vector<vec3i>& triangles) {
   return adjacencies;
 }
 
-void init_mesh(bool_mesh& mesh) {
+void init_mesh(bool_mesh& mesh, vector<int>& mapping) {
   if (mesh.quads.size()) {
     mesh.triangles = quads_to_triangles(mesh.quads);
     mesh.quads.clear();
@@ -55,6 +57,40 @@ void init_mesh(bool_mesh& mesh) {
   mesh.bbox     = bbox;
   mesh.bbox.min = (mesh.bbox.min - center(bbox)) / max(size(bbox));
   mesh.bbox.max = (mesh.bbox.max - center(bbox)) / max(size(bbox));
+
+#if SORT_TRIANGLES_FOR_FLOODFILL
+  // Ordina triangoli per metterli nello stesso oridine in cui vengono
+  // visitati dal flood fill.
+  // TODO(giacomo): Non compatibile con tests generati prima di questa
+  // feature.
+  // TODO(giacomo): Per ora rallenta. Da 40ms a 80ms su elephant0.json
+
+  auto visited    = vector<bool>(mesh.triangles.size(), false);
+  auto face_stack = vector<int>{0};
+  auto triangles  = vector<vec3i>(mesh.triangles.size());
+  auto index      = 0;
+
+  mapping.resize(triangles.size());
+
+  while (!face_stack.empty()) {
+    auto face = face_stack.back();
+    face_stack.pop_back();
+    if (visited[face]) continue;
+    visited[face] = true;
+
+    mapping[face]      = index;
+    triangles[index++] = mesh.triangles[face];
+
+    for (int k = 0; k < 3; k++) {
+      auto neighbor = mesh.adjacencies[face][k];
+      if (neighbor == -1) continue;
+      face_stack.push_back(neighbor);
+    }
+  }
+  swap(mesh.triangles, triangles);
+
+  mesh.adjacencies = face_adjacencies_fast(mesh.triangles);
+#endif
 
   mesh.dual_solver = make_dual_geodesic_solver(
       mesh.triangles, mesh.positions, mesh.adjacencies);
@@ -284,6 +320,9 @@ static void flood_fill_new(vector<mesh_cell>& result,
     vector<mesh_cell>& cell_stack, vector<int>& starts, const bool_mesh& mesh) {
   auto cell_tags = vector<int>(mesh.triangles.size(), -1);
 
+  int    last_face = starts.back();
+  size_t jumps     = 0;
+
   // consume task stack
   while (cell_stack.size()) {
     // pop element from task stack
@@ -298,6 +337,9 @@ static void flood_fill_new(vector<mesh_cell>& result,
     while (!face_stack.empty()) {
       auto face = face_stack.back();
       face_stack.pop_back();
+
+      jumps += yocto::abs(last_face - face);
+      last_face = face;
 
       if (cell_tags[face] >= 0) continue;
       cell_tags[face] = cell_id;
@@ -353,6 +395,7 @@ static void flood_fill_new(vector<mesh_cell>& result,
       result.push_back(cell);
     }
   }
+  printf("avg jumps: %f\n", float(jumps) / mesh.triangles.size());
 }
 
 inline vector<mesh_cell> make_mesh_cells(
