@@ -143,7 +143,7 @@ int main(int num_args, const char* args[]) {
   // Init bool_state
   auto state  = bool_state{};
   auto camera = scene_camera{};
-#if 1
+#if 0
   camera = make_camera(mesh);
   state  = make_test_state(mesh, bvh, camera, 0.005);
 #else

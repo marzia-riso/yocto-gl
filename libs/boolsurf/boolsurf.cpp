@@ -532,6 +532,8 @@ static void compute_cell_labels(vector<mesh_cell>& cells,
   auto visited = vector<bool>(cells.size(), false);
   for (auto& s : start) visited[s] = true;
 
+  auto visited_edges = hash_set<vec3i>{};
+
   auto stack = start;
   while (!stack.empty()) {
     auto cell_id = stack.back();
@@ -541,6 +543,14 @@ static void compute_cell_labels(vector<mesh_cell>& cells,
 
     auto& cell = cells[cell_id];
     for (auto& [neighbor, polygon] : cell.adjacency) {
+      auto edge_key = cell_id < neighbor? vec3i{cell_id, neighbor, yocto::abs(polygon)} :
+        vec3i{neighbor, cell_id, yocto::abs(polygon)};
+      if (contains(visited_edges, edge_key)) {
+        continue;
+      } else {
+        visited_edges.insert(edge_key);
+      }
+
       auto polygon_id = yocto::abs(polygon);
       if (find_idx(skip_polygons, polygon_id) != -1) continue;
 
