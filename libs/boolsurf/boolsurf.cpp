@@ -529,6 +529,16 @@ static void compute_cell_labels(vector<mesh_cell>& cells,
   // Calcoliamo le label delle celle visitando il grafo di adiacenza a partire
   // da una cella ambiente e incrementanto/decrementanto l'indice corrispondente
   // al poligono
+
+  auto update_label = [](vec<int>& label, int polygon) {
+    auto polygon_id = std::abs(polygon);
+    if (label[polygon_id] == invalid_label) {
+      label[polygon_id] = polygon > 0 ? 1 : -1;
+    } else {
+      label[polygon_id] += polygon > 0 ? 1 : -1;
+    }
+  };
+
   auto visited = vector<bool>(cells.size(), false);
   for (auto& s : start) visited[s] = true;
 
@@ -559,11 +569,8 @@ static void compute_cell_labels(vector<mesh_cell>& cells,
       // quella già calcolata allora prendo il massimo valore in ogni componente
       if (visited[neighbor]) {
         auto tmp = cell.labels;
-        if (tmp[polygon_id] == invalid_label) {
-          tmp[polygon_id] = polygon > 0 ? 1 : -1;
-        } else {
-          tmp[polygon_id] += polygon > 0 ? 1 : -1;
-        }
+        update_label(tmp, polygon);
+
         if (tmp != cells[neighbor].labels) {
           for (int i = 0; i < cell.labels.size(); i++) {
             if (cells[neighbor].labels[i] == invalid_label) {
@@ -578,7 +585,7 @@ static void compute_cell_labels(vector<mesh_cell>& cells,
       }
 
       cells[neighbor].labels = cell.labels;
-      cells[neighbor].labels[polygon_id] += polygon > 0 ? 1 : -1;
+      update_label(cells[neighbor], polygon);
       stack.push_back(neighbor);
       visited[neighbor] = true;
     }
