@@ -543,8 +543,9 @@ static void compute_cell_labels(vector<mesh_cell>& cells,
 
     auto& cell = cells[cell_id];
     for (auto& [neighbor, polygon] : cell.adjacency) {
-      auto edge_key = cell_id < neighbor? vec3i{cell_id, neighbor, yocto::abs(polygon)} :
-        vec3i{neighbor, cell_id, yocto::abs(polygon)};
+      auto edge_key = cell_id < neighbor
+                          ? vec3i{cell_id, neighbor, yocto::abs(polygon)}
+                          : vec3i{neighbor, cell_id, yocto::abs(polygon)};
       if (contains(visited_edges, edge_key)) {
         continue;
       } else {
@@ -558,12 +559,19 @@ static void compute_cell_labels(vector<mesh_cell>& cells,
       // quella già calcolata allora prendo il massimo valore in ogni componente
       if (visited[neighbor]) {
         auto tmp = cell.labels;
-        tmp[polygon_id] += polygon > 0 ? 1 : -1;
+        if (tmp[polygon_id] == invalid_label) {
+          tmp[polygon_id] = polygon > 0 ? 1 : -1;
+        } else {
+          tmp[polygon_id] += polygon > 0 ? 1 : -1;
+        }
         if (tmp != cells[neighbor].labels) {
           for (int i = 0; i < cell.labels.size(); i++) {
+            if (cells[neighbor].labels[i] == invalid_label) {
+              cells[neighbor].labels[i] = tmp[i];
+              continue;
+            }
             cells[neighbor].labels[i] = yocto::max(
                 cells[neighbor].labels[i], tmp[i]);
-            // cells[neighbor].labels[i] = cells[neighbor].labels[i] + tmp[i];
           }
         }
         continue;
@@ -1153,7 +1161,7 @@ void compute_cells(bool_mesh& mesh, bool_state& state) {
   auto  label_size = polygons.size();
 
   // Inizializziamo le label delle celle a 0
-  for (auto& cell : cells) cell.labels = vector<int>(label_size, 0);
+  for (auto& cell : cells) cell.labels = vector<int>(label_size, invalid_label);
 
   // Se erano presenti cicli li risolviamo settando la label in base alle
   // informazioni estratte prima

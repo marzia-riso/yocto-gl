@@ -54,6 +54,8 @@ struct triangulation_info {
   array<vector<pair<int, float>>, 3> edgemap = {};
 };
 
+inline const int invalid_label = -777;
+
 struct mesh_cell {
   vector<int>     faces     = {};
   hash_set<vec2i> adjacency = {};  // {cell_id, crossed_polygon_id}

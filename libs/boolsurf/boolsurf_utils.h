@@ -174,7 +174,7 @@ inline vec3f get_cell_color(const vector<int>& labels, int cell_id) {
   return color;
 }
 
-#if 1
+#if 0
 #include "ext/robin_hood.h"
 template <typename Key, typename Value>
 using hash_map = robin_hood::unordered_flat_map<Key, Value>;
