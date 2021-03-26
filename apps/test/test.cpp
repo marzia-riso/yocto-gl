@@ -17,28 +17,27 @@ mesh_point intersect_mesh(const bool_mesh& mesh, const shape_bvh& bvh,
   return {isec.element, isec.uv};
 }
 
-bool_state make_test_state(const bool_mesh& mesh, const shape_bvh& bvh,
-    const scene_camera& camera, const string& svg_filename, float svg_size) {
-  auto state    = bool_state{};
-  auto polygons = vector<vector<vec2f>>{};
-  {
-    auto reader = make_reader(svg_filename, 1e4);
-    auto f      = [](Serializer& srl, vector<vec2f>& vec) {
-      serialize_vector(srl, vec);
-    };
-    serialize_vector_custom(reader, polygons, f);
-    for (int p = 0; p < polygons.size(); p++) {
-      auto& polygon = polygons[p];
-      auto  area    = 0.0f;
-      for (int i = 0; i < polygon.size(); i++) {
-        auto& point = polygon[i];
-        auto& next  = polygon[(i + 1) % polygon.size()];
-        area += cross(next, point);
-      }
+bool_state make_test_state(const bool_test& test, const bool_mesh& mesh,
+    const shape_bvh& bvh, const scene_camera& camera, float svg_size) {
+  auto state = bool_state{};
 
-      if (area < 0) std::reverse(polygon.begin(), polygon.end());
+  auto polygons = vector<vector<vec2f>>{};
+  for (auto& test_polygon : test.polygons) {
+    auto& polygon = polygons.emplace_back();
+
+    auto area = 0.0f;
+    for (int p = 0; p < test_polygon.size(); p++) {
+      auto point_idx = test_polygon[p];
+      auto next_idx  = test_polygon[(p + 1) % test_polygon.size()];
+
+      auto& point = test.points_in_screenspace[point_idx];
+      auto& next  = test.points_in_screenspace[next_idx];
+      area += cross(next, point);
+
+      polygon.push_back(point);
     }
-    close_serializer(reader);
+
+    if (area < 0) std::reverse(polygon.begin(), polygon.end());
   }
 
   auto bbox = bbox2f{};
@@ -138,6 +137,7 @@ int main(int num_args, const char* args[]) {
   if (test_filename.size() && !load_test(test, test_filename)) {
     print_fatal("Error loading test " + test_filename);
   }
+
   if (model_filename.size()) test.model = model_filename;
 
   // Init mesh.
@@ -159,7 +159,10 @@ int main(int num_args, const char* args[]) {
   auto camera = scene_camera{};
 #if 1
   camera = make_camera(mesh);
-  state  = make_test_state(mesh, bvh, camera, svg_filename, 0.005);
+
+  // state  = state_from_test(mesh, test);
+
+  state = make_test_state(test, mesh, bvh, camera, 0.005);
 
   test.operations.push_back({1, 2, bool_operation::Type::op_difference});
   test.operations.push_back({3, 4, bool_operation::Type::op_difference});

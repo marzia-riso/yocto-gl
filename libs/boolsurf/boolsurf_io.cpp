@@ -47,16 +47,27 @@ bool load_test(bool_test& test, const string& filename) {
   }
 
   try {
-    test.points   = js["points"].get<vector<mesh_point>>();
+    test.screenspace = js["points_in_screenspace"].get<bool>();
+    if (test.screenspace) {
+      test.points_in_screenspace = js["points"].get<vector<vec2f>>();
+    } else {
+      test.points = js["points"].get<vector<mesh_point>>();
+    }
+
     test.polygons = js["polygons"].get<vector<vector<int>>>();
+
     if (js.find("operations") != js.end()) {
       test.operations = js["operations"].get<vector<bool_operation>>();
     }
+
     if (js.find("camera") != js.end()) {
       test.camera     = js["camera"].get<scene_camera>();
       test.has_camera = true;
     }
-    test.model = js["model"].get<string>();
+
+    if (js.find("model") != js.end()) {
+      test.model = js["model"].get<string>();
+    }
   } catch (std::exception& e) {
     printf("[%s]: %s\n", __FUNCTION__, e.what());
     return false;
@@ -70,6 +81,7 @@ bool_state state_from_test(const bool_mesh& mesh, const bool_test& test) {
   state.polygons.clear();
 
   for (auto& polygon : test.polygons) {
+    if (!polygon.size()) continue;
     // Add new polygon to state.
     auto& mesh_polygon  = state.polygons.emplace_back();
     mesh_polygon.points = polygon;

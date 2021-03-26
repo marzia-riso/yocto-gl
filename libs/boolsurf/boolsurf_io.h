@@ -75,11 +75,13 @@ bool load_json(const string& filename, json& js);
 struct bool_test {
   string              model;
   vector<mesh_point>  points;
+  vector<vec2f>       points_in_screenspace;
   vector<vector<int>> polygons;
 
-  vector<bool_operation> operations = {};
-  scene_camera           camera     = {};
-  bool                   has_camera = false;
+  vector<bool_operation> operations  = {};
+  scene_camera           camera      = {};
+  bool                   has_camera  = false;
+  bool                   screenspace = false;
 };
 
 bool save_test(const bool_test& test, const string& filename);
