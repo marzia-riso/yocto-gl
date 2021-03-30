@@ -52,21 +52,18 @@ int main(int num_args, const char* args[]) {
   auto state  = bool_state{};
   auto camera = scene_camera{};
 
-#if 1
-  camera = make_camera(mesh);
-  state  = make_test_state(test, mesh, bvh, camera, 0.005);
-
-  // test.operations.push_back({1, 2, bool_operation::Type::op_difference});
-  // test.operations.push_back({3, 4, bool_operation::Type::op_difference});
-  // test.operations.push_back({8, 5, bool_operation::Type::op_difference});
-  // test.operations.push_back(
-  //     {6, 9, bool_operation::Type::op_symmetrical_difference});
-
-#else
-
-  state  = state_from_test(mesh, test);
-  camera = test.camera;
-#endif
+  if (test.screenspace) {
+    camera = make_camera(mesh);
+    state  = make_test_state(test, mesh, bvh, camera, 0.005);
+    // test.operations.push_back({1, 2, bool_operation::Type::op_difference});
+    // test.operations.push_back({3, 4, bool_operation::Type::op_difference});
+    // test.operations.push_back({8, 5, bool_operation::Type::op_difference});
+    // test.operations.push_back(
+    //     {6, 9, bool_operation::Type::op_symmetrical_difference});
+  } else {
+    state  = state_from_test(mesh, test);
+    camera = test.camera;
+  }
 
   {
     auto timer = print_timed("[compute_cells]");

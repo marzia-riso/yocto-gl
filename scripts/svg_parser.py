@@ -9,7 +9,6 @@ import xml.etree.ElementTree as ET
 
 
 def subdivide_bezier(points):
-    # points.append(points[0])
     result = [points[0]]
 
     def subdivide_polygon(polygon):
@@ -69,7 +68,7 @@ def parse(infile, outfile):
 
 def create_json(infile, outfile):
     root = ET.parse(infile).getroot()
-    data = {'points_in_screenspace': True, 'points': [], 'polygons': []}
+    data = {'screenspace': True, 'polygons': []}
 
     def parse_path(path_string):
         paths = path_string[1:-1].lower()
@@ -105,7 +104,7 @@ def create_json(infile, outfile):
                     bezier_points += element
 
                     assert(len(bezier_points) == 4)
-                    bpoints = bezier(bezier_points, 4)
+                    bpoints = bezier(bezier_points, 2)
 
                     final_points += bpoints
 
@@ -131,8 +130,7 @@ def create_json(infile, outfile):
                     for point in path:
                         point = (point[0] + translation[0],
                                  point[1] + translation[1])
-                        polygon.append(len(data['points']))
-                        data['points'].append(point)
+                        polygon.append(point)
 
                     data['polygons'].append(polygon)
 
@@ -142,8 +140,7 @@ def create_json(infile, outfile):
             for path in path_points:
                 polygon = []
                 for point in path:
-                    polygon.append(len(data['points']))
-                    data['points'].append(point)
+                    polygon.append(point)
                 data['polygons'].append(polygon)
 
     with open(outfile, "w") as out:

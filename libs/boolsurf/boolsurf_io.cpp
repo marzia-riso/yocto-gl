@@ -47,17 +47,16 @@ bool load_test(bool_test& test, const string& filename) {
   }
 
   try {
-    if (js.find("points_in_screenspace") != js.end()) {
-      test.screenspace = js["points_in_screenspace"].get<bool>();
+    if (js.find("screenspace") != js.end()) {
+      test.screenspace = js["screenspace"].get<bool>();
     }
 
     if (test.screenspace) {
-      test.points_in_screenspace = js["points"].get<vector<vec2f>>();
+      test.polygons_screenspace = js["polygons"].get<vector<vector<vec2f>>>();
     } else {
-      test.points = js["points"].get<vector<mesh_point>>();
+      test.points   = js["points"].get<vector<mesh_point>>();
+      test.polygons = js["polygons"].get<vector<vector<int>>>();
     }
-
-    test.polygons = js["polygons"].get<vector<vector<int>>>();
 
     if (js.find("operations") != js.end()) {
       test.operations = js["operations"].get<vector<bool_operation>>();
@@ -84,10 +83,12 @@ bool_state state_from_test(const bool_mesh& mesh, const bool_test& test) {
   state.polygons.clear();
 
   if (test.screenspace) {
+    printf("Loading screenspace polygons\n");
     auto camera = make_camera(mesh);
     return make_test_state(test, mesh, mesh.bvh, camera, 0.005);
   }
 
+  printf("Loading normal polygons\n");
   for (auto& polygon : test.polygons) {
     // Add new polygon to state.
     auto& mesh_polygon  = state.polygons.emplace_back();

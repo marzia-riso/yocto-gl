@@ -73,10 +73,10 @@ inline void from_json(const json& js, scene_camera& camera) {
 bool load_json(const string& filename, json& js);
 
 struct bool_test {
-  string              model;
-  vector<mesh_point>  points;
-  vector<vec2f>       points_in_screenspace;
-  vector<vector<int>> polygons;
+  string                model;
+  vector<mesh_point>    points;
+  vector<vector<int>>   polygons;
+  vector<vector<vec2f>> polygons_screenspace;
 
   vector<bool_operation> operations  = {};
   scene_camera           camera      = {};
@@ -107,25 +107,15 @@ void init_from_svg(bool_state& state, const bool_mesh& mesh,
 
 inline bool_state make_test_state(const bool_test& test, const bool_mesh& mesh,
     const shape_bvh& bvh, const scene_camera& camera, float svg_size) {
-  auto state = bool_state{};
+  auto state    = bool_state{};
+  auto polygons = test.polygons_screenspace;
 
-  auto polygons = vector<vector<vec2f>>{};
-  // for (auto& test_polygon : test.polygons) {
-  for (int i = 0; i < test.polygons.size(); i++) {
-    auto& test_polygon = test.polygons[i];
-
-    auto& polygon = polygons.emplace_back();
-
+  for (auto& polygon : polygons) {
     auto area = 0.0f;
-    for (int p = 0; p < test_polygon.size(); p++) {
-      auto point_idx = test_polygon[p];
-      auto next_idx  = test_polygon[(p + 1) % test_polygon.size()];
-
-      auto& point = test.points_in_screenspace[point_idx];
-      auto& next  = test.points_in_screenspace[next_idx];
+    for (int p = 0; p < polygon.size(); p++) {
+      auto& point = polygon[p];
+      auto& next  = polygon[(p + 1) % polygon.size()];
       area += cross(next, point);
-
-      polygon.push_back(point);
     }
 
     if (area < 0) {
