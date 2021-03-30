@@ -182,6 +182,10 @@ inline bool_state make_test_state(const bool_test& test, const bool_mesh& mesh,
 
       // Add point to state.
       state.polygons[polygon_id].points.push_back((int)state.points.size());
+
+      for (auto& p : state.points) {
+        assert(!(p.face == point.face && p.uv == point.uv));
+      }
       state.points.push_back(point);
     }
 

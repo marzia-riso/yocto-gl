@@ -287,7 +287,8 @@ static vector<vector<int>> add_vertices(
 
     for (auto e = 0; e < edges.size(); e++) {
       auto& segments = edges[e];
-
+        if(segments.empty()) continue;
+        
       // Aggiungiamo tutti i vertici tranne l'ultimo, perché dobbiamo
       // individuare e salvare i control points separatamente
       for (auto s = 0; s < segments.size() - 1; s++) {
@@ -403,6 +404,7 @@ static vector<int> find_ambient_cells(
   // che non hanno archi entranti con segno di poligono positivo.
   auto adjacency = vector<int>(cells.size(), 0);
   for (auto& cell : cells) {
+    if (cell.faces.size() <= 1) continue;
     for (auto& [adj, p] : cell.adjacency) {
       if (find_idx(skip_polygons, p) != -1) continue;
       if (p > 0) adjacency[adj] += 1;
@@ -411,6 +413,7 @@ static vector<int> find_ambient_cells(
 
   auto result = vector<int>{};
   for (int i = 0; i < adjacency.size(); i++) {
+    if (cells[i].faces.size() <= 1) continue;
     if (adjacency[i] == 0) result.push_back(i);
   }
   return result;
@@ -523,6 +526,8 @@ static void compute_cell_labels(vector<mesh_cell>& cells, vector<bool>& visited,
     stack.pop_back();
 
     auto& cell = cells[cell_id];
+    if (cell.faces.size() <= 1) continue;
+
     for (auto& [neighbor, polygon] : cell.adjacency) {
       auto polygon_unsigned = uint(yocto::abs(polygon));
       if (skip_edge(cell_id, polygon, neighbor)) continue;
