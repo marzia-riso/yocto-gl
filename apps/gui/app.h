@@ -39,8 +39,6 @@ struct app_state {
   // boolmesh info
   bool_mesh mesh          = bool_mesh{};
   bool_mesh mesh_original = bool_mesh{};
-  shape_bvh bvh           = {};
-  shape_bvh bvh_original  = {};
 
   bool_state state = {};
 
@@ -161,8 +159,6 @@ void load_shape(app_state* app, const string& filename) {
 
   init_mesh(app->mesh);
   app->mesh_original = app->mesh;
-  app->bvh = make_triangles_bvh(app->mesh.triangles, app->mesh.positions, {});
-  app->bvh_original = app->bvh;
 }
 
 void init_edges_and_vertices_shapes_and_points(

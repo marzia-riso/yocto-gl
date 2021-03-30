@@ -146,7 +146,7 @@ def create_json(infile, outfile):
     with open(outfile, "w") as out:
         json.dump(data, out, indent=2)
 
-    print(data)
+    # print(data)
 
 
 if __name__ == "__main__":

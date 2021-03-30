@@ -396,7 +396,7 @@ void key_input(app_state* app, const gui_input& input) {
         }
 
         // update bvh
-        app->bvh = make_triangles_bvh(
+        app->mesh.bvh = make_triangles_bvh(
             app->mesh.triangles, app->mesh.positions, {});
 
         // update gpu data
@@ -495,7 +495,7 @@ void key_input(app_state* app, const gui_input& input) {
         if (app->temp_patch) {
           set_patch_shape(app->temp_patch->shape, app->mesh, visited);
         } else {
-          app->temp_patch = add_patch_shape(app, visited, app->materials.blue);
+          app->temp_patch = add_patch_shape(app, visited, app->materials.green);
         }
         app->temp_patch->depth_test = ogl_depth_test::always;
       } break;
@@ -516,7 +516,7 @@ void key_input(app_state* app, const gui_input& input) {
         if (app->temp_patch) {
           set_patch_shape(app->temp_patch->shape, app->mesh, visited);
         } else {
-          app->temp_patch = add_patch_shape(app, visited, app->materials.blue);
+          app->temp_patch = add_patch_shape(app, visited, app->materials.green);
         }
         app->temp_patch->depth_test = ogl_depth_test::always;
       } break;
