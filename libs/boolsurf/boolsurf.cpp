@@ -159,7 +159,7 @@ void recompute_polygon_segments(const bool_mesh& mesh, const bool_state& state,
     auto end   = polygon.points[(i + 1) % polygon.points.size()];
     auto path  = compute_geodesic_path(
         mesh, state.points[start], state.points[end]);
-    auto threshold = 0.001f;
+    auto threshold = 0.1f;
     for (auto& l : path.lerps) {
       l = yocto::clamp(l, 0 + threshold, 1 - threshold);
     }
@@ -287,8 +287,8 @@ static vector<vector<int>> add_vertices(
 
     for (auto e = 0; e < edges.size(); e++) {
       auto& segments = edges[e];
-        if(segments.empty()) continue;
-        
+      if (segments.empty()) continue;
+
       // Aggiungiamo tutti i vertici tranne l'ultimo, perché dobbiamo
       // individuare e salvare i control points separatamente
       for (auto s = 0; s < segments.size() - 1; s++) {
@@ -1008,6 +1008,10 @@ static vector<vec3i> face_tags(const bool_mesh& mesh,
   auto tags = vector<vec3i>(mesh.triangles.size(), zero3i);
 
   for (auto& [face, polylines] : hashgrid) {
+    if (face == 5198) {
+      printf("ciao");
+      // i'm here
+    }
     for (auto& polyline : polylines) {
       // TODO(giacomo): gestire caso in cui polyline sia chiusa...
       for (auto i = 0; i < polyline.vertices.size() - 1; i++) {
