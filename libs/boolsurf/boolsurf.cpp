@@ -1087,15 +1087,17 @@ static vector<vec3i> border_tags(
     for (auto& face : faces) {
       for (int k = 0; k < 3; k++) {
         auto edge = get_mesh_edge_from_index(mesh.triangles[face], k);
+        auto tag  = 0;
         auto it   = border_map.find(edge);
         if (it != border_map.end()) {
-          tags[face][k] = -it->second;
+          tag = -it->second;
+        } else if (it = border_map.find({edge.y, edge.x});
+                   it != border_map.end()) {
+          tag = it->second;
+        } else {
           continue;
         }
-        it = border_map.find({edge.y, edge.x});
-        if (it != border_map.end()) {
-          tags[face][k] = it->second;
-        }
+        tags[face][k] = tag;
       }
     }
   }
