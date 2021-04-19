@@ -219,7 +219,7 @@ inline vec2i get_segment_vertices(const hashgrid_polyline& polyline, int i) {
 using mesh_hashgrid = hash_map<int, vector<hashgrid_polyline>>;
 
 inline int add_vertex(bool_mesh& mesh, mesh_hashgrid& hashgrid,
-    const mesh_point& point, int polyline_id) {
+    const mesh_point& point, int polyline_id, int vertex = -1) {
   float eps             = 0.00001;
   auto  update_polyline = [&](int v) {
     if (polyline_id < 0) return;
@@ -258,9 +258,12 @@ inline int add_vertex(bool_mesh& mesh, mesh_hashgrid& hashgrid,
   }
 
   // No collapse. Add new vertex to mesh.
-  auto vertex = (int)mesh.positions.size();
-  auto pos    = eval_position(mesh.triangles, mesh.positions, point);
-  mesh.positions.push_back(pos);
+  if (vertex == -1) {
+    vertex   = (int)mesh.positions.size();
+    auto pos = eval_position(mesh.triangles, mesh.positions, point);
+    mesh.positions.push_back(pos);
+  }
+
   update_polyline(vertex);
   return vertex;
 }
@@ -282,7 +285,9 @@ static mesh_hashgrid compute_hashgrid(
     int  first_face = polygon.edges[0][0].face;
     auto indices    = vec2i{-1, -1};  // edge_id, segment_id
 
-    int last_face = -1;
+    int last_face   = -1;
+    int last_vertex = -1;
+
     for (auto e = 0; e < polygon.edges.size(); e++) {
       auto& edge = polygon.edges[e];
 
@@ -308,22 +313,27 @@ static mesh_hashgrid compute_hashgrid(
           auto& polyline    = entry.emplace_back();
           polyline.polygon  = polygon_id;
 
-          add_vertex(
-              mesh, hashgrid, {segment.face, segment.start}, polyline_id);
+          last_vertex = add_vertex(mesh, hashgrid,
+              {segment.face, segment.start}, polyline_id, last_vertex);
           //          polyline.vertices.push_back(add_vertex(mesh, hashgrid,
           //          point)); polyline.points.push_back(segment.start);
 
-          add_vertex(mesh, hashgrid, {segment.face, segment.end}, polyline_id);
+          last_vertex = add_vertex(
+              mesh, hashgrid, {segment.face, segment.end}, polyline_id);
           //          polyline.vertices.push_back(vertices[polygon_id][ids.x][ids.y]);
           //          polyline.points.push_back(segment.end);
+
+          auto vertices = polyline.points;
         } else {
           auto  polyline_id = (int)entry.size() - 1;
           auto& polyline    = entry.back();
           assert(segment.end != polyline.points.back());
 
-          add_vertex(mesh, hashgrid, {segment.face, segment.end}, polyline_id);
+          last_vertex = add_vertex(
+              mesh, hashgrid, {segment.face, segment.end}, polyline_id);
           //          polyline.points.push_back(segment.end);
           //          polyline.vertices.push_back(vertices[polygon_id][ids.x][ids.y]);
+          auto vertices = polyline.points;
         }
 
         last_face = segment.face;
@@ -342,7 +352,7 @@ static mesh_hashgrid compute_hashgrid(
         for (int s = 0; s < edge.size(); s++) {
           auto& segment = edge[s];
 
-          add_vertex(
+          last_vertex = add_vertex(
               mesh, hashgrid, {segment.face, segment.start}, polyline_id);
           //          polyline.vertices.push_back(vertices[polygon_id][e][s]);
           //          polyline.points.push_back(segment.start);
@@ -364,7 +374,8 @@ static mesh_hashgrid compute_hashgrid(
         auto  polyline_id = (int)entry.size() - 1;
         // auto& polyline    = entry.back();
         assert(segment.face == last_face);
-        add_vertex(mesh, hashgrid, {segment.face, segment.end}, polyline_id);
+        last_vertex = add_vertex(
+            mesh, hashgrid, {segment.face, segment.end}, polyline_id);
         // polyline.points.push_back(segment.end);
         // polyline.vertices.push_back(vertices[polygon_id][ids.x][ids.y]);
       }
