@@ -89,17 +89,17 @@ struct app_state {
 
 void update_polygon(app_state* app, int polygon_id, int index = 0) {
   auto& mesh_polygon = app->state.polygons[polygon_id];
-  app->polygon_shapes.resize(app->state.polygons.size());
+  // app->polygon_shapes.resize(app->state.polygons.size());
   auto& polygon_shape = app->polygon_shapes[polygon_id];
 
   // TODO(giacomo): Solve this situation.
-  if (!polygon_shape) {
-    polygon_shape = new shade_instance{};
-  }
+  // if (!polygon_shape) {
+  //   polygon_shape = new shade_instance{};
+  // }
 
-  if (!polygon_shape->shape) {
-    polygon_shape->shape = new shade_shape{};
-  }
+  // if (!polygon_shape->shape) {
+  //   polygon_shape->shape = new shade_shape{};
+  // }
 
   // Draw polygon.
   recompute_polygon_segments(app->mesh, app->state, mesh_polygon, index);
@@ -428,7 +428,8 @@ void init_from_test(app_state* app) {
     app->glcamera->focus    = app->test.camera.focus;
   }
 
-  app->state = state_from_test(app->mesh, app->test, app->svg_size, app->use_projection);
+  app->state = state_from_test(
+      app->mesh, app->test, app->svg_size, app->use_projection);
   for (int i = 0; i < app->state.polygons.size(); i++) {
     auto& polygon = app->state.polygons[i];
     add_polygon_shape(app, polygon, i);

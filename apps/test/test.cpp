@@ -12,6 +12,8 @@ using namespace yocto;
 void save_image(const string& output_filename, const bool_mesh& mesh,
     const bool_state& state, const scene_camera& camera, bool color_shapes,
     int spp) {
+  if (output_filename == "no-output") return;
+
   auto scene = scene_model{};
   scene.cameras.push_back(camera);
 

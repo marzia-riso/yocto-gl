@@ -677,6 +677,8 @@ int main(int argc, const char* argv[]) {
     init_from_test(app);
   }
   app->state.polygons.push_back({});
+  add_polygon_shape(app, {}, 0);
+  add_polygon_shape(app, app->state.polygons.back(), 1);
 
   run_ui(window, update_app);
 
