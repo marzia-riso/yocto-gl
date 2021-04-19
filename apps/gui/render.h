@@ -32,9 +32,35 @@ inline void set_polygon_shape(
     positions.push_back(eval_position(mesh, {segment.face, segment.end}));
   }
 
-  set_positions(shape, positions);
-  set_instances(shape, {}, {});
-  shape->shape->elements = ogl_element_type::line_strip;
+  if (0) {
+    set_positions(shape, positions);
+    set_instances(shape, {}, {});
+    shape->shape->elements = ogl_element_type::line_strip;
+  } else {
+    auto froms = vector<vec3f>();
+    auto tos   = vector<vec3f>();
+    froms.reserve(positions.size() - 1);
+    tos.reserve(positions.size() - 1);
+    for (int i = 0; i < positions.size() - 1; i++) {
+      auto from = positions[i];
+      auto to   = positions[i + 1];
+      if (from == to) continue;
+      froms.push_back(from);
+      tos.push_back(to);
+    }
+
+    float radius   = 0.003;
+    auto  cylinder = make_uvcylinder({16, 1, 1}, {radius, 1});
+    for (auto& p : cylinder.positions) {
+      p.z = p.z * 0.5 + 0.5;
+    }
+
+    set_quads(shape, cylinder.quads);
+    set_positions(shape, cylinder.positions);
+    set_normals(shape, cylinder.normals);
+    set_texcoords(shape, cylinder.texcoords);
+    set_instances(shape, froms, tos);
+  }
 }
 
 // inline void set_polygon_shape(shade_scene* scene, const bool_mesh& mesh,

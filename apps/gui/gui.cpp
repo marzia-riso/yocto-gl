@@ -429,17 +429,17 @@ void key_input(app_state* app, const gui_input& input) {
 
         compute_shapes(app->state);
 
-        app->cell_shapes.resize(app->state.cells.size());
-        for (int i = 0; i < app->state.cells.size(); i++) {
-          app->cell_shapes[i] = add_patch_shape(app, {}, vec3f{});
-        }
+        // app->cell_shapes.resize(app->state.cells.size());
+        // for (int i = 0; i < app->state.cells.size(); i++) {
+        //   app->cell_shapes[i] = add_patch_shape(app, {}, vec3f{});
+        // }
 
-        update_cell_shapes(app);
-        update_cell_colors(app);
+        // update_cell_shapes(app);
+        // update_cell_colors(app);
 
-        for (auto p = 0; p < app->state.polygons.size(); p++) {
-          app->polygon_shapes[p]->hidden = true;
-        }
+        // for (auto p = 0; p < app->state.polygons.size(); p++) {
+        //   app->polygon_shapes[p]->hidden = true;
+        // }
 
         // update bvh
         app->mesh.bvh = make_triangles_bvh(
@@ -448,10 +448,22 @@ void key_input(app_state* app, const gui_input& input) {
         // update gpu data
         set_positions(app->mesh_instance->shape, app->mesh.positions);
         set_triangles(app->mesh_instance->shape, app->mesh.triangles);
+        // TODO(giacomo): serve?
         app->mesh.normals = compute_normals(app->mesh);
         set_normals(app->mesh_instance->shape, app->mesh.normals);
         init_edges_and_vertices_shapes_and_points(app);
-        app->mesh_instance->hidden = true;
+        // app->mesh_instance->hidden = true;
+
+        if (app->color_hashgrid) {
+          auto faces = vector<int>();
+          for (auto& [face, _] : app->mesh.triangulated_faces) {
+            faces.push_back(face);
+          }
+          auto ist = add_patch_shape(
+              app, faces, app->mesh_material->color * 0.65);
+          ist->depth_test = ogl_depth_test::always;
+          app->glscene->instances += app->polygon_shapes;
+        }
       } break;
 
       case (int)gui_key('O'): {
@@ -634,6 +646,7 @@ int main(int argc, const char* argv[]) {
   // add_option(cli, "svg-size", app->svg_size, "Svg size.");
   add_option(cli, "drawing-size", app->svg_size, "Size of mapped drawing.");
   add_option(cli, "color-shapes", app->color_shapes, "Color shapes.");
+  add_option(cli, "color-hashgrid", app->color_hashgrid, "Color hashgrid.");
   parse_cli(cli, argc, argv);
 
   init_window(window, {1280 + 320, 720}, "boolsurf", true);

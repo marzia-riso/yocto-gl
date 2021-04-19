@@ -5,6 +5,16 @@
 using namespace yocto;
 using namespace std;
 
+struct hashgrid_polyline {
+  int           polygon  = -1;
+  vector<vec2f> points   = {};
+  vector<int>   vertices = {};
+
+  bool is_closed = false;
+};
+
+using mesh_hashgrid = hash_map<int, vector<hashgrid_polyline>>;
+
 struct bool_mesh : scene_shape {
   vector<vec3i>        adjacencies = {};
   dual_geodesic_solver dual_solver = {};
@@ -15,6 +25,7 @@ struct bool_mesh : scene_shape {
   int                        num_triangles      = 0;
   int                        num_positions      = 0;
   hash_map<int, vector<int>> triangulated_faces = {};
+  mesh_hashgrid              hashgrid           = {};
 };
 
 struct mesh_segment {

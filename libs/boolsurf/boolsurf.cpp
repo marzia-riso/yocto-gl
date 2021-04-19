@@ -184,14 +184,6 @@ void recompute_polygon_segments(const bool_mesh& mesh, const bool_state& state,
   polygon.is_contained_in_single_face = (faces.size() == 1);
 }
 
-struct hashgrid_polyline {
-  int           polygon  = -1;
-  vector<vec2f> points   = {};
-  vector<int>   vertices = {};
-
-  bool is_closed = false;
-};
-
 inline int num_segments(const hashgrid_polyline& polyline) {
   if (polyline.is_closed) return (int)polyline.points.size();
   return (int)polyline.points.size() - 1;
@@ -215,8 +207,6 @@ inline vec2i get_segment_vertices(const hashgrid_polyline& polyline, int i) {
     return {polyline.vertices[i], polyline.vertices[i + 1]};
   }
 }
-
-using mesh_hashgrid = hash_map<int, vector<hashgrid_polyline>>;
 
 static mesh_hashgrid compute_hashgrid(const vector<mesh_polygon>& polygons,
     const vector<vector<vector<int>>>&                            vertices) {
@@ -1113,7 +1103,8 @@ static void slice_mesh(bool_mesh& mesh, bool_state& state) {
 
   // Calcoliamo hashgrid e intersezioni tra poligoni,
   // aggiungendo ulteriori vertici nuovi alla mesh
-  auto hashgrid = compute_hashgrid(polygons, vertices);
+  auto& hashgrid = mesh.hashgrid;
+  hashgrid       = compute_hashgrid(polygons, vertices);
   add_polygon_intersection_points(state, hashgrid, mesh);
 
   // Triangolazione e aggiornamento dell'adiacenza

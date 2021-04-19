@@ -29,6 +29,7 @@ struct app_state {
   bool_operation operation      = {};
   gui_window*    window         = nullptr;
   bool           color_shapes   = false;
+  bool           color_hashgrid = true;
   bool           use_projection = false;
   scene_camera   camera         = {};
 
@@ -273,6 +274,7 @@ void init_glscene(app_state* app, shade_scene* glscene, const bool_mesh& mesh) {
 
   app->drawgl_prms.faceted = true;
   set_instances(mesh_shape, {}, {});
+  app->drawgl_prms.background = {1, 1, 1, 1};
 
   auto edges_shape    = add_shape(glscene);
   auto vertices_shape = add_shape(glscene);
@@ -368,8 +370,7 @@ void add_polygon_shape(app_state* app, const mesh_polygon& polygon, int index) {
   if (polygon.length > 0) set_polygon_shape(polygon_shape, app->mesh, polygon);
   auto polygon_instance = add_instance(
       app->glscene, identity3x4f, polygon_shape, polygon_material);
-  polygon_instance->depth_test = ogl_depth_test::always;
-
+  // polygon_instance->depth_test = ogl_depth_test::always;
   app->polygon_shapes += polygon_instance;
 }
 
