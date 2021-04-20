@@ -24,7 +24,18 @@ void debug_draw(app_state* app, int face, const string& header = "") {
 }
 
 void debug_cells(app_state* app) {
-  printf("Debugging cell: %d\n", app->current_patch);
+  for (auto i = 0; i <= app->current_cell; i++)
+    app->cell_shapes[i]->material->color = get_cell_color(
+        app->state, i, app->color_shapes);
+
+  for (auto i = app->current_cell + 1; i < app->cell_shapes.size(); i++)
+    app->cell_shapes[i]->material->color = get_cell_color(
+        app->state, 0, app->color_shapes);
+
+  app->current_cell = (app->current_cell + 1) % app->cell_shapes.size();
+}
+
+void debug_cell_flood_fill(app_state* app) {
   for (auto i = 0; i < app->cell_patches.size(); i++) {
     auto idx = app->cell_patches[i];
 
@@ -588,6 +599,7 @@ void key_input(app_state* app, const gui_input& input) {
         }
         app->temp_patch->depth_test = ogl_depth_test::always;
       } break;
+
 #endif
 
       case (int)gui_key('C'): {

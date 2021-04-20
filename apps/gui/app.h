@@ -78,6 +78,7 @@ struct app_state {
   vector<int> cell_patches   = {};
   int         current_patch  = 0;
   int         current_border = 0;
+  int         current_cell   = 0;
 
   gui_widgets widgets                     = {};
   mesh_point  last_clicked_point          = {};
