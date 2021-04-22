@@ -120,6 +120,16 @@ void draw_widgets(app_state* app, const gui_input& input) {
     draw_checkbox(widgets, "wireframe", params.wireframe);
     continue_line(widgets);
     draw_checkbox(widgets, "double sided", params.double_sided);
+
+    if (app->hashgrid_shape) {
+      draw_checkbox(widgets, "hashgrid", app->hashgrid_shape->hidden, true);
+    }
+    if (app->inner_faces_shape && app->outer_faces_shape) {
+      if (draw_checkbox(
+              widgets, "border faces", app->inner_faces_shape->hidden, true)) {
+        app->outer_faces_shape->hidden = app->inner_faces_shape->hidden;
+      }
+    }
     // end_header(widgets);
   }
 
@@ -440,17 +450,19 @@ void key_input(app_state* app, const gui_input& input) {
 
         compute_shapes(app->state);
 
-        // app->cell_shapes.resize(app->state.cells.size());
-        // for (int i = 0; i < app->state.cells.size(); i++) {
-        //   app->cell_shapes[i] = add_patch_shape(app, {}, vec3f{});
-        // }
+        if (!app->color_hashgrid) {
+          app->cell_shapes.resize(app->state.cells.size());
+          for (int i = 0; i < app->state.cells.size(); i++) {
+            app->cell_shapes[i] = add_patch_shape(app, {}, vec3f{});
+          }
 
-        // update_cell_shapes(app);
-        // update_cell_colors(app);
+          update_cell_shapes(app);
+          update_cell_colors(app);
 
-        // for (auto p = 0; p < app->state.polygons.size(); p++) {
-        //   app->polygon_shapes[p]->hidden = true;
-        // }
+          // for (auto p = 0; p < app->state.polygons.size(); p++) {
+          //   app->polygon_shapes[p]->hidden = true;
+          // }
+        }
 
         // update bvh
         app->mesh.bvh = make_triangles_bvh(
@@ -470,10 +482,28 @@ void key_input(app_state* app, const gui_input& input) {
           for (auto& [face, _] : app->mesh.triangulated_faces) {
             faces.push_back(face);
           }
-          auto ist = add_patch_shape(
+          app->hashgrid_shape = add_patch_shape(
               app, faces, app->mesh_material->color * 0.65);
-          ist->depth_test = ogl_depth_test::always;
+          app->hashgrid_shape->depth_test = ogl_depth_test::always;
           app->glscene->instances += app->polygon_shapes;
+
+          auto inner_faces = vector<int>{};
+          auto outer_faces = vector<int>{};
+          for (int i = 0; i < app->mesh.border_tags.size(); i++) {
+            auto tag = app->mesh.border_tags[i];
+            if (tag.x > 0 || tag.y > 0 || tag.z > 0) {
+              inner_faces.push_back(i);
+            }
+            if (tag.x < 0 || tag.y < 0 || tag.z < 0) {
+              outer_faces.push_back(i);
+            }
+          }
+          app->inner_faces_shape = add_patch_shape(
+              app, inner_faces, vec3f{1, 0, 0});
+          app->outer_faces_shape = add_patch_shape(
+              app, outer_faces, vec3f{0, 0, 1});
+          app->inner_faces_shape->depth_test = ogl_depth_test::always;
+          app->outer_faces_shape->depth_test = ogl_depth_test::always;
         }
       } break;
 

@@ -29,7 +29,7 @@ struct app_state {
   bool_operation operation      = {};
   gui_window*    window         = nullptr;
   bool           color_shapes   = false;
-  bool           color_hashgrid = true;
+  bool           color_hashgrid = false;
   bool           use_projection = false;
   scene_camera   camera         = {};
 
@@ -42,8 +42,11 @@ struct app_state {
 
   bool_state state = {};
 
-  vector<shade_instance*> cell_shapes    = {};
-  vector<shade_instance*> polygon_shapes = {};
+  vector<shade_instance*> cell_shapes       = {};
+  vector<shade_instance*> polygon_shapes    = {};
+  shade_instance*         hashgrid_shape    = nullptr;
+  shade_instance*         inner_faces_shape = nullptr;
+  shade_instance*         outer_faces_shape = nullptr;
 
   vector<bool_state> history        = {};
   int                history_index  = 0;
