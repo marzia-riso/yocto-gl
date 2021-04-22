@@ -282,8 +282,9 @@ static mesh_hashgrid compute_hashgrid(
 
     // La polilinea della prima faccia del poligono viene processata alla fine
     // (perché si trova tra il primo e l'ultimo edge)
-    int  first_face = polygon.edges[0][0].face;
-    auto indices    = vec2i{-1, -1};  // edge_id, segment_id
+    int  first_face   = polygon.edges[0][0].face;
+    int  first_vertex = -1;
+    auto indices      = vec2i{-1, -1};  // edge_id, segment_id
 
     int last_face   = -1;
     int last_vertex = -1;
@@ -315,15 +316,11 @@ static mesh_hashgrid compute_hashgrid(
 
           last_vertex = add_vertex(mesh, hashgrid,
               {segment.face, segment.start}, polyline_id, last_vertex);
-          //          polyline.vertices.push_back(add_vertex(mesh, hashgrid,
-          //          point)); polyline.points.push_back(segment.start);
+          if (first_vertex == -1) first_vertex = last_vertex;
 
           last_vertex = add_vertex(
               mesh, hashgrid, {segment.face, segment.end}, polyline_id);
-          //          polyline.vertices.push_back(vertices[polygon_id][ids.x][ids.y]);
-          //          polyline.points.push_back(segment.end);
 
-          auto vertices = polyline.points;
         } else {
           auto  polyline_id = (int)entry.size() - 1;
           auto& polyline    = entry.back();
@@ -331,13 +328,14 @@ static mesh_hashgrid compute_hashgrid(
 
           last_vertex = add_vertex(
               mesh, hashgrid, {segment.face, segment.end}, polyline_id);
-          //          polyline.points.push_back(segment.end);
-          //          polyline.vertices.push_back(vertices[polygon_id][ids.x][ids.y]);
-          auto vertices = polyline.points;
         }
 
         last_face = segment.face;
       }
+
+      if (last_vertex != -1)
+        control_points[last_vertex] =
+            polygon.points[(e + 1) % polygon.edges.size()];
     }
 
     if (indices == vec2i{-1, -1}) {
@@ -362,6 +360,7 @@ static mesh_hashgrid compute_hashgrid(
 
     // Ripetiamo parte del ciclo (fino a indices) perché il primo tratto di
     // polilinea non è stato inserito nell'hashgrid
+    auto vertex = -1;
     for (auto e = 0; e <= indices.x; e++) {
       auto end_idx = (e < indices.x) ? polygon.edges[e].size() : indices.y;
       for (auto s = 0; s < end_idx; s++) {
@@ -372,12 +371,13 @@ static mesh_hashgrid compute_hashgrid(
         auto& segment     = polygon.edges[e][s];
         auto& entry       = hashgrid[segment.face];
         auto  polyline_id = (int)entry.size() - 1;
+
+        if (e == indices.x && s == indices.y - 1) vertex = first_vertex;
+
         // auto& polyline    = entry.back();
         assert(segment.face == last_face);
         last_vertex = add_vertex(
-            mesh, hashgrid, {segment.face, segment.end}, polyline_id);
-        // polyline.points.push_back(segment.end);
-        // polyline.vertices.push_back(vertices[polygon_id][ids.x][ids.y]);
+            mesh, hashgrid, {segment.face, segment.end}, polyline_id, vertex);
       }
     }
   }
