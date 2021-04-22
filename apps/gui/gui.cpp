@@ -462,6 +462,7 @@ void key_input(app_state* app, const gui_input& input) {
           // for (auto p = 0; p < app->state.polygons.size(); p++) {
           //   app->polygon_shapes[p]->hidden = true;
           // }
+          app->mesh_instance->hidden = true;
         }
 
         // update bvh
@@ -475,7 +476,6 @@ void key_input(app_state* app, const gui_input& input) {
         app->mesh.normals = compute_normals(app->mesh);
         set_normals(app->mesh_instance->shape, app->mesh.normals);
         init_edges_and_vertices_shapes_and_points(app);
-        // app->mesh_instance->hidden = true;
 
         if (app->color_hashgrid) {
           auto faces = vector<int>();
