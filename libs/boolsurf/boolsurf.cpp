@@ -268,8 +268,8 @@ inline int add_vertex(bool_mesh& mesh, mesh_hashgrid& hashgrid,
   return vertex;
 }
 
-static mesh_hashgrid compute_hashgrid(
-    bool_mesh& mesh, const vector<mesh_polygon>& polygons) {
+static mesh_hashgrid compute_hashgrid(bool_mesh& mesh,
+    const vector<mesh_polygon>& polygons, hash_map<int, int>& control_points) {
   // La hashgrid associa ad ogni faccia una lista di polilinee.
   // Ogni polilinea è definita da una sequenza punti in coordinate
   // baricentriche, ognuno di essi assiociato al corrispondente vertice della
@@ -352,9 +352,11 @@ static mesh_hashgrid compute_hashgrid(
 
           last_vertex = add_vertex(
               mesh, hashgrid, {segment.face, segment.start}, polyline_id);
-          //          polyline.vertices.push_back(vertices[polygon_id][e][s]);
-          //          polyline.points.push_back(segment.start);
         }
+
+        if (last_vertex != -1)
+          control_points[last_vertex] =
+              polygon.points[(e + 1) % polygon.edges.size()];
       }
     };
 
@@ -379,6 +381,10 @@ static mesh_hashgrid compute_hashgrid(
         last_vertex = add_vertex(
             mesh, hashgrid, {segment.face, segment.end}, polyline_id, vertex);
       }
+
+      if (e > 0 && last_vertex != -1)
+        control_points[last_vertex] =
+            polygon.points[(e + 1) % polygon.edges.size()];
     }
   }
   return hashgrid;
@@ -1169,11 +1175,10 @@ static void slice_mesh(bool_mesh& mesh, bool_state& state) {
   // Calcoliamo i vertici nuovi della mesh
   // auto vertices             = add_vertices(mesh, polygons);
   state.num_original_points = (int)state.points.size();
-  //  state.control_points      = compute_control_points(polygons, vertices);
 
   // Calcoliamo hashgrid e intersezioni tra poligoni,
   // aggiungendo ulteriori vertici nuovi alla mesh
-  auto hashgrid = compute_hashgrid(mesh, polygons);
+  auto hashgrid = compute_hashgrid(mesh, polygons, state.control_points);
   add_polygon_intersection_points(state, hashgrid, mesh);
 
   // Triangolazione e aggiornamento dell'adiacenza
