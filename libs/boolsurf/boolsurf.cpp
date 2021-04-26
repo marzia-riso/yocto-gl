@@ -1217,6 +1217,7 @@ static void slice_mesh(bool_mesh& mesh, bool_state& state) {
   mesh.border_tags = border_tags(mesh, hashgrid);
 }
 
+
 static void compute_cell_labels(bool_state& state, int num_polygons) {
   // Calcoliamo possibili cicli all'interno del grafo delle adiacenze della
   // mesh. In modo da eliminare gli archi corrispondenti.

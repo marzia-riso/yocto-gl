@@ -35,7 +35,8 @@ void save_image(const string& output_filename, const bool_mesh& mesh,
       shape.triangles.push_back(mesh.triangles[face]);
     }
 
-    {
+    // edges
+    if (0) {
       auto& instance     = scene.instances.emplace_back();
       instance.shape     = (int)scene.shapes.size();
       instance.material  = (int)scene.materials.size();
@@ -180,13 +181,16 @@ int main(int num_args, const char* args[]) {
   auto state = bool_state{};
 
   if (test.screenspace) {
-    int  seed           = 0;
-    bool use_projection = false;
+    auto rng = make_rng(0);
     while (true) {
-      bool repeat = false;
-      test.camera = make_camera(mesh, seed);
-      state       = make_test_state(
-          test, mesh, bvh, test.camera, drawing_size, use_projection);
+      bool repeat   = false;
+      auto new_test = test_from_screenspace_polygons(
+          test.polygons_screenspace, mesh, drawing_size, rng);
+      if (new_test.points.empty()) continue;
+
+      test.camera = new_test.camera;
+      state       = state_from_test(mesh, new_test, drawing_size, false);
+
       printf("%s\n", "make_test_state");
 
       // save_image(to_string(seed) + output_filename, mesh, state, test.camera,
@@ -234,9 +238,7 @@ int main(int num_args, const char* args[]) {
       }
 
       if (!repeat) break;
-      if (use_projection) seed += 1;  // questo muove la camera.
-      use_projection = !use_projection;
-      mesh           = mesh_original;
+      mesh = mesh_original;
     }
   } else {
     state = state_from_test(mesh, test, 0.005, false);

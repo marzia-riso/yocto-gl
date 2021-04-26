@@ -162,12 +162,15 @@ inline void map_polygons_onto_surface(bool_state& state, const bool_mesh& mesh,
   }
 }
 
-inline bool_state make_test_state(const bool_test& test, const bool_mesh& mesh,
-    const shape_bvh& bvh, const scene_camera& camera, float drawing_size,
-    bool use_projection) {
-  auto state    = bool_state{};
-  auto polygons = test.polygons_screenspace;
+inline scene_camera sample_camera(const bool_mesh& mesh, rng_state& rng) {
+  auto dir     = sample_hemisphere(rand2f(rng));
+  auto camera  = scene_camera{};
+  camera.frame = lookat_frame(3 * dir, zero3f, {0, 1, 0});
+  return camera;
+}
 
+inline void normalize_polygons2D(vector<vector<vec2f>>& polygons) {
+  // Flip polygons if needed.
   for (auto& polygon : polygons) {
     auto area = 0.0f;
     for (int p = 0; p < polygon.size(); p++) {
@@ -181,93 +184,65 @@ inline bool_state make_test_state(const bool_test& test, const bool_mesh& mesh,
     }
   }
 
+  // Fit into [-1, 1]^2 box.
   auto bbox = bbox2f{};
   for (auto& polygon : polygons) {
-    for (auto& p : polygon) {
-      bbox = merge(bbox, p);
-    }
+    for (auto& p : polygon) bbox = merge(bbox, p);
   }
 
   for (auto& polygon : polygons) {
-    for (auto& p : polygon) {
-      p = (p - center(bbox)) / max(size(bbox));
-    }
+    for (auto& p : polygon) p = (p - center(bbox)) / max(size(bbox));
   }
-
-  if (!use_projection) {
-    map_polygons_onto_surface(state, mesh, polygons, camera, drawing_size);
-  } else {
-    // TODO(giacomo): Refactor into a function.
-    for (auto& polygon : polygons) {
-      state.polygons.push_back({});
-      auto polygon_id = (int)state.polygons.size() - 1;
-
-      for (auto uv : polygon) {
-        uv.x /= camera.film;                    // input.window_size.x;
-        uv.y /= (camera.film / camera.aspect);  // input.window_size.y;
-        uv *= drawing_size;
-        uv += vec2f{0.5, 0.5};
-
-        // auto path     = straightest_path(mesh, center, uv);
-        // path.end.uv.x = clamp(path.end.uv.x, 0.0f, 1.0f);
-        // path.end.uv.y = clamp(path.end.uv.y, 0.0f, 1.0f);
-        // check_point(path.end);
-        auto point = intersect_mesh(mesh, bvh, camera, uv);
-        if (point.face == -1) continue;
-
-        // Add point to state.
-        state.polygons[polygon_id].points.push_back((int)state.points.size());
-        state.points.push_back(point);
-      }
-
-      if (state.polygons[polygon_id].points.size() <= 2) {
-        // assert(0);
-        state.polygons[polygon_id].points.clear();
-        continue;
-      }
-
-      recompute_polygon_segments(mesh, state, state.polygons[polygon_id]);
-    }
-  }
-
-  return state;
 }
 
-inline scene_camera make_camera(const bool_mesh& mesh, int seed = 0) {
-  auto bbox_size = size(mesh.bbox);
-  auto z         = zero3f;
-  if (bbox_size.x <= bbox_size.y && bbox_size.x <= bbox_size.z) {
-    z = {1, 0, 0};
-  }
-  if (bbox_size.y <= bbox_size.x && bbox_size.y <= bbox_size.z) {
-    z = {0, 1, 0};
-  }
-  if (bbox_size.z <= bbox_size.x && bbox_size.z <= bbox_size.y) {
-    z = {0, 0, 1};
+inline bool_test test_from_screenspace_polygons(
+    const vector<vector<vec2f>>& polygons_screenspace, const bool_mesh& mesh,
+    float drawing_size, rng_state& rng) {
+  auto polygons = polygons_screenspace;
+
+  // Flip polygons and fit into [-1, 1]^2 box.
+  normalize_polygons2D(polygons);
+
+  auto result = bool_test{};
+
+  // Convert into screenspace uv-coordinates for ray-tracing.
+  auto  screen_uvs = polygons;
+  auto& camera     = result.camera;
+  camera           = sample_camera(mesh, rng);
+  auto scale       = vec2f{1, camera.aspect} * drawing_size / camera.film;
+
+  for (auto& polygon : screen_uvs) {
+    for (auto& uv : polygon) {
+      uv *= scale;
+      uv += vec2f{0.5, 0.5};
+    }
   }
 
-  // auto x = vec3f{1, 0, 0};
-  auto x = zero3f;
-  if (bbox_size.x >= bbox_size.y && bbox_size.x >= bbox_size.z) {
-    x = {1, 0, 0};
-  }
-  if (bbox_size.z >= bbox_size.x && bbox_size.z >= bbox_size.y) {
-    x = {0, 0, 1};
-  }
-  if (bbox_size.y >= bbox_size.x && bbox_size.y >= bbox_size.z) {
-    x = {0, 1, 0};
-  }
+  result.polygons.push_back({});  // Add first null polygon.
 
-  auto up = -cross(x, z);
-  assert(length(up) > 0);
-  // if (up == z) up = {1, 0, 0};
-  auto camera = scene_camera{};
-  if (seed == 0) {
-    camera.frame = lookat_frame(3 * z + 2 * x, zero3f, up);
-  } else {
-    auto rng     = make_rng(seed);
-    auto dir     = sample_hemisphere(rand2f(rng));
-    camera.frame = lookat_frame(3 * dir, zero3f, up);
+  while (true) {
+  start:
+    camera = sample_camera(mesh, rng);
+
+    for (auto& polygon : screen_uvs) {
+      result.polygons.push_back({});
+      auto polygon_id = (int)result.polygons.size() - 1;
+
+      for (auto uv : polygon) {
+        auto point = intersect_mesh(mesh, mesh.bvh, camera, uv);
+        if (point.face == -1) goto start;
+
+        // Add point to test.
+        result.polygons[polygon_id].push_back((int)result.points.size());
+        result.points.push_back(point);
+      }
+
+      if (result.polygons[polygon_id].size() <= 2) {
+        result.polygons[polygon_id].clear();
+        continue;
+      }
+    }
+    break;
   }
-  return camera;
+  return result;
 }

@@ -83,11 +83,13 @@ bool_state state_from_test(const bool_mesh& mesh, const bool_test& test,
   state.points = test.points;
   state.polygons.clear();
 
-  if (test.screenspace) {
-    auto camera = make_camera(mesh);
-    return make_test_state(
-        test, mesh, mesh.bvh, camera, drawing_size, use_projection);
-  }
+// TODO(giacomo): Riattiva test .svg
+//  if (test.screenspace) {
+//    auto rng = make_rng(0);
+//    auto camera = sample_camera(mesh, rng);
+//    return test_state(
+//        test, mesh, mesh.bvh, camera, drawing_size, use_projection);
+//  }
 
   for (auto& polygon : test.polygons) {
     // Add new polygon to state.
