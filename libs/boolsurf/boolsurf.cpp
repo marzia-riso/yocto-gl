@@ -542,6 +542,37 @@ static int node_depth(const vector<mesh_cell>& cells, int start) {
   return max_depth;
 }
 
+static vector<vector<int>> compute_graph_components(
+    const vector<mesh_cell>& cells, const vector<int>& skip_polygons) {
+  auto components = vector<vector<int>>();
+  auto visited    = vector<bool>(cells.size(), false);
+
+  for (auto c = 0; c < cells.size(); c++) {
+    if (visited[c]) continue;
+
+    auto& component = components.emplace_back();
+    auto  stack     = vector<int>();
+    stack.push_back(c);
+
+    while (!stack.empty()) {
+      auto cell_idx = stack.back();
+      stack.pop_back();
+
+      if (visited[cell_idx]) continue;
+      visited[cell_idx] = true;
+      component.push_back(cell_idx);
+
+      auto& cell = cells[cell_idx];
+      for (auto& [neighbor, polygon] : cell.adjacency) {
+        if (find_idx(skip_polygons, polygon) != -1) continue;
+        if (visited[neighbor]) continue;
+        stack.push_back(neighbor);
+      }
+    }
+  }
+  return components;
+}
+
 static vector<int> find_ambient_cells(
     const vector<mesh_cell>& cells, const vector<int>& skip_polygons) {
   // Nel grafo di adiacenza tra le celle, le celle ambiente sono tutte quelle
@@ -1259,6 +1290,11 @@ static void compute_cell_labels(bool_state& state, int num_polygons) {
   // delle celle ambiente calcolate
   auto start = vector<int>{};
   if (cycle_nodes.size() > 0) {
+    auto components = compute_graph_components(state.cells, skip_polygons);
+    for (auto& c : components) {
+      print("Components:", c);
+    }
+
     start = cycle_nodes;
   } else {
     // Trova le celle ambiente nel grafo dell'adiacenza delle celle
