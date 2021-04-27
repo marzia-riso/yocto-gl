@@ -564,7 +564,7 @@ static vector<vector<int>> compute_graph_components(
 
       auto& cell = cells[cell_idx];
       for (auto& [neighbor, polygon] : cell.adjacency) {
-        if (find_idx(skip_polygons, polygon) != -1) continue;
+        if (find_idx(skip_polygons, yocto::abs(polygon)) != -1) continue;
         if (visited[neighbor]) continue;
         stack.push_back(neighbor);
       }
@@ -573,12 +573,13 @@ static vector<vector<int>> compute_graph_components(
   return components;
 }
 
-static vector<int> find_ambient_cells(
-    const vector<mesh_cell>& cells, const vector<int>& skip_polygons) {
+static vector<int> find_ambient_cells(const vector<mesh_cell>& cells,
+    const vector<int>& skip_polygons, const vector<int>& component) {
   // Nel grafo di adiacenza tra le celle, le celle ambiente sono tutte quelle
   // che non hanno archi entranti con segno di poligono positivo.
   auto adjacency = vector<int>(cells.size(), 0);
-  for (auto& cell : cells) {
+  for (auto cell_id : component) {
+    auto& cell = cells[cell_id];
     for (auto& [adj, p] : cell.adjacency) {
       if (find_idx(skip_polygons, p) != -1) continue;
       if (p > 0) adjacency[adj] += 1;
@@ -586,10 +587,12 @@ static vector<int> find_ambient_cells(
   }
 
   auto candidates = vector<int>{};
-  for (int i = 0; i < adjacency.size(); i++)
-    if (adjacency[i] == 0) candidates.push_back(i);
+  for (int cell_id : component)
+    if (adjacency[cell_id] == 0) candidates.push_back(cell_id);
 
-  auto heights = vector<int>(candidates.size());
+  if (candidates.size() == 1) return candidates;
+
+  auto heights = vector<int>(candidates.size(), -1);
   for (int i = 0; i < heights.size(); i++) {
     heights[i] = node_depth(cells, candidates[i]);
     printf("node: %d, height: %d\n", candidates[i], heights[i]);
@@ -1288,17 +1291,23 @@ static void compute_cell_labels(bool_state& state, int num_polygons) {
   // labelling da quelle celle, in modo da propagare le informazioni già
   // acquisite. In caso contrario la visita parte normalmente da una qualsiasi
   // delle celle ambiente calcolate
+  auto components = compute_graph_components(state.cells, skip_polygons);
+
   auto start = vector<int>{};
   if (cycle_nodes.size() > 0) {
-    auto components = compute_graph_components(state.cells, skip_polygons);
-    for (auto& c : components) {
-      print("Components:", c);
+    for (auto& component : components) {
+      if (component.size() == 1)
+        start.insert(start.end(), component.begin(), component.end());
+      else {
+        auto ambients = find_ambient_cells(
+            state.cells, skip_polygons, component);
+        start.insert(start.end(), ambients.begin(), ambients.end());
+      }
     }
 
-    start = cycle_nodes;
   } else {
     // Trova le celle ambiente nel grafo dell'adiacenza delle celle
-    start = find_ambient_cells(state.cells, skip_polygons);
+    start = find_ambient_cells(state.cells, skip_polygons, components[0]);
   }
 
   print("start", start);
