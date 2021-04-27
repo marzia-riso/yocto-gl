@@ -166,6 +166,7 @@ inline scene_camera sample_camera(const bool_mesh& mesh, rng_state& rng) {
   auto dir     = sample_hemisphere(rand2f(rng));
   auto camera  = scene_camera{};
   camera.frame = lookat_frame(3 * dir, zero3f, {0, 1, 0});
+  camera.focus = length(camera.frame.o);
   return camera;
 }
 

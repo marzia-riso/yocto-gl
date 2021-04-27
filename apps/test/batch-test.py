@@ -20,9 +20,11 @@ def svg(bin, dirname):
     mesh_names = glob.glob(f'{dirname}/meshes/*.ply')
     mesh_num = len(mesh_names)
 
+    outjson_dir = f'{dirname}/tests'
     output = f'{dirname}/output'
     images_dir = f'{output}/images'
     try:
+        os.mkdir(outjson_dir)
         os.mkdir(output)
         os.mkdir(images_dir)
     except:
@@ -42,7 +44,7 @@ def svg(bin, dirname):
         msg = f'[{mesh_id}/{mesh_num}] {mesh_name}'
         print(msg + ' ' * max(0, 78-len(msg)))
 
-        cmd = f'{bin} --model {mesh_name} --output {images_dir}/{name}.png data/svgs/abc.json'
+        cmd = f'{bin} --model {mesh_name} --output {images_dir}/{name}.png data/svgs/abc.json --output-json {outjson_dir}/{name}.json'
         print(cmd)
         if append == '':
             append = '--append-timings'

@@ -152,6 +152,23 @@ inline mesh_point intersect_mesh(
 
 vec3f get_cell_color(const bool_state& state, int cell_id, bool color_shapes);
 
+inline int genus(const bool_mesh& mesh) {
+  auto num_faces    = (int)mesh.triangles.size();
+  auto num_vertices = (int)mesh.positions.size();
+  auto num_edges    = 0;
+  for (int i = 0; i < mesh.adjacencies.size(); i++) {
+    for (int k = 0; k < 3; k++) {
+      if (mesh.adjacencies[i][k] != -1)
+        num_edges += 1;
+      else {
+        return -1;
+      }
+    }
+  }
+  // V + F - E = 2 - 2g -> g = -(V + F - E - 2) / 2
+  return -(num_vertices + num_faces - num_edges / 2 - 2) / 2;
+}
+
 /*
  *
  *

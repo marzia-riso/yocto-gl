@@ -120,6 +120,7 @@ void save_image(const string& output_filename, const bool_mesh& mesh,
 int main(int num_args, const char* args[]) {
   auto test_filename   = ""s;
   auto output_filename = "data/render.png"s;
+  auto output_json     = "data/generated-test.json"s;
   auto spp             = 4;
   auto model_filename  = ""s;
   auto svg_filename    = ""s;
@@ -132,6 +133,7 @@ int main(int num_args, const char* args[]) {
   add_argument(
       cli, "input", test_filename, "Input test filename (.json).", {}, false);
   add_option(cli, "output", output_filename, "Output image filename (.png).");
+  add_option(cli, "output-json", output_json, "Output json test file (.json).");
   add_option(cli, "spp", spp, "Samples per pixel.");
   add_option(cli, "model", model_filename, "Input model filename.");
   add_option(cli, "svg", svg_filename, "Input svg filename.");
@@ -210,6 +212,7 @@ int main(int num_args, const char* args[]) {
         // auto graph_outfile = path_join(graph_dir, graph_filename);
         // save_tree_png(state, graph_outfile, "", color_shapes);
 
+        // TODO(giacomo): Make this simpler.
         auto zero              = vector<int>(state.cells[0].labels.size(), 0);
         auto ambient_num_faces = 0;
         for (auto& cell : state.cells) {
@@ -218,7 +221,6 @@ int main(int num_args, const char* args[]) {
             ambient_num_faces = (int)cell.faces.size();
           }
         }
-        printf("ambient_num_faces: %d\n", ambient_num_faces);
 
         if (state.cells.size() == 1) {
           repeat = true;
@@ -235,11 +237,14 @@ int main(int num_args, const char* args[]) {
         repeat = true;
       }
 
-      if (!repeat) break;
-      mesh                = mesh_original;
-      new_test.model      = test.model;
-      new_test.has_camera = true;
-      save_test(new_test, output_filename);
+      if (!repeat) {
+        printf("output_json: %s\n", output_json.c_str());
+        new_test.has_camera = true;
+        new_test.model      = test.model;
+        save_test(new_test, output_json);
+        break;
+      }
+      mesh = mesh_original;
     }
   } else {
     state = state_from_test(mesh, test, 0.005, false);

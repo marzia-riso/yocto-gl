@@ -62,6 +62,8 @@ void init_mesh(bool_mesh& mesh) {
 
   mesh.dual_solver = make_dual_geodesic_solver(
       mesh.triangles, mesh.positions, mesh.adjacencies);
+
+  printf("genus: %d\n", genus(mesh));
 }
 
 void reset_mesh(bool_mesh& mesh) {
@@ -1216,7 +1218,6 @@ static void slice_mesh(bool_mesh& mesh, bool_state& state) {
   // Calcola i border_tags per le facce triangolata.
   mesh.border_tags = border_tags(mesh, hashgrid);
 }
-
 
 static void compute_cell_labels(bool_state& state, int num_polygons) {
   // Calcoliamo possibili cicli all'interno del grafo delle adiacenze della
