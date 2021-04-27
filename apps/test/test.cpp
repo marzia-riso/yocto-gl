@@ -150,7 +150,7 @@ int main(int num_args, const char* args[]) {
     auto cmd         = "python3 "s + script_path + " "s + test_filename + " "s +
                output + " "s + to_string(svg_subdivs);
     auto ret_value = system(cmd.c_str());
-    if (ret_value != 0) print_fatal("Svg conversion failed " + test_filename);
+    if (ret_value != 0) print_fatal("Svg conversion failed: " + test_filename);
 
     test_filename = output;
   }
@@ -191,8 +191,6 @@ int main(int num_args, const char* args[]) {
       test.camera = new_test.camera;
       state       = state_from_test(mesh, new_test, drawing_size, false);
 
-      printf("%s\n", "make_test_state");
-
       // save_image(to_string(seed) + output_filename, mesh, state, test.camera,
       // color_shapes, spp);
 
@@ -203,14 +201,14 @@ int main(int num_args, const char* args[]) {
         }
         compute_shapes(state);
 
-        save_image(
-            output_filename, mesh, state, test.camera, color_shapes, spp);
+        // save_image(
+        // output_filename, mesh, state, test.camera, color_shapes, spp);
 
-        auto graph_dir      = path_dirname(output_filename);
-        auto graph_filename = path_basename(output_filename) +
-                              string("_graph.png");
-        auto graph_outfile = path_join(graph_dir, graph_filename);
-        save_tree_png(state, graph_outfile, "", color_shapes);
+        // auto graph_dir      = path_dirname(output_filename);
+        // auto graph_filename = path_basename(output_filename) +
+        //                       string("_graph.png");
+        // auto graph_outfile = path_join(graph_dir, graph_filename);
+        // save_tree_png(state, graph_outfile, "", color_shapes);
 
         auto zero              = vector<int>(state.cells[0].labels.size(), 0);
         auto ambient_num_faces = 0;
@@ -238,7 +236,10 @@ int main(int num_args, const char* args[]) {
       }
 
       if (!repeat) break;
-      mesh = mesh_original;
+      mesh                = mesh_original;
+      new_test.model      = test.model;
+      new_test.has_camera = true;
+      save_test(new_test, output_filename);
     }
   } else {
     state = state_from_test(mesh, test, 0.005, false);
