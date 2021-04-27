@@ -1294,20 +1294,13 @@ static void compute_cell_labels(bool_state& state, int num_polygons) {
   auto components = compute_graph_components(state.cells, skip_polygons);
 
   auto start = vector<int>{};
-  if (cycle_nodes.size() > 0) {
-    for (auto& component : components) {
-      if (component.size() == 1)
-        start.insert(start.end(), component.begin(), component.end());
-      else {
-        auto ambients = find_ambient_cells(
-            state.cells, skip_polygons, component);
-        start.insert(start.end(), ambients.begin(), ambients.end());
-      }
+  for (auto& component : components) {
+    if (component.size() == 1)
+      start.insert(start.end(), component.begin(), component.end());
+    else {
+      auto ambients = find_ambient_cells(state.cells, skip_polygons, component);
+      start.insert(start.end(), ambients.begin(), ambients.end());
     }
-
-  } else {
-    // Trova le celle ambiente nel grafo dell'adiacenza delle celle
-    start = find_ambient_cells(state.cells, skip_polygons, components[0]);
   }
 
   print("start", start);
