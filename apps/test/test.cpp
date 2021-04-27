@@ -175,6 +175,12 @@ int main(int num_args, const char* args[]) {
     init_mesh(mesh);
     printf("triangles: %d\n", (int)mesh.triangles.size());
     printf("positions: %d\n\n", (int)mesh.positions.size());
+    auto g = genus(mesh);
+    printf("-- genus: %d\n", genus(mesh));
+    if (g >= 3) {
+      printf("Discarding mesh with genus %d\n", g);
+      return 8;
+    }
     mesh_original = mesh;
   }
   auto bvh = make_triangles_bvh(mesh.triangles, mesh.positions, {});

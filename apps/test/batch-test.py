@@ -8,25 +8,23 @@ import subprocess
 import json
 
 
-@click.group()
-def cli():
-    pass
+@click.command()
+@click.argument('bin', type=click.Path(exists=True))
+@click.argument('dirname', type=click.Path(exists=True))
+@click.argument('task')
+def test(bin, dirname, task):
+    if task == 'convert':
+        input_paths = glob.glob(f'{dirname}/meshes/*.ply')
+        output = f'{dirname}/tests'
+        drawing = 'data/svgs/abc.json'
+    elif task == 'test':
+        input_paths = glob.glob(f'{dirname}/tests/*.json')
+        output = f'{dirname}/images'
+    
+    input_num = len(input_paths)
 
-
-@cli.command()
-@click.argument('bin')
-@click.argument('dirname')
-def svg(bin, dirname):
-    mesh_names = glob.glob(f'{dirname}/meshes/*.ply')
-    mesh_num = len(mesh_names)
-
-    outjson_dir = f'{dirname}/tests'
-    output = f'{dirname}/output'
-    images_dir = f'{output}/images'
     try:
-        os.mkdir(outjson_dir)
         os.mkdir(output)
-        os.mkdir(images_dir)
     except:
         pass
 
@@ -36,98 +34,51 @@ def svg(bin, dirname):
     result['errors'] = []
     result['num_ok'] = 0
     result['ok'] = []
+    result['num_OS_errors'] = 0
+    result['OS_errors'] = []
+    result['num_timeouts'] = 0
+    result['timeouts'] = []
 
     append = ''
-    for mesh_id, mesh_name in enumerate(mesh_names):
+    for input_id, input_path in enumerate(input_paths):
         result['num_tests'] += 1
-        name = os.path.basename(mesh_name).split('.')[0]
-        msg = f'[{mesh_id}/{mesh_num}] {mesh_name}'
+        name = os.path.basename(input_path).split('.')[0]
+        msg = f'[{input_id}/{input_num}] {input_path}'
         print(msg + ' ' * max(0, 78-len(msg)))
 
-        cmd = f'{bin} --model {mesh_name} --output {images_dir}/{name}.png data/svgs/abc.json --output-json {outjson_dir}/{name}.json'
+        if task == 'convert':
+            cmd = f'{bin} --model {input_path} {drawing} --output-json {output}/{name}.json'
+        elif task == 'test':
+            cmd = f'{bin} {input_path} --output {output}/{name}.png'
         print(cmd)
-        if append == '':
-            append = '--append-timings'
-
-        try:
-            retcode = subprocess.run(cmd, timeout=60, shell=True).returncode
-            if retcode == 0:
-                result['num_ok'] += 1
-                result['ok'] += [mesh_name]
-            else:
-                result['num_errors'] += 1
-                result['errors'] += [mesh_name]
-        except:
-            result['num_errors'] += 1
-            result['errors'] += [mesh_name]
         
-        # except OSError:
-        #     result['num_errors'] += 1
-        #     result['errors'] += [mesh_name]
-
-        # except subprocess.TimeoutExpired:
-        #     result['num_errors'] += 1
-        #     result['errors'] += [mesh_name]
-
-
-
-    with open(f'{output}/trace-result.json', 'wt') as f:
-        json.dump(result, f, indent=2)
-
-
-@cli.command()
-@click.argument('bin')
-@click.argument('dirname')
-def jsons(bin, dirname):
-    jsons_names = glob.glob(f'{dirname}/tests/*.json')
-    jsons_num = len(jsons_names)
-
-    output = f'{dirname}/output'
-    images_dir = f'{output}/images'
-    try:
-        os.mkdir(output)
-        os.mkdir(images_dir)
-    except:
-        pass
-
-    result = {}
-    result['num_tests'] = 0
-    result['num_errors'] = 0
-    result['errors'] = []
-    result['num_ok'] = 0
-    result['ok'] = []
-
-    append = ''
-    for json_id, json_name in enumerate(jsons_names):
-        result['num_tests'] += 1
-        name = os.path.basename(json_name).split('.')[0]
-        msg = f'[{json_id}/{jsons_num}] {json_name}'
-        print(msg + ' ' * max(0, 78-len(msg)))
-
-        cmd = f'{bin} {json_name} --output {images_dir}/{name}.png'
-        print(cmd)
-        if append == '':
-            append = '--append-timings'
-
         try:
             retcode = subprocess.run(cmd, timeout=60, shell=True).returncode
             if retcode == 0:
                 result['num_ok'] += 1
-                result['ok'] += [json_name]
+                result['ok'] += [input_path]
+            elif retcode == -8:
+                result['num_high_genus'] += 1 
+                result['high_genus'] += [input_path] 
             else:
                 result['num_errors'] += 1
-                result['errors'] += [json_name]
+                result['errors'] += [input_path]
 
         except OSError:
-            result['num_errors'] += 1
-            result['errors'] += [json_name]
+            result['num_OS_errors'] += 1
+            result['OS_errors'] += [input_path]
 
         except subprocess.TimeoutExpired:
+            result['num_timeouts'] += 1
+            result['timeouts'] += [input_path]
+
+        except:
             result['num_errors'] += 1
-            result['errors'] += [json_name]
+            result['errors'] += [input_path]
 
-    with open(f'{output}/trace-result.json', 'wt') as f:
-        json.dump(result, f, indent=2)
+        with open(f'{output}/trace-result.json', 'wt') as f:
+            json.dump(result, f, indent=2)
 
 
-cli()
+if __name__ == '__main__':
+    test()

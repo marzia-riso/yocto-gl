@@ -62,8 +62,6 @@ void init_mesh(bool_mesh& mesh) {
 
   mesh.dual_solver = make_dual_geodesic_solver(
       mesh.triangles, mesh.positions, mesh.adjacencies);
-
-  printf("genus: %d\n", genus(mesh));
 }
 
 void reset_mesh(bool_mesh& mesh) {
@@ -1257,7 +1255,6 @@ static void compute_cell_labels(bool_state& state, int num_polygons) {
     auto heights    = vector<int>(candidates.size());
     for (int i = 0; i < heights.size(); i++) {
       heights[i] = node_depth(state, candidates[i]);
-      printf("node: %d, height: %d\n", candidates[i], heights[i]);
     }
     auto max_depth = *max_element(heights.begin(), heights.end());
 
@@ -1266,7 +1263,6 @@ static void compute_cell_labels(bool_state& state, int num_polygons) {
     }
   }
 
-  print("start", start);
   // Inizializza celle ambiente.
   for (auto& ss : start) {
     state.cells[ss].labels = vector<int>(num_polygons, 0);
@@ -1285,7 +1281,8 @@ static void compute_cell_labels(bool_state& state, int num_polygons) {
   for (auto& cell : state.cells) {
     for (auto& label : cell.labels) {
       if (label < 0) {
-        printf("[error]: cell, label = %d\n", label);
+        // printf("[error]: cell, label = %d\n", label);
+        exit(1);
       }
       if (label > 1) label = label % 2;
     }
