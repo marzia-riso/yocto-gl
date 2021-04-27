@@ -526,6 +526,22 @@ inline vector<mesh_cell> make_mesh_cells(
   return result;
 }
 
+static int node_depth(const vector<mesh_cell>& cells, int start) {
+  auto stack     = vector<pair<int, int>>{{start, 0}};
+  int  max_depth = 0;
+  while (stack.size()) {
+    auto [node, depth] = stack.back();
+    stack.pop_back();
+    max_depth = yocto::max(max_depth, depth);
+
+    for (auto& [neighbor, polygon] : cells[node].adjacency) {
+      if (polygon < 0) continue;
+      stack.push_back({neighbor, depth + 1});
+    }
+  }
+  return max_depth;
+}
+
 static vector<int> find_ambient_cells(
     const vector<mesh_cell>& cells, const vector<int>& skip_polygons) {
   // Nel grafo di adiacenza tra le celle, le celle ambiente sono tutte quelle
@@ -538,11 +554,22 @@ static vector<int> find_ambient_cells(
     }
   }
 
-  auto result = vector<int>{};
-  for (int i = 0; i < adjacency.size(); i++) {
-    if (adjacency[i] == 0) result.push_back(i);
+  auto candidates = vector<int>{};
+  for (int i = 0; i < adjacency.size(); i++)
+    if (adjacency[i] == 0) candidates.push_back(i);
+
+  auto heights = vector<int>(candidates.size());
+  for (int i = 0; i < heights.size(); i++) {
+    heights[i] = node_depth(cells, candidates[i]);
+    printf("node: %d, height: %d\n", candidates[i], heights[i]);
   }
-  return result;
+
+  auto start     = vector<int>{};
+  auto max_depth = *max_element(heights.begin(), heights.end());
+  for (int i = 0; i < candidates.size(); i++)
+    if (heights[i] == max_depth) start.push_back(candidates[i]);
+
+  return start;
 }
 
 static void compute_cycles(const vector<mesh_cell>& cells, int node,
@@ -1181,22 +1208,6 @@ static vector<vec3i> border_tags(
   return tags;
 }
 
-static int node_depth(const bool_state& state, int start) {
-  auto stack     = vector<pair<int, int>>{{start, 0}};
-  int  max_depth = 0;
-  while (stack.size()) {
-    auto [node, depth] = stack.back();
-    stack.pop_back();
-    max_depth = yocto::max(max_depth, depth);
-
-    for (auto& [neighbor, polygon] : state.cells[node].adjacency) {
-      if (polygon < 0) continue;
-      stack.push_back({neighbor, depth + 1});
-    }
-  }
-  return max_depth;
-}
-
 static void slice_mesh(bool_mesh& mesh, bool_state& state) {
   auto& polygons = state.polygons;
 
@@ -1251,17 +1262,7 @@ static void compute_cell_labels(bool_state& state, int num_polygons) {
     start = cycle_nodes;
   } else {
     // Trova le celle ambiente nel grafo dell'adiacenza delle celle
-    auto candidates = find_ambient_cells(state.cells, skip_polygons);
-    auto heights    = vector<int>(candidates.size());
-    for (int i = 0; i < heights.size(); i++) {
-      heights[i] = node_depth(state, candidates[i]);
-      printf("node: %d, height: %d\n", candidates[i], heights[i]);
-    }
-    auto max_depth = *max_element(heights.begin(), heights.end());
-
-    for (int i = 0; i < candidates.size(); i++) {
-      if (heights[i] == max_depth) start.push_back(candidates[i]);
-    }
+    start = find_ambient_cells(state.cells, skip_polygons);
   }
 
   print("start", start);
