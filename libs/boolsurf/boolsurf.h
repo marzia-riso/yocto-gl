@@ -5,12 +5,18 @@
 using namespace yocto;
 using namespace std;
 
-const static int null_label = 0;
+const static int null_label = -999;
+
+struct bool_borders {
+  vector<vec3i>         tags         = {};
+  vector<hash_set<int>> virtual_tags = {};
+  int                   num_polygons = 0;
+};
 
 struct bool_mesh : scene_shape {
   vector<vec3i>        adjacencies = {};
   dual_geodesic_solver dual_solver = {};
-  vector<vec3i>        border_tags = {};
+  bool_borders         borders     = {};
 
   shape_bvh                  bvh                = {};
   bbox3f                     bbox               = {};
@@ -55,7 +61,7 @@ struct triangulation_info {
 struct mesh_cell {
   vector<int>     faces     = {};
   hash_set<vec2i> adjacency = {};  // {cell_id, crossed_polygon_id}
-  vector<int>     labels    = {};
+  // vector<int>     labels    = {};
 };
 
 struct mesh_shape {
@@ -78,8 +84,10 @@ struct bool_state {
   hash_map<int, int>   control_points      = {};
   hash_map<int, vec2i> isecs_generators    = {};
 
-  int                ambient_cell   = -1;
-  vector<mesh_cell>  cells          = {};
+  vector<mesh_cell>   cells         = {};
+  vector<int>         ambient_cells = {};
+  vector<vector<int>> labels        = {};
+
   vector<mesh_shape> shapes         = {};
   vector<int>        shapes_sorting = {};
 };
@@ -182,21 +190,6 @@ inline int genus(const bool_mesh& mesh) {
  *
  */
 
-inline void print_cell_info(const mesh_cell& cell, int idx) {
-  printf("[cell %d]\n", idx);
-  printf("  faces: %d\n", (int)cell.faces.size());
-  printf("  adjacent cells: ");
-  for (auto& [cell_id, polygon_id] : cell.adjacency)
-    printf("(%d %d) ", cell_id, polygon_id);
-  printf("\n");
-
-  printf("  label: ");
-  for (auto p = 1; p < cell.labels.size(); p++) printf("%d ", cell.labels[p]);
-  printf("\n");
-
-  printf("\n\n");
-}
-
 template <typename F>
 static vector<int> flood_fill(const bool_mesh& mesh, const vector<int>& start,
     const int polygon, F&& check) {
@@ -278,14 +271,14 @@ static void flood_fill_debug(
 
   debug_result().push_back(face);
 
-  auto tag = mesh.border_tags[face];
+  auto tag = mesh.borders.tags[face];
   auto adj = mesh.adjacencies[face];
   printf("\nfrom %d: tag(%d %d %d) adj(%d %d %d)\n", face, tag[0], tag[1],
       tag[2], adj[0], adj[1], adj[2]);
 
   for (auto neighbor : mesh.adjacencies[face]) {
     if (neighbor < 0 || debug_visited()[neighbor]) continue;
-    auto tag = mesh.border_tags[neighbor];
+    auto tag = mesh.borders.tags[neighbor];
     auto adj = mesh.adjacencies[neighbor];
     if (check(face, neighbor)) {
       debug_stack().push_back(neighbor);

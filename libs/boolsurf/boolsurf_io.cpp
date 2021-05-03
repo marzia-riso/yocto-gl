@@ -115,12 +115,12 @@ string tree_to_string(const bool_state& state, bool color_shapes) {
     color       = rgb_to_hsv(color);
     char str[1024];
     auto label = string{};
-    for (int k = 1; k < cell.labels.size(); k++) {
-      if (cell.labels[k] == null_label) {
-        label += "- ";
+    for (int k = 1; k < state.labels[i].size(); k++) {
+      if (state.labels[i][k] == null_label) {
+        label += "0 ";
         continue;
       }
-      label += to_string(cell.labels[k]) + " ";
+      label += to_string(state.labels[i][k]) + " ";
     }
     sprintf(str, "%d [label=\"%d\n%s\" style=filled fillcolor=\"%f %f %f\"]\n",
         i, i, label.c_str(), color.x, color.y, color.z);

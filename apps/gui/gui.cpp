@@ -136,8 +136,8 @@ void draw_widgets(app_state* app, const gui_input& input) {
         "(" + to_string(a0) + ", " + to_string(a1) + ", " + to_string(a2) +
             ")");
 
-    if (!app->mesh.border_tags.empty()) {
-      auto [t0, t1, t2] = app->mesh.border_tags[face];
+    if (!app->mesh.borders.tags.empty()) {
+      auto [t0, t1, t2] = app->mesh.borders.tags[face];
       draw_label(widgets, "tags",
           "(" + to_string(t0) + ", " + to_string(t1) + ", " + to_string(t2) +
               ")");
@@ -147,6 +147,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
 
   if (app->selected_cell >= 0 && begin_header(widgets, "cell info", true)) {
     auto& cell = app->state.cells[app->selected_cell];
+    auto cell_id = app->selected_cell;
     draw_label(widgets, "cell", to_string(app->selected_cell));
     draw_label(widgets, "faces", to_string(cell.faces.size()));
 
@@ -155,8 +156,8 @@ void draw_widgets(app_state* app, const gui_input& input) {
     draw_label(widgets, "adj", s);
 
     s = ""s;
-    for (auto p = 1; p < cell.labels.size(); p++)
-      s += to_string(cell.labels[p]) + " ";
+    for (auto p = 1; p < app->state.labels[cell_id].size(); p++)
+      s += to_string(app->state.labels[cell_id][p]) + " ";
     draw_label(widgets, "label", s);
 
     end_header(widgets);
@@ -523,9 +524,9 @@ void key_input(app_state* app, const gui_input& input) {
       case (int)gui_key('F'): {
         auto add = [&](int face, int neighbor) -> bool {
           for (int k = 0; k < 3; k++) {
-            if (app->mesh.border_tags[face][k] == 0) continue;
-            if (find_in_vec(app->mesh.border_tags[neighbor],
-                    -app->mesh.border_tags[face][k]) != -1)
+            if (app->mesh.borders.tags[face][k] == 0) continue;
+            if (find_in_vec(app->mesh.borders.tags[neighbor],
+                    -app->mesh.borders.tags[face][k]) != -1)
               return false;
           }
           return true;
@@ -542,7 +543,7 @@ void key_input(app_state* app, const gui_input& input) {
         auto visited = debug_result();
 
         for (int i = 0; i < visited.size(); i++) {
-          auto tag = app->mesh.border_tags[visited[i]];
+          auto tag = app->mesh.borders.tags[visited[i]];
           auto adj = app->mesh.adjacencies[visited[i]];
           // printf("%d: tag(%d %d %d) adj(%d %d %d)\n", visited[i], tag[0],
           //     tag[1], tag[2], adj[0], adj[1], adj[2]);
@@ -559,9 +560,9 @@ void key_input(app_state* app, const gui_input& input) {
       case (int)gui_key('G'): {
         auto add = [&](int face, int neighbor) -> bool {
           for (int k = 0; k < 3; k++) {
-            if (app->mesh.border_tags[face][k] == 0) continue;
-            if (find_in_vec(app->mesh.border_tags[neighbor],
-                    -app->mesh.border_tags[face][k]) != -1)
+            if (app->mesh.borders.tags[face][k] == 0) continue;
+            if (find_in_vec(app->mesh.borders.tags[neighbor],
+                    -app->mesh.borders.tags[face][k]) != -1)
               return false;
           }
           return true;

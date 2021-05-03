@@ -218,11 +218,12 @@ int main(int num_args, const char* args[]) {
         // auto graph_outfile = path_join(graph_dir, graph_filename);
         // save_tree_png(state, graph_outfile, "", color_shapes);
 
-        // TODO(giacomo): Make this simpler.
-        auto zero              = vector<int>(state.cells[0].labels.size(), 0);
+        auto zero              = vector<int>(state.labels[0].size(), 0);
         auto ambient_num_faces = 0;
-        for (auto& cell : state.cells) {
-          if (cell.labels != zero) continue;
+
+        for (int c = 0; c < state.cells.size(); c++) {
+          auto& cell = state.cells[c];
+          if (state.labels[c] != zero) continue;
           if (ambient_num_faces < cell.faces.size()) {
             ambient_num_faces = (int)cell.faces.size();
           }
@@ -238,7 +239,6 @@ int main(int num_args, const char* args[]) {
             break;
           }
         }
-
       } catch (const std::exception&) {
         repeat = true;
       }
