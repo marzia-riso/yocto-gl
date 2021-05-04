@@ -42,11 +42,12 @@ struct app_state {
 
   bool_state state = {};
 
-  vector<shade_instance*> cell_shapes       = {};
-  vector<shade_instance*> polygon_shapes    = {};
-  shade_instance*         hashgrid_shape    = nullptr;
-  shade_instance*         inner_faces_shape = nullptr;
-  shade_instance*         outer_faces_shape = nullptr;
+  vector<shade_instance*> cell_shapes         = {};
+  vector<shade_instance*> polygon_shapes      = {};
+  shade_instance*         hashgrid_shape      = nullptr;
+  vector<shade_instance*> border_faces_shapes = {};
+  // shade_instance*         inner_faces_shape = nullptr;
+  // shade_instance*         outer_faces_shape = nullptr;
 
   vector<bool_state> history        = {};
   int                history_index  = 0;
@@ -230,12 +231,7 @@ void init_glscene(app_state* app, shade_scene* glscene, const bool_mesh& mesh) {
       0.050, 16.0f / 9.0f, 0.036);
   app->glcamera->focus = length(app->glcamera->frame.o);
 
-  // material
-  // TODO(giacomo): Replace this with a proper colormap.
-  //  if (progress_cb) progress_cb("convert material", progress.x++,
-  //  progress.y);
-  app->mesh_material = add_material(
-      glscene, {0, 0, 0}, {0.5, 0.5, 0.9}, 1, 0, 0.4);
+  app->mesh_material  = add_material(glscene, {0, 0, 0}, {1, 1, 1}, 1, 0, 0.4);
   app->edges_material = add_material(
       glscene, {0, 0, 0}, {0.4, 0.4, 1}, 1, 0, 0.4);
   app->points_material = add_material(glscene, {0, 0, 0}, {0, 0, 1}, 1, 0, 0.4);
@@ -350,20 +346,21 @@ mesh_point intersect_mesh_original(
 
 shade_instance* add_patch_shape(
     app_state* app, const vector<int>& faces, const vec3f& color) {
-  auto patch_shape    = add_shape(app->glscene, {}, {}, {}, {}, {}, {}, {}, {});
-  auto patch_material = add_material(app->glscene);  // @Leak
-  *patch_material     = *app->mesh_material;
-  patch_material->color = color;
-  set_patch_shape(patch_shape, app->mesh, faces);
-  return add_instance(app->glscene, identity3x4f, patch_shape, patch_material);
+  auto instance       = add_instance(app->glscene);
+  instance->shape     = add_shape(app->glscene, {}, {}, {}, {}, {}, {}, {}, {});
+  instance->material  = add_material(app->glscene);
+  *instance->material = *app->mesh_material;
+  instance->material->color = color;
+  set_patch_shape(instance->shape, app->mesh, faces);
+  return instance;
 }
 
-shade_instance* add_patch_shape(
-    app_state* app, const vector<int>& faces, shade_material* material) {
-  auto patch_shape = add_shape(app->glscene, {}, {}, {}, {}, {}, {}, {}, {});
-  set_patch_shape(patch_shape, app->mesh, faces);
-  return add_instance(app->glscene, identity3x4f, patch_shape, material);
-}
+// shade_instance* add_patch_shape(
+//     app_state* app, const vector<int>& faces, shade_material* material) {
+//   auto patch_shape = add_shape(app->glscene, {}, {}, {}, {}, {}, {}, {}, {});
+//   set_patch_shape(patch_shape, app->mesh, faces);
+//   return add_instance(app->glscene, identity3x4f, patch_shape, material);
+// }
 
 void add_polygon_shape(app_state* app, const mesh_polygon& polygon, int index) {
   auto polygon_shape = add_shape(app->glscene, {}, {}, {}, {}, {}, {}, {}, {});

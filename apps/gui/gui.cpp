@@ -146,10 +146,12 @@ void draw_widgets(app_state* app, const gui_input& input) {
     if (app->hashgrid_shape) {
       draw_checkbox(widgets, "hashgrid", app->hashgrid_shape->hidden, true);
     }
-    if (app->inner_faces_shape && app->outer_faces_shape) {
-      if (draw_checkbox(
-              widgets, "border faces", app->inner_faces_shape->hidden, true)) {
-        app->outer_faces_shape->hidden = app->inner_faces_shape->hidden;
+    if (app->border_faces_shapes.size()) {
+      if (draw_checkbox(widgets, "border faces",
+              app->border_faces_shapes[0]->hidden, true)) {
+        for (auto& shape : app->border_faces_shapes) {
+          shape->hidden = app->border_faces_shapes[0]->hidden;
+        }
       }
     }
     // end_header(widgets);
@@ -189,8 +191,8 @@ void draw_widgets(app_state* app, const gui_input& input) {
   }
 
   if (app->selected_cell >= 0 && begin_header(widgets, "cell info", true)) {
-    auto& cell = app->state.cells[app->selected_cell];
-    auto cell_id = app->selected_cell;
+    auto& cell    = app->state.cells[app->selected_cell];
+    auto  cell_id = app->selected_cell;
     draw_label(widgets, "cell", to_string(app->selected_cell));
     draw_label(widgets, "faces", to_string(cell.faces.size()));
 
@@ -202,6 +204,9 @@ void draw_widgets(app_state* app, const gui_input& input) {
     for (auto p = 1; p < app->state.labels[cell_id].size(); p++)
       s += to_string(app->state.labels[cell_id][p]) + " ";
     draw_label(widgets, "label", s);
+
+    draw_coloredit(
+        widgets, "color", app->cell_shapes[cell_id]->material->color);
 
     end_header(widgets);
   }
@@ -474,23 +479,28 @@ void key_input(app_state* app, const gui_input& input) {
           app->hashgrid_shape->depth_test = ogl_depth_test::always;
           app->glscene->instances += app->polygon_shapes;
 
-          auto inner_faces = vector<int>{};
-          auto outer_faces = vector<int>{};
-          for (int i = 0; i < app->mesh.border_tags.size(); i++) {
-            auto tag = app->mesh.border_tags[i];
-            if (tag.x > 0 || tag.y > 0 || tag.z > 0) {
-              inner_faces.push_back(i);
-            }
-            if (tag.x < 0 || tag.y < 0 || tag.z < 0) {
-              outer_faces.push_back(i);
-            }
+          // auto inner_faces      = vector<int>{};
+          // auto outer_faces      = vector<int>{};
+          auto border_faces_map = hash_map<hash_set<int>, vector<int>>{};
+          for (int i = 0; i < app->mesh.borders.tags.size(); i++) {
+            auto tag     = app->mesh.borders.tags[i];
+            auto tag_set = hash_set<int>{};
+            if (tag.x < 0) tag_set.insert(-tag.x);
+            if (tag.y < 0) tag_set.insert(-tag.y);
+            if (tag.z < 0) tag_set.insert(-tag.z);
+            if (tag_set.empty()) continue;
+            border_faces_map[tag_set].push_back(i);
           }
-          app->inner_faces_shape = add_patch_shape(
-              app, inner_faces, vec3f{1, 0, 0});
-          app->outer_faces_shape = add_patch_shape(
-              app, outer_faces, vec3f{0, 0, 1});
-          app->inner_faces_shape->depth_test = ogl_depth_test::always;
-          app->outer_faces_shape->depth_test = ogl_depth_test::always;
+          for (auto& [set, faces] : border_faces_map) {
+            auto color = vec3f{0, 0, 0};
+            for (auto& polygon_id : set) {
+              color += get_color(polygon_id);
+            }
+            color /= set.size();
+            app->border_faces_shapes += add_patch_shape(app, faces, color);
+            app->border_faces_shapes.back()->depth_test =
+                ogl_depth_test::always;
+          }
         }
       } break;
 
@@ -576,7 +586,7 @@ void key_input(app_state* app, const gui_input& input) {
         if (app->temp_patch) {
           set_patch_shape(app->temp_patch->shape, app->mesh, visited);
         } else {
-          app->temp_patch = add_patch_shape(app, visited, app->materials.green);
+          app->temp_patch = add_patch_shape(app, visited, {0, 1, 0});
         }
         app->temp_patch->depth_test = ogl_depth_test::always;
       } break;
@@ -597,7 +607,7 @@ void key_input(app_state* app, const gui_input& input) {
         if (app->temp_patch) {
           set_patch_shape(app->temp_patch->shape, app->mesh, visited);
         } else {
-          app->temp_patch = add_patch_shape(app, visited, app->materials.green);
+          app->temp_patch = add_patch_shape(app, visited, {0, 1, 0});
         }
         app->temp_patch->depth_test = ogl_depth_test::always;
       } break;
