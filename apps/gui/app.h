@@ -50,7 +50,7 @@ struct app_state {
   // shade_instance*         outer_faces_shape = nullptr;
 
   vector<bool_state> history        = {};
-  int                history_index  = 0;
+  int                history_index  = -1;
   int                selected_cell  = -1;
   int                selected_shape = -1;
 
@@ -111,15 +111,23 @@ void update_polygon(app_state* app, int polygon_id, int index = 0) {
   recompute_polygon_segments(app->mesh, app->state, mesh_polygon, index);
   if (mesh_polygon.length > 0)
     set_polygon_shape(polygon_shape->shape, app->mesh, mesh_polygon);
+  else
+    if(polygon_shape->shape) clear_shape(polygon_shape->shape);
 }
 
 void update_polygons(app_state* app) {
   for (int i = 1; i < app->state.polygons.size(); i++) {
     update_polygon(app, i);
   }
+  for (auto i = app->state.polygons.size(); i < app->polygon_shapes.size();
+       i++) {
+    clear_shape(app->polygon_shapes[i]->shape);
+  }
+  app->polygon_shapes.resize(app->state.polygons.size());
 }
 
 void commit_state(app_state* app) {
+  PRINT_CALL();
   app->history_index += 1;
   app->history.resize(app->history_index + 1);
   app->history[app->history_index] = app->state;
@@ -129,7 +137,7 @@ inline void update_cell_shapes(app_state* app);
 inline void update_cell_colors(app_state* app);
 
 bool undo_state(app_state* app) {
-  if (app->history_index <= 1) return false;
+  if (app->history_index <= 0) return false;
   app->history_index -= 1;
   app->state = app->history[app->history_index];
   update_polygons(app);

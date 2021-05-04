@@ -16,6 +16,11 @@ using namespace yocto;
 // TODO(giacomo): Define only in debug!
 #define MY_DEBUG
 
+#define _PRINT_CALL(function, file, line) \
+  printf("%s() at %s, line %d\n", function, file, line)
+
+#define PRINT_CALL() _PRINT_CALL(__FUNCTION__, __FILE__, __LINE__)
+
 inline int mod3(int i) { return (i > 2) ? i - 3 : i; }
 
 // Vector append and concatenation
