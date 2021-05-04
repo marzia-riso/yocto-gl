@@ -52,7 +52,7 @@ def svg(bin, dirname):
             if retcode == 0:
                 result['num_ok'] += 1
                 result['ok'] += [mesh_name]
-            elif retcode < 0:
+            else:
                 result['num_errors'] += 1
                 result['errors'] += [mesh_name]
         except:
@@ -112,7 +112,7 @@ def jsons(bin, dirname):
             if retcode == 0:
                 result['num_ok'] += 1
                 result['ok'] += [json_name]
-            elif retcode < 0:
+            else:
                 result['num_errors'] += 1
                 result['errors'] += [json_name]
 

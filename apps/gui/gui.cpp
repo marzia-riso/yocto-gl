@@ -76,6 +76,28 @@ void draw_widgets(app_state* app, const gui_input& input) {
     save_test(app, app->state, filename);
   }
 
+  if (draw_filedialog_button(widgets, "load svg", true, "load svg",
+          app->svg_filename, false, "data/svgs/", "test.svg", "*.svg")) {
+    // app->state = {};
+    // for (auto& shape : app->polygon_shapes) clear_shape(shape->shape);
+    // app->polygon_shapes = {};
+    auto num_polygons = (int)app->state.polygons.size();
+
+    auto svg = load_svg(app->svg_filename);
+
+    init_from_svg(app->state, app->mesh, app->last_clicked_point, svg,
+        app->svg_size, app->svg_subdivs);
+
+    for (auto p = num_polygons; p < app->state.polygons.size(); p++) {
+      auto& polygon = app->state.polygons[p];
+      add_polygon_shape(app, polygon, p);
+    }
+
+    update_polygons(app);
+  }
+
+  draw_slider(widgets, "svg_size", app->svg_size, 0.0, 1.0);
+
   static auto view_triangulation = false;
   draw_checkbox(widgets, "view triangulation", view_triangulation);
   if (view_triangulation) {
@@ -157,8 +179,8 @@ void draw_widgets(app_state* app, const gui_input& input) {
         "(" + to_string(a0) + ", " + to_string(a1) + ", " + to_string(a2) +
             ")");
 
-    if (!app->mesh.border_tags.empty()) {
-      auto [t0, t1, t2] = app->mesh.border_tags[face];
+    if (!app->mesh.borders.tags.empty()) {
+      auto [t0, t1, t2] = app->mesh.borders.tags[face];
       draw_label(widgets, "tags",
           "(" + to_string(t0) + ", " + to_string(t1) + ", " + to_string(t2) +
               ")");
@@ -168,6 +190,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
 
   if (app->selected_cell >= 0 && begin_header(widgets, "cell info", true)) {
     auto& cell = app->state.cells[app->selected_cell];
+    auto cell_id = app->selected_cell;
     draw_label(widgets, "cell", to_string(app->selected_cell));
     draw_label(widgets, "faces", to_string(cell.faces.size()));
 
@@ -176,8 +199,8 @@ void draw_widgets(app_state* app, const gui_input& input) {
     draw_label(widgets, "adj", s);
 
     s = ""s;
-    for (auto p = 1; p < cell.labels.size(); p++)
-      s += to_string(cell.labels[p]) + " ";
+    for (auto p = 1; p < app->state.labels[cell_id].size(); p++)
+      s += to_string(app->state.labels[cell_id][p]) + " ";
     draw_label(widgets, "label", s);
 
     end_header(widgets);
@@ -236,42 +259,6 @@ void draw_widgets(app_state* app, const gui_input& input) {
     commit_state(app);
     app->operation = {};
     app->test.operations.clear();
-  }
-  if (draw_button(widgets, "Draw letter")) {
-    auto svg      = load_svg("data/svgs/rectangle.svg");
-    auto polygons = vector<vector<vec2f>>{
-        {{344.261, 488.09}, {435.116, 100.957}, {603.936, 129.097},
-            {638.062, 169.8}, {647.917, 208.993}, {646.561, 252.953},
-            {629.785, 276.726}, {610.792, 303.154}, {583.55, 316.923},
-            {609.525, 332.67}, {628.794, 365.505}, {631.995, 400.703},
-            {626.094, 452.98}, {601.427, 487.932}, {537.858, 511.936},
-            {450.002, 514.445}},
-        {{344.261, 488.09}, {435.116, 100.957}, {603.936, 129.097},
-            {638.062, 169.8}, {647.917, 208.993}, {646.561, 252.953},
-            {629.785, 276.726}, {610.792, 303.154}, {583.55, 316.923},
-            {609.525, 332.67}, {628.794, 365.505}, {631.995, 400.703},
-            {626.094, 452.98}, {601.427, 487.932}, {537.858, 511.936},
-            {450.002, 514.445}}};
-
-    for (auto& polygon : polygons) {
-      auto polygon_id = (int)app->state.polygons.size() - 1;
-
-      for (auto uv : polygon) {
-        // Add point index to last polygon.
-        app->state.polygons[polygon_id].points.push_back(
-            (int)app->state.points.size());
-
-        uv.x /= input.window_size.x;
-        uv.y /= input.window_size.y;
-        auto point = intersect_mesh(app->mesh, app->camera, uv);
-        if (point.face == -1) continue;
-
-        // Add point to state.
-        app->state.points.push_back(point);
-      }
-      update_polygon(app, polygon_id);
-    }
-    app->state.polygons.push_back({});
   }
 
   end_imgui(widgets);
@@ -551,21 +538,6 @@ void key_input(app_state* app, const gui_input& input) {
       } break;
 
       case (int)gui_key('S'): {
-        app->state = {};
-        for (auto& shape : app->polygon_shapes) clear_shape(shape->shape);
-        app->polygon_shapes = {};
-
-        auto svg = load_svg(app->svg_filename);
-
-        init_from_svg(app->state, app->mesh, app->last_clicked_point, svg,
-            app->svg_size, app->svg_subdivs);
-
-        for (auto p = 0; p < app->state.polygons.size(); p++) {
-          auto& polygon = app->state.polygons[p];
-          add_polygon_shape(app, polygon, p);
-        }
-
-        update_polygons(app);
       } break;
 
 #ifdef MY_DEBUG
@@ -576,9 +548,9 @@ void key_input(app_state* app, const gui_input& input) {
       case (int)gui_key('F'): {
         auto add = [&](int face, int neighbor) -> bool {
           for (int k = 0; k < 3; k++) {
-            if (app->mesh.border_tags[face][k] == 0) continue;
-            if (find_in_vec(app->mesh.border_tags[neighbor],
-                    -app->mesh.border_tags[face][k]) != -1)
+            if (app->mesh.borders.tags[face][k] == 0) continue;
+            if (find_in_vec(app->mesh.borders.tags[neighbor],
+                    -app->mesh.borders.tags[face][k]) != -1)
               return false;
           }
           return true;
@@ -595,7 +567,7 @@ void key_input(app_state* app, const gui_input& input) {
         auto visited = debug_result();
 
         for (int i = 0; i < visited.size(); i++) {
-          auto tag = app->mesh.border_tags[visited[i]];
+          auto tag = app->mesh.borders.tags[visited[i]];
           auto adj = app->mesh.adjacencies[visited[i]];
           // printf("%d: tag(%d %d %d) adj(%d %d %d)\n", visited[i], tag[0],
           //     tag[1], tag[2], adj[0], adj[1], adj[2]);
@@ -612,9 +584,9 @@ void key_input(app_state* app, const gui_input& input) {
       case (int)gui_key('G'): {
         auto add = [&](int face, int neighbor) -> bool {
           for (int k = 0; k < 3; k++) {
-            if (app->mesh.border_tags[face][k] == 0) continue;
-            if (find_in_vec(app->mesh.border_tags[neighbor],
-                    -app->mesh.border_tags[face][k]) != -1)
+            if (app->mesh.borders.tags[face][k] == 0) continue;
+            if (find_in_vec(app->mesh.borders.tags[neighbor],
+                    -app->mesh.borders.tags[face][k]) != -1)
               return false;
           }
           return true;
