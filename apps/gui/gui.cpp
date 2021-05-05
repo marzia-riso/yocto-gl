@@ -106,6 +106,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
   }
 
   draw_slider(widgets, "svg_size", app->svg_size, 0.0, 1.0);
+  draw_slider(widgets, "svg_subdivisions", app->svg_subdivs, 2, 16);
 
   static auto view_triangulation = false;
   draw_checkbox(widgets, "view triangulation", view_triangulation);

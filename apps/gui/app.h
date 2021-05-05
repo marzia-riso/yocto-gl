@@ -23,8 +23,8 @@ struct app_state {
   string         model_filename = "";
   string         test_filename  = "";
   string         svg_filename   = "";
-  int            svg_subdivs    = 2;
-  float          svg_size       = 0.005f;
+  int            svg_subdivs    = 4;
+  float          svg_size       = 0.5f;
   bool_test      test           = {};
   bool_operation operation      = {};
   gui_window*    window         = nullptr;
@@ -111,8 +111,8 @@ void update_polygon(app_state* app, int polygon_id, int index = 0) {
   recompute_polygon_segments(app->mesh, app->state, mesh_polygon, index);
   if (mesh_polygon.length > 0)
     set_polygon_shape(polygon_shape->shape, app->mesh, mesh_polygon);
-  else
-    if(polygon_shape->shape) clear_shape(polygon_shape->shape);
+  else if (polygon_shape->shape)
+    clear_shape(polygon_shape->shape);
 }
 
 void update_polygons(app_state* app) {
