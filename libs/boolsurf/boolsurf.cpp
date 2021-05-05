@@ -1273,6 +1273,8 @@ static void compute_cell_labels(bool_state& state) {
   // poligoni
 
   state.ambient_cells = find_ambient_cells(state, cycle_nodes);
+  if (state.ambient_cells.empty())
+    state.ambient_cells = vector<int>(cycle_nodes.begin(), cycle_nodes.end());
 
   state.labels = propagate_cell_labels(state.cells, state.ambient_cells, cycles,
       skip_polygons, state.polygons.size());
