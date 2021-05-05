@@ -100,6 +100,105 @@ bool_state state_from_test(const bool_mesh& mesh, const bool_test& test,
   return state;
 }
 
+scene_model make_scene(const bool_mesh& mesh, const bool_state& state,
+    const scene_camera& camera, bool color_shapes) {
+  auto scene = scene_model{};
+  scene.cameras.push_back(camera);
+
+  for (int i = 0; i < state.cells.size(); i++) {
+    auto& cell = state.cells[i];
+
+    auto& instance     = scene.instances.emplace_back();
+    instance.material  = (int)scene.materials.size();
+    auto& material     = scene.materials.emplace_back();
+    material.color     = get_cell_color(state, i, color_shapes);
+    material.type      = scene_material_type::glossy;
+    material.roughness = 0.5;
+    instance.shape     = (int)scene.shapes.size();
+    auto& shape        = scene.shapes.emplace_back();
+
+    // TODO(giacomo): Too many copies of positions.
+    shape.positions = mesh.positions;
+    for (auto face : cell.faces) {
+      shape.triangles.push_back(mesh.triangles[face]);
+    }
+
+    if (0) {
+      auto& instance     = scene.instances.emplace_back();
+      instance.shape     = (int)scene.shapes.size();
+      instance.material  = (int)scene.materials.size();
+      auto& material     = scene.materials.emplace_back();
+      material.color     = {0, 0, 1};
+      material.type      = scene_material_type::glossy;
+      material.roughness = 0.5;
+      auto& edges        = scene.shapes.emplace_back();
+      for (auto& tr : mesh.triangles) {
+        for (int k = 0; k < 3; k++) {
+          auto a = tr[k];
+          auto b = tr[(k + 1) % 3];
+          if (a > b) continue;
+          auto index = (int)edges.positions.size();
+          edges.radius.push_back(0.001);
+          edges.radius.push_back(0.001);
+          edges.lines.push_back({index, index + 1});
+          edges.positions.push_back(mesh.positions[a]);
+          edges.positions.push_back(mesh.positions[b]);
+        }
+      }
+    }
+  }
+
+  if (scene.shapes.empty()) {
+    auto& instance     = scene.instances.emplace_back();
+    instance.material  = (int)scene.materials.size();
+    auto& material     = scene.materials.emplace_back();
+    material.color     = {0.5, 0.5, 0.5};
+    material.type      = scene_material_type::glossy;
+    material.roughness = 0.5;
+    instance.shape     = (int)scene.shapes.size();
+    auto& shape        = scene.shapes.emplace_back();
+
+    shape.positions = mesh.positions;
+    shape.triangles = mesh.triangles;
+
+    for (int i = 1; i < state.polygons.size(); i++) {
+      auto& polygon   = state.polygons[i];
+      auto  positions = vector<vec3f>();
+      positions.reserve(polygon.length + 1);
+
+      for (auto& edge : polygon.edges) {
+        for (auto& segment : edge) {
+          positions.push_back(
+              eval_position(mesh, {segment.face, segment.start}));
+        }
+      }
+
+      if (polygon.edges.size() && polygon.edges.back().size()) {
+        auto& segment = polygon.edges.back().back();
+        positions.push_back(eval_position(mesh, {segment.face, segment.end}));
+      }
+      if (positions.empty()) continue;
+
+      auto lines = vector<vec2i>(positions.size() - 1);
+      for (int i = 0; i < lines.size(); i++) {
+        lines[i] = {i, i + 1};
+      }
+
+      auto& instance    = scene.instances.emplace_back();
+      instance.material = (int)scene.materials.size();
+      auto& material    = scene.materials.emplace_back();
+      material.emission = {1, 0, 0};
+      material.type     = scene_material_type::matte;
+      instance.shape    = (int)scene.shapes.size();
+      auto& shape       = scene.shapes.emplace_back();
+      shape.radius      = vector<float>(positions.size(), 0.001);
+      shape.positions   = positions;
+      shape.lines       = lines;
+    }
+  }
+  return scene;
+}
+
 #include <yocto/yocto_color.h>
 
 string tree_to_string(const bool_state& state, bool color_shapes) {
@@ -216,14 +315,19 @@ vector<Svg_Shape> load_svg(const string& filename) {
 void init_from_svg(bool_state& state, const bool_mesh& mesh,
     const mesh_point& center, const vector<Svg_Shape>& svg, float svg_size,
     int svg_subdivs) {
-  auto p0    = eval_position(mesh, {center.face, {0, 0}});
-  auto p1    = eval_position(mesh, {center.face, {0, 1}});
-  auto v     = normalize(p1 - p0);
-  auto frame = basis_fromz(eval_normal(mesh, {center.face, {0, 0}}));
-  // auto rot   = vec2f{dot(v, frame.x), dot(v, frame.y)};
-  //
-  // app.commit_state();
-  // app.splines() = {};
+  auto p0  = eval_position(mesh, {center.face, {0, 0}});
+  auto p1  = eval_position(mesh, {center.face, {1, 0}});
+  auto rot = mat2f{};
+  {
+    auto frame = mat3f{};
+    frame.x    = normalize(p1 - p0);
+    frame.z    = eval_normal(mesh, center.face);
+    frame.y    = normalize(cross(frame.z, frame.x));
+
+    auto up = vec3f{0, 1, 0};
+    auto v  = normalize(vec2f{dot(up, frame.x), dot(up, frame.y)});
+    rot     = mat2f{{v.x, v.y}, {-v.y, v.x}};
+  }
 
   for (auto& shape : svg) {
     for (auto& path : shape.paths) {
@@ -239,20 +343,12 @@ void init_from_svg(bool_state& state, const bool_mesh& mesh,
           // vec2f uv = clamp(segment[i], 0.0f, 1.0f);
           vec2f uv = segment[i];
           uv -= vec2f{0.5, 0.5};
+          uv = rot * uv;
           uv *= svg_size;
           auto line = straightest_path(mesh, center, uv);
           control_points += line.end;
         }
       }
-
-      // auto& segment = path.back();
-      // // vec2f uv      = clamp(segment[3], 0.0f, 1.0f);
-      // vec2f uv = segment[3];
-      // uv -= vec2f{0.5, 0.5};
-      // uv *= svg_size;
-      // auto line = straightest_path(mesh, center, uv);
-      // control_points += line.end;
-
       auto bezier = compute_bezier_path(mesh.dual_solver, mesh.triangles,
           mesh.positions, mesh.adjacencies, control_points, svg_subdivs);
 

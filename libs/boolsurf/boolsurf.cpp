@@ -185,6 +185,14 @@ void recompute_polygon_segments(const bool_mesh& mesh, const bool_state& state,
   polygon.is_contained_in_single_face = (faces.size() == 1);
 }
 
+struct hashgrid_polyline {
+  int           polygon  = -1;
+  vector<vec2f> points   = {};
+  vector<int>   vertices = {};
+
+  bool is_closed = false;
+};
+
 inline int num_segments(const hashgrid_polyline& polyline) {
   if (polyline.is_closed) return (int)polyline.points.size();
   return (int)polyline.points.size() - 1;

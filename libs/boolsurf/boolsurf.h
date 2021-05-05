@@ -5,16 +5,6 @@
 using namespace yocto;
 using namespace std;
 
-struct hashgrid_polyline {
-  int           polygon  = -1;
-  vector<vec2f> points   = {};
-  vector<int>   vertices = {};
-
-  bool is_closed = false;
-};
-
-using mesh_hashgrid = hash_map<int, vector<hashgrid_polyline>>;
-
 const static int null_label = -999;
 
 struct bool_borders {
@@ -33,7 +23,6 @@ struct bool_mesh : scene_shape {
   int                        num_triangles      = 0;
   int                        num_positions      = 0;
   hash_map<int, vector<int>> triangulated_faces = {};
-  mesh_hashgrid              hashgrid           = {};
 };
 
 struct mesh_segment {
@@ -159,6 +148,12 @@ inline vec3f eval_position(const bool_mesh& mesh, const mesh_point& point) {
 
 inline vec3f eval_normal(const bool_mesh& mesh, const mesh_point& point) {
   return eval_normal(mesh.triangles, mesh.positions, point);
+}
+
+inline vec3f eval_normal(const bool_mesh& mesh, int face) {
+  auto [x, y, z] = mesh.triangles[face];
+  return triangle_normal(
+      mesh.positions[x], mesh.positions[y], mesh.positions[z]);
 }
 
 mesh_point intersect_mesh(const bool_mesh& mesh, const shape_bvh& bvh,

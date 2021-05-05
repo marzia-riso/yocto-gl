@@ -70,17 +70,14 @@ void draw_widgets(app_state* app, const gui_input& input) {
   }
   continue_line(widgets);
 
-  static auto filename = ""s;
-  if (draw_filedialog_button(widgets, "save test", true, "save file", filename,
-          true, "data/tests", "test.json", "*.json")) {
-    save_test(app, app->state, filename);
+  static auto test_filename = ""s;
+  if (draw_filedialog_button(widgets, "save test", true, "save file",
+          test_filename, true, "data/tests", "test.json", "*.json")) {
+    save_test(app, app->state, test_filename);
   }
 
   if (draw_filedialog_button(widgets, "load svg", true, "load svg",
           app->svg_filename, false, "data/svgs/", "test.svg", "*.svg")) {
-    // app->state = {};
-    // for (auto& shape : app->polygon_shapes) clear_shape(shape->shape);
-    // app->polygon_shapes = {};
     auto num_polygons = (int)app->state.polygons.size();
 
     auto svg = load_svg(app->svg_filename);
@@ -94,6 +91,18 @@ void draw_widgets(app_state* app, const gui_input& input) {
     }
 
     update_polygons(app);
+  }
+
+  static auto scene_filename = "data/scenes/"s;
+  draw_textinput(widgets, "scene", scene_filename);
+
+  if (draw_button(widgets, "save scene")) {
+    auto scene = make_scene(
+        app->mesh, app->state, app->camera, app->color_shapes);
+    auto error = string{};
+    assert(make_directory(scene_filename, error));
+    assert(make_directory(path_join(scene_filename, "shapes"), error));
+    save_scene(path_join(scene_filename, "scene.json"), scene, error);
   }
 
   draw_slider(widgets, "svg_size", app->svg_size, 0.0, 1.0);
