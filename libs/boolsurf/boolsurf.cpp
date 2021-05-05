@@ -7,6 +7,8 @@
 
 constexpr auto adjacent_to_nothing = -2;
 
+static bool_state* global_state = nullptr;
+
 // Build adjacencies between faces (sorted counter-clockwise)
 static vector<vec3i> face_adjacencies_fast(const vector<vec3i>& triangles) {
   auto get_edge = [](const vec3i& triangle, int i) -> vec2i {
@@ -615,7 +617,8 @@ static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
     const vector<int>& start, const vector<vector<vec2i>>& cycles,
     const hash_set<int>& skip_polygons, int num_polygons) {
   // Inizializziamo le label delle celle a 0.
-  auto labels = vector<vector<int>>(cells.size(), vector<int>(num_polygons, 0));
+  auto& labels = global_state->labels;
+  labels = vector<vector<int>>(cells.size(), vector<int>(num_polygons, 0));
 
   // Inizializza la label dei nodi nei cicli.
   for (auto& cycle : cycles) {
@@ -633,6 +636,10 @@ static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
     // print("queue", queue);
     auto cell_id = queue.front();
     queue.pop_front();
+    static int c = 0;
+    save_tree_png(
+        *global_state, "data/tests/" + to_string(c) + ".png", "", false);
+    c += 1;
 
     auto& cell = cells[cell_id];
 
@@ -1255,6 +1262,8 @@ static void slice_mesh(bool_mesh& mesh, bool_state& state) {
 }
 
 static void compute_cell_labels(bool_state& state) {
+  global_state = &state;
+
   // Calcoliamo possibili cicli all'interno del grafo delle adiacenze della
   // mesh. In modo da eliminare gli archi corrispondenti.
   auto cycles = compute_graph_cycles(state.cells);
