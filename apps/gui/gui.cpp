@@ -78,20 +78,22 @@ void draw_widgets(app_state* app, const gui_input& input) {
 
   if (draw_filedialog_button(widgets, "load svg", true, "load svg",
           app->svg_filename, false, "data/svgs/", "test.svg", "*.svg")) {
-    auto num_polygons = (int)app->state.polygons.size();
-
-    auto svg = load_svg(app->svg_filename);
-
-    init_from_svg(app->state, app->mesh, app->last_clicked_point, svg,
-        app->svg_size, app->svg_subdivs);
-
-    for (auto p = num_polygons; p < app->state.polygons.size(); p++) {
-      auto& polygon = app->state.polygons[p];
-      add_polygon_shape(app, polygon, p);
-    }
-
-    update_polygons(app);
+    auto& last_svg             = app->last_svg;
+    last_svg.svg_point         = app->last_clicked_point;
+    last_svg.previous_polygons = (int)app->state.polygons.size() - 1;
+    last_svg.svg               = load_svg(app->svg_filename);
+    update_svg(app);
   }
+
+  if (draw_slider(widgets, "svg_size", app->svg_size, 0.0, 1.0)) {
+    app->state.polygons.resize(app->last_svg.previous_polygons);
+    update_svg(app);
+  };
+
+  if (draw_slider(widgets, "svg_subdivisions", app->svg_subdivs, 2, 16)) {
+    app->state.polygons.resize(app->last_svg.previous_polygons);
+    update_svg(app);
+  };
 
   static auto scene_filename = "data/scenes/"s;
   draw_textinput(widgets, "scene", scene_filename);
@@ -104,9 +106,6 @@ void draw_widgets(app_state* app, const gui_input& input) {
     assert(make_directory(path_join(scene_filename, "shapes"), error));
     save_scene(path_join(scene_filename, "scene.json"), scene, error);
   }
-
-  draw_slider(widgets, "svg_size", app->svg_size, 0.0, 1.0);
-  draw_slider(widgets, "svg_subdivisions", app->svg_subdivs, 2, 16);
 
   static auto view_triangulation = false;
   draw_checkbox(widgets, "view triangulation", view_triangulation);
@@ -640,7 +639,9 @@ void key_input(app_state* app, const gui_input& input) {
           auto& polygon = app->state.polygons.emplace_back();
           add_polygon_shape(app, polygon, (int)app->state.polygons.size() - 1);
         }
-      } break;
+      }
+
+      break;
     }
   }
 }

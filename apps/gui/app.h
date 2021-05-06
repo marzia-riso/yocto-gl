@@ -84,9 +84,16 @@ struct app_state {
   int         current_border = 0;
   int         current_cell   = 0;
 
-  gui_widgets widgets                     = {};
-  mesh_point  last_clicked_point          = {};
-  mesh_point  last_clicked_point_original = {};
+  gui_widgets widgets = {};
+
+  mesh_point last_clicked_point          = {};
+  mesh_point last_clicked_point_original = {};
+
+  struct last_svg {
+    mesh_point        svg_point;
+    vector<Svg_Shape> svg;
+    int               previous_polygons;
+  } last_svg = {};
 
   ~app_state() {
     if (glscene) delete glscene;
@@ -402,6 +409,19 @@ inline void update_cell_colors(app_state* app) {
         state, i, app->color_shapes);
   }
   //  }
+}
+
+void update_svg(app_state* app) {
+  init_from_svg(app->state, app->mesh, app->last_svg.svg_point,
+      app->last_svg.svg, app->svg_size, app->svg_subdivs);
+
+  for (auto p = app->last_svg.previous_polygons; p < app->state.polygons.size();
+       p++) {
+    auto& polygon = app->state.polygons[p];
+    add_polygon_shape(app, polygon, p);
+  }
+
+  update_polygons(app);
 }
 
 void save_test(
