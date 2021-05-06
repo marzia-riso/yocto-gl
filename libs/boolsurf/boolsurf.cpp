@@ -406,11 +406,16 @@ static hash_map<int, int> compute_control_points(vector<mesh_polygon>& polygons,
   return control_points;
 }
 
+void save_tree_png(const bool_state& state, string filename,
+    const string& extra, bool color_shapes);
+
 // TODO(giacomo): CAMBIAMI NOME
 static vector<mesh_cell> flood_fill_new(vector<int>& starts,
     const vector<vec3i>& adjacencies, const vector<vec3i>& border_tags,
     int num_polygons) {
-  auto result    = vector<mesh_cell>{};
+  auto& result = global_state->cells;
+  result       = vector<mesh_cell>{};
+
   auto cell_tags = vector<int>(adjacencies.size(), -1);
 
   // consume task stack
@@ -422,6 +427,11 @@ static vector<mesh_cell> flood_fill_new(vector<int>& starts,
     if (cell_tags[first_face] >= 0) {
       continue;
     }
+
+    static int c = 0;
+    save_tree_png(*global_state,
+        "data/tests/flood_fill_" + to_string(c) + ".png", "", false);
+    c += 1;
 
     auto  cell_id = (int)result.size();
     auto& cell    = result.emplace_back();
@@ -487,6 +497,11 @@ static vector<mesh_cell> flood_fill_new(vector<int>& starts,
     }  // end of while
     cell.faces.shrink_to_fit();
   }  // end of while
+
+  static int c = 0;
+  save_tree_png(*global_state, "data/tests/flood_fill_" + to_string(c) + ".png",
+      "", false);
+  c += 1;
 
   return result;
 }
@@ -609,9 +624,6 @@ inline vector<vector<int>> compute_components(
   }
   return components;
 }
-
-void save_tree_png(const bool_state& state, string filename,
-    const string& extra, bool color_shapes);
 
 static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
     const vector<int>& start, const vector<vector<vec2i>>& cycles,
@@ -1344,6 +1356,7 @@ void update_virtual_adjacencies(
 
 void compute_cells(bool_mesh& mesh, bool_state& state) {
   // Triangola mesh in modo da embeddare tutti i poligoni come mesh-edges.
+  global_state = &state;
   slice_mesh(mesh, state);
 
   // Trova celle e loro adiacenza via flood-fill.
@@ -1547,6 +1560,7 @@ mesh_point intersect_mesh(const bool_mesh& mesh, const shape_bvh& bvh,
 }
 
 vec3f get_cell_color(const bool_state& state, int cell_id, bool color_shapes) {
+  if (state.shapes.empty() && state.labels.empty()) return {1, 1, 1};
   if (color_shapes) {
     for (int s = (int)state.shapes_sorting.size() - 1; s >= 0; s--) {
       auto& shape = state.shapes[state.shapes_sorting[s]];
