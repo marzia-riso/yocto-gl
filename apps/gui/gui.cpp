@@ -58,6 +58,26 @@ void debug_cell_flood_fill(app_state* app) {
 // }
 #endif
 
+void add_polygons(app_state* app, bool_test test) {
+  for (auto& polygon : test.polygons) {
+    for (auto& point : polygon) {
+      point += (int)app->state.points.size();
+    }
+    auto& mesh_polygon  = app->state.polygons.emplace_back();
+    mesh_polygon.points = polygon;
+    recompute_polygon_segments(app->mesh, app->state, mesh_polygon);
+  }
+
+  app->state.points += test.points;
+  for (auto p = app->last_svg.previous_polygons; p < app->state.polygons.size();
+       p++) {
+    auto& polygon = app->state.polygons[p];
+    add_polygon_shape(app, polygon, p);
+  }
+
+  update_polygons(app);
+}
+
 // draw with shading
 void draw_widgets(app_state* app, const gui_input& input) {
   auto widgets = &app->widgets;
@@ -81,8 +101,34 @@ void draw_widgets(app_state* app, const gui_input& input) {
     auto& last_svg             = app->last_svg;
     last_svg.svg_point         = app->last_clicked_point;
     last_svg.previous_polygons = (int)app->state.polygons.size() - 1;
-    last_svg.svg               = load_svg(app->svg_filename);
-    update_svg(app);
+    //
+    auto script_path = normalize_path("scripts/svg_parser.py"s);
+    auto test_json   = normalize_path("data/tests/tmp.json"s);
+    auto cmd = "python3 "s + script_path + " "s + app->svg_filename + " "s +
+               test_json + " "s + to_string(app->svg_subdivs);
+
+    printf("%s\n", cmd.c_str());
+    auto ret_value = system(cmd.c_str());
+    if (ret_value != 0)
+      print_fatal("Svg conversion failed " + app->svg_filename);
+
+    app->temp_test = bool_test{};
+    load_test(app->temp_test, test_json);
+    add_polygons(app, app->temp_test);
+    // for (auto& polygon : test.polygons) {
+    //   for (auto& point : polygon.points) {
+    //     point += app->state.points.size();
+    //   }
+    //   app->state.polygons += polygon;
+    // }
+    // app->state.points += app->temp_test.points;
+    // for (auto p = app->last_svg.previous_polygons;
+    //      p < app->state.polygons.size(); p++) {
+    //   auto& polygon = app->state.polygons[p];
+    //   add_polygon_shape(app, polygon, p);
+    // }
+
+    // update_polygons(app);
   }
 
   if (draw_slider(widgets, "svg_size", app->svg_size, 0.0, 1.0)) {

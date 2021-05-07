@@ -93,7 +93,8 @@ struct app_state {
     mesh_point        svg_point;
     vector<Svg_Shape> svg;
     int               previous_polygons;
-  } last_svg = {};
+  } last_svg     = {};
+bool_test temp_test = {};
 
   ~app_state() {
     if (glscene) delete glscene;
