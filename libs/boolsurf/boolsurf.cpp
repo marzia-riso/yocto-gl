@@ -65,6 +65,9 @@ void init_mesh(bool_mesh& mesh) {
 
   mesh.dual_solver = make_dual_geodesic_solver(
       mesh.triangles, mesh.positions, mesh.adjacencies);
+
+  mesh.graph = make_geodesic_solver(
+      mesh.triangles, mesh.adjacencies, mesh.positions);
 }
 
 void reset_mesh(bool_mesh& mesh) {

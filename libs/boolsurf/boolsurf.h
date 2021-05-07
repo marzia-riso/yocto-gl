@@ -23,6 +23,7 @@ struct bool_mesh : scene_shape {
   int                        num_triangles      = 0;
   int                        num_positions      = 0;
   hash_map<int, vector<int>> triangulated_faces = {};
+  geodesic_solver            graph              = {};
 };
 
 struct mesh_segment {
