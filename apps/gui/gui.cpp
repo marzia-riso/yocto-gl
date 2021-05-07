@@ -114,7 +114,72 @@ void draw_widgets(app_state* app, const gui_input& input) {
 
     app->temp_test = bool_test{};
     load_test(app->temp_test, test_json);
-    add_polygons(app, app->temp_test);
+
+    {
+      auto& state  = app->state;
+      auto& mesh   = app->mesh;
+      auto& camera = app->camera;
+
+      auto polygons = app->temp_test.polygons_screenspace;
+
+      for (auto& polygon : polygons) {
+        auto area = 0.0f;
+        for (int p = 0; p < polygon.size(); p++) {
+          auto& point = polygon[p];
+          auto& next  = polygon[(p + 1) % polygon.size()];
+          area += cross(next, point);
+        }
+
+        if (area < 0) {
+          std::reverse(polygon.begin(), polygon.end());
+        }
+      }
+
+      auto bbox = bbox2f{};
+      for (auto& polygon : polygons) {
+        for (auto& p : polygon) {
+          bbox = merge(bbox, p);
+        }
+      }
+
+      for (auto& polygon : polygons) {
+        for (auto& p : polygon) {
+          p = (p - center(bbox)) / max(size(bbox));
+        }
+      }
+      auto center = last_svg.svg_point;
+
+      for (auto& polygon : polygons) {
+        state.polygons.push_back({});
+        auto polygon_id = (int)state.polygons.size() - 1;
+
+        for (auto uv : polygon) {
+          uv.x /= camera.film;                    // input.window_size.x;
+          uv.y /= (camera.film / camera.aspect);  // input.window_size.y;
+          uv *= app->svg_size;
+          uv.x = -uv.x;
+
+          auto path     = straightest_path(mesh, center, uv);
+          path.end.uv.x = clamp(path.end.uv.x, 0.0f, 1.0f);
+          path.end.uv.y = clamp(path.end.uv.y, 0.0f, 1.0f);
+          auto point    = path.end;
+
+          // Add point to state.
+          state.polygons[polygon_id].points.push_back((int)state.points.size());
+          state.points.push_back(point);
+        }
+
+        if (state.polygons[polygon_id].points.size() <= 2) {
+          assert(0);
+          state.polygons[polygon_id].points.clear();
+          continue;
+        }
+
+        recompute_polygon_segments(mesh, state, state.polygons[polygon_id]);
+      }
+    }
+
+    // add_polygons(app, app->temp_test);
     // for (auto& polygon : test.polygons) {
     //   for (auto& point : polygon.points) {
     //     point += app->state.points.size();
@@ -213,30 +278,37 @@ void draw_widgets(app_state* app, const gui_input& input) {
   }
 
   if (draw_button(widgets, "sample vertices")) {
-    auto vertices = sample_vertices_poisson(app->mesh.graph, 100);
+    auto vertices = sample_vertices_poisson(app->mesh.graph, 10);
     auto points   = vector<mesh_point>{};
     for (auto& v : vertices) {
       for (int i = 0; i < app->mesh.triangles.size(); i++) {
         auto tr = app->mesh.triangles[i];
         if (tr.x == v) {
-          points += mesh_point{i, {0, 0}};
+          points += mesh_point{i, {1.0 / 3, 1.0 / 3}};
           break;
         }
         if (tr.y == v) {
-          points += mesh_point{i, {1, 0}};
+          points += mesh_point{i, {1.0 / 3, 1.0 / 3}};
           break;
         }
         if (tr.z == v) {
-          points += mesh_point{i, {0, 1}};
+          points += mesh_point{i, {1.0 / 3, 1.0 / 3}};
           break;
         }
       }
     }
 
-    for (auto& point : points) {
-      draw_mesh_point(
-          app->glscene, app->mesh, app->edges_material, point, 0.01);
+    auto num_polygons = app->state.polygons.size();
+    for (int i = 0; i < points.size(); i++) {
+      auto& point = points[i];
+      // draw_mesh_point(
+      //     app->glscene, app->mesh, app->edges_material, point, 0.01);
+      // init_from_svg(app->state, app->mesh, point, app->last_svg.svg,
+      //     app->svg_size, app->svg_subdivs);
+      // add_polygon_shape(
+      //     app, app->state.polygons[i + num_polygons], i + num_polygons);
     }
+    update_polygons(app);
   }
 
   if (begin_header(widgets, "mesh info")) {
