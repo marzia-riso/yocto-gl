@@ -179,21 +179,12 @@ void draw_widgets(app_state* app, const gui_input& input) {
       }
     }
 
-    // add_polygons(app, app->temp_test);
-    // for (auto& polygon : test.polygons) {
-    //   for (auto& point : polygon.points) {
-    //     point += app->state.points.size();
-    //   }
-    //   app->state.polygons += polygon;
-    // }
-    // app->state.points += app->temp_test.points;
-    // for (auto p = app->last_svg.previous_polygons;
-    //      p < app->state.polygons.size(); p++) {
-    //   auto& polygon = app->state.polygons[p];
-    //   add_polygon_shape(app, polygon, p);
-    // }
-
-    // update_polygons(app);
+    for (auto p = app->last_svg.previous_polygons;
+         p < app->state.polygons.size(); p++) {
+      auto& polygon = app->state.polygons[p];
+      add_polygon_shape(app, polygon, p);
+    }
+    update_polygons(app);
   }
 
   if (draw_slider(widgets, "svg_size", app->svg_size, 0.0, 1.0)) {
