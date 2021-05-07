@@ -166,6 +166,33 @@ void draw_widgets(app_state* app, const gui_input& input) {
     // end_header(widgets);
   }
 
+  if (draw_button(widgets, "sample vertices")) {
+    auto vertices = sample_vertices_poisson(app->mesh.graph, 100);
+    auto points   = vector<mesh_point>{};
+    for (auto& v : vertices) {
+      for (int i = 0; i < app->mesh.triangles.size(); i++) {
+        auto tr = app->mesh.triangles[i];
+        if (tr.x == v) {
+          points += mesh_point{i, {0, 0}};
+          break;
+        }
+        if (tr.y == v) {
+          points += mesh_point{i, {1, 0}};
+          break;
+        }
+        if (tr.z == v) {
+          points += mesh_point{i, {0, 1}};
+          break;
+        }
+      }
+    }
+
+    for (auto& point : points) {
+      draw_mesh_point(
+          app->glscene, app->mesh, app->edges_material, point, 0.01);
+    }
+  }
+
   if (begin_header(widgets, "mesh info")) {
     draw_label(widgets, "filename", app->model_filename);
     draw_label(
