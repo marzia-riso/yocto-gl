@@ -119,6 +119,8 @@ void compute_cells(bool_mesh& mesh, bool_state& state);
 void compute_shapes(bool_state& state);
 void compute_shape_borders(const bool_mesh& mesh, bool_state& state);
 void compute_bool_operation(bool_state& state, const bool_operation& op);
+void compute_symmetrical_difference(
+    bool_state& state, const vector<int>& shapes);
 
 vector<mesh_segment> mesh_segments(const vector<vec3i>& triangles,
     const vector<int>& strip, const vector<float>& lerps,

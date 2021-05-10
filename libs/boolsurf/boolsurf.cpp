@@ -1555,6 +1555,34 @@ void compute_bool_operation(bool_state& state, const bool_operation& op) {
     if (aa[i]) c.cells.insert(i);
 }
 
+void compute_symmetrical_difference(
+    bool_state& state, const vector<int>& indices) {
+  auto& first  = state.shapes[indices[0]];
+  auto  result = vector<bool>(state.cells.size(), false);
+  for (auto& c : first.cells) result[c] = true;
+  first.is_root = false;
+
+  for (auto s = 1; s < indices.size(); s++) {
+    auto& second   = state.shapes[indices[s]];
+    second.is_root = false;
+
+    auto ss = vector<bool>(state.cells.size(), false);
+    for (auto& c : second.cells) ss[c] = true;
+
+    for (auto i = 0; i < result.size(); i++) result[i] = result[i] != ss[i];
+  }
+
+  auto  shape_id = state.shapes.size();
+  auto& c        = state.shapes.emplace_back();
+  c.color        = state.shapes[indices[0]].color;
+  auto sorting   = find_idx(state.shapes_sorting, indices[0]);
+
+  insert(state.shapes_sorting, sorting, (int)shape_id);
+
+  for (auto i = 0; i < result.size(); i++)
+    if (result[i]) c.cells.insert(i);
+}
+
 mesh_point intersect_mesh(const bool_mesh& mesh, const shape_bvh& bvh,
     const scene_camera& camera, const vec2f& uv) {
   auto ray = camera_ray(

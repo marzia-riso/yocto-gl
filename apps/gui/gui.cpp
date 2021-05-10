@@ -385,6 +385,17 @@ void draw_widgets(app_state* app, const gui_input& input) {
     update_cell_colors(app);
     app->operation = {};
   }
+
+  if (draw_button(widgets, "Apply difference")) {
+    commit_state(app);
+
+    auto indices = vector<int>(app->state.shapes.size() - 1);
+    for (auto i = 1; i < indices.size() + 1; i++) indices[(i - 1)] = i;
+
+    compute_symmetrical_difference(app->state, indices);
+    update_cell_colors(app);
+  }
+
   if (draw_button(widgets, "Clear operations")) {
     commit_state(app);
     app->operation = {};
