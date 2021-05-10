@@ -409,7 +409,7 @@ inline void update_cell_colors(app_state* app) {
     app->cell_shapes[i]->material->color = get_cell_color(
         state, i, app->color_shapes);
   }
-  //  }
+}
 
 void update_svg(app_state* app) {
   init_from_svg(app->state, app->mesh, app->last_svg.svg_point,
