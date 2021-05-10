@@ -58,6 +58,51 @@ void debug_cell_flood_fill(app_state* app) {
 // }
 #endif
 
+void add_polygons(app_state* app, bool_test test, const mesh_point& _center) {
+  auto& state  = app->state;
+  auto& mesh   = app->mesh;
+  auto& camera = app->camera;
+
+  auto polygons = app->temp_test.polygons_screenspace;
+
+  auto center = _center;
+
+  for (auto& polygon : polygons) {
+    state.polygons.push_back({});
+    auto polygon_id = (int)state.polygons.size() - 1;
+
+    for (auto uv : polygon) {
+      uv.x /= camera.film;                    // input.window_size.x;
+      uv.y /= (camera.film / camera.aspect);  // input.window_size.y;
+      uv *= app->svg_size;
+      uv.x = -uv.x;
+
+      auto path     = straightest_path(mesh, center, uv);
+      path.end.uv.x = clamp(path.end.uv.x, 0.0f, 1.0f);
+      path.end.uv.y = clamp(path.end.uv.y, 0.0f, 1.0f);
+      auto point    = path.end;
+
+      // Add point to state.
+      state.polygons[polygon_id].points.push_back((int)state.points.size());
+      state.points.push_back(point);
+    }
+
+    if (state.polygons[polygon_id].points.size() <= 2) {
+      assert(0);
+      state.polygons[polygon_id].points.clear();
+      continue;
+    }
+
+    recompute_polygon_segments(mesh, state, state.polygons[polygon_id]);
+  }
+  for (auto p = app->last_svg.previous_polygons; p < app->state.polygons.size();
+       p++) {
+    auto& polygon = app->state.polygons[p];
+    add_polygon_shape(app, polygon, p);
+  }
+  update_polygons(app);
+}
+
 // draw with shading
 void draw_widgets(app_state* app, const gui_input& input) {
   auto widgets = &app->widgets;
@@ -78,20 +123,34 @@ void draw_widgets(app_state* app, const gui_input& input) {
 
   if (draw_filedialog_button(widgets, "load svg", true, "load svg",
           app->svg_filename, false, "data/svgs/", "test.svg", "*.svg")) {
-    auto num_polygons = (int)app->state.polygons.size();
+    auto& last_svg             = app->last_svg;
+    last_svg.svg_point         = app->last_clicked_point;
+    last_svg.previous_polygons = (int)app->state.polygons.size() - 1;
 
-    auto svg = load_svg(app->svg_filename);
+    auto script_path = normalize_path("scripts/svg_parser.py"s);
+    auto test_json   = normalize_path("data/tests/tmp.json"s);
+    auto cmd = "python3 "s + script_path + " "s + app->svg_filename + " "s +
+               test_json + " "s + "2";
 
-    init_from_svg(app->state, app->mesh, app->last_clicked_point, svg,
-        app->svg_size, app->svg_subdivs);
+    printf("%s\n", cmd.c_str());
+    auto ret_value = system(cmd.c_str());
+    if (ret_value != 0)
+      print_fatal("Svg conversion failed " + app->svg_filename);
 
-    for (auto p = num_polygons; p < app->state.polygons.size(); p++) {
-      auto& polygon = app->state.polygons[p];
-      add_polygon_shape(app, polygon, p);
-    }
-
-    update_polygons(app);
+    app->temp_test = bool_test{};
+    load_test(app->temp_test, test_json);
+    add_polygons(app, app->temp_test, app->last_svg.svg_point);
   }
+
+  if (draw_slider(widgets, "svg_size", app->svg_size, 0.0, 1.0)) {
+    app->state.polygons.resize(app->last_svg.previous_polygons);
+    update_svg(app);
+  };
+
+  if (draw_slider(widgets, "svg_subdivisions", app->svg_subdivs, 2, 16)) {
+    app->state.polygons.resize(app->last_svg.previous_polygons);
+    update_svg(app);
+  };
 
   static auto scene_filename = "data/scenes/"s;
   draw_textinput(widgets, "scene", scene_filename);
@@ -104,8 +163,6 @@ void draw_widgets(app_state* app, const gui_input& input) {
     assert(make_directory(path_join(scene_filename, "shapes"), error));
     save_scene(path_join(scene_filename, "scene.json"), scene, error);
   }
-
-  draw_slider(widgets, "svg_size", app->svg_size, 0.0, 1.0);
 
   static auto view_triangulation = false;
   draw_checkbox(widgets, "view triangulation", view_triangulation);
@@ -164,6 +221,40 @@ void draw_widgets(app_state* app, const gui_input& input) {
       }
     }
     // end_header(widgets);
+  }
+
+  if (draw_button(widgets, "sample vertices")) {
+    auto vertices = sample_vertices_poisson(app->mesh.graph, 40);
+    auto points   = vector<mesh_point>{};
+    for (auto& v : vertices) {
+      for (int i = 0; i < app->mesh.triangles.size(); i++) {
+        auto tr = app->mesh.triangles[i];
+        if (tr.x == v) {
+          points += mesh_point{i, {1.0 / 3, 1.0 / 3}};
+          break;
+        }
+        if (tr.y == v) {
+          points += mesh_point{i, {1.0 / 3, 1.0 / 3}};
+          break;
+        }
+        if (tr.z == v) {
+          points += mesh_point{i, {1.0 / 3, 1.0 / 3}};
+          break;
+        }
+      }
+    }
+
+    auto num_polygons = app->state.polygons.size();
+    for (int i = 0; i < points.size(); i++) {
+      auto& point = points[i];
+      add_polygons(app, app->temp_test, point);
+      // draw_mesh_point(
+      //     app->glscene, app->mesh, app->edges_material, point, 0.01);
+      // init_from_svg(app->state, app->mesh, point, app->last_svg.svg,
+      //     app->svg_size, app->svg_subdivs);
+      // add_polygon_shape(
+      //     app, app->state.polygons[i + num_polygons], i + num_polygons);
+    }
   }
 
   if (begin_header(widgets, "mesh info")) {
@@ -269,6 +360,17 @@ void draw_widgets(app_state* app, const gui_input& input) {
     update_cell_colors(app);
     app->operation = {};
   }
+
+  if (draw_button(widgets, "Apply difference")) {
+    commit_state(app);
+
+    auto indices = vector<int>(app->state.shapes.size() - 1);
+    for (auto i = 1; i < indices.size() + 1; i++) indices[(i - 1)] = i;
+
+    compute_symmetrical_difference(app->state, indices);
+    update_cell_colors(app);
+  }
+
   if (draw_button(widgets, "Clear operations")) {
     commit_state(app);
     app->operation = {};
@@ -639,7 +741,9 @@ void key_input(app_state* app, const gui_input& input) {
           auto& polygon = app->state.polygons.emplace_back();
           add_polygon_shape(app, polygon, (int)app->state.polygons.size() - 1);
         }
-      } break;
+      }
+
+      break;
     }
   }
 }

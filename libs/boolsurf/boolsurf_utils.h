@@ -298,6 +298,13 @@ inline const T& max(const vector<T>& vec) {
   return *max_element(vec.begin(), vec.end());
 }
 
+template <class T>
+inline T sum(const vector<T>& vec) {
+  auto result = T{0};
+  for (auto& v : vec) result += v;
+  return result;
+}
+
 template <>
 struct std::hash<vector<int>> {
   size_t operator()(const vector<int>& V) const {

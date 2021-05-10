@@ -53,6 +53,25 @@ bool load_test(bool_test& test, const string& filename) {
 
     if (test.screenspace) {
       test.polygons_screenspace = js["polygons"].get<vector<vector<vec2f>>>();
+
+      for (auto& polygon : test.polygons_screenspace) {
+        auto area = 0.0f;
+        for (int p = 0; p < polygon.size(); p++) {
+          auto& point = polygon[p];
+          auto& next  = polygon[(p + 1) % polygon.size()];
+          area += cross(next, point);
+        }
+
+        if (area < 0) reverse(polygon.begin(), polygon.end());
+      }
+
+      auto bbox = bbox2f{};
+      for (auto& polygon : test.polygons_screenspace)
+        for (auto& p : polygon) bbox = merge(bbox, p);
+
+      for (auto& polygon : test.polygons_screenspace)
+        for (auto& p : polygon) p = (p - center(bbox)) / max(size(bbox));
+
     } else {
       test.points   = js["points"].get<vector<mesh_point>>();
       test.polygons = js["polygons"].get<vector<vector<int>>>();
@@ -212,12 +231,16 @@ string tree_to_string(const bool_state& state, bool color_shapes) {
     color       = rgb_to_hsv(color);
     char str[1024];
     auto label = string{};
-    for (int k = 1; k < state.labels[i].size(); k++) {
-      if (state.labels[i][k] == null_label) {
-        label += "0 ";
-        continue;
+    if (state.labels.empty())
+      label = "";
+    else {
+      for (int k = 1; k < state.labels[i].size(); k++) {
+        if (state.labels[i][k] == null_label) {
+          label += "0 ";
+          continue;
+        }
+        label += to_string(state.labels[i][k]) + " ";
       }
-      label += to_string(state.labels[i][k]) + " ";
     }
     sprintf(str, "%d [label=\"%d\n%s\" style=filled fillcolor=\"%f %f %f\"]\n",
         i, i, label.c_str(), color.x, color.y, color.z);

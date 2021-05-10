@@ -7,6 +7,8 @@
 
 constexpr auto adjacent_to_nothing = -2;
 
+static bool_state* global_state = nullptr;
+
 // Build adjacencies between faces (sorted counter-clockwise)
 static vector<vec3i> face_adjacencies_fast(const vector<vec3i>& triangles) {
   auto get_edge = [](const vec3i& triangle, int i) -> vec2i {
@@ -63,6 +65,9 @@ void init_mesh(bool_mesh& mesh) {
 
   mesh.dual_solver = make_dual_geodesic_solver(
       mesh.triangles, mesh.positions, mesh.adjacencies);
+
+  mesh.graph = make_geodesic_solver(
+      mesh.triangles, mesh.adjacencies, mesh.positions);
 }
 
 void reset_mesh(bool_mesh& mesh) {
@@ -334,9 +339,9 @@ static mesh_hashgrid compute_hashgrid(bool_mesh& mesh,
         last_face = segment.face;
       }
 
-      if (last_vertex != -1)
-        control_points[last_vertex] =
-            polygon.points[(e + 1) % polygon.edges.size()];
+      //      if (last_vertex != -1)
+      //        control_points[last_vertex] =
+      //            polygon.points[(e + 1) % polygon.edges.size()];
     }
 
     if (indices == vec2i{-1, -1}) {
@@ -404,11 +409,16 @@ static hash_map<int, int> compute_control_points(vector<mesh_polygon>& polygons,
   return control_points;
 }
 
+void save_tree_png(const bool_state& state, string filename,
+    const string& extra, bool color_shapes);
+
 // TODO(giacomo): CAMBIAMI NOME
 static vector<mesh_cell> flood_fill_new(vector<int>& starts,
     const vector<vec3i>& adjacencies, const vector<vec3i>& border_tags,
     int num_polygons) {
-  auto result    = vector<mesh_cell>{};
+  auto& result = global_state->cells;
+  result       = vector<mesh_cell>{};
+
   auto cell_tags = vector<int>(adjacencies.size(), -1);
 
   // consume task stack
@@ -420,6 +430,11 @@ static vector<mesh_cell> flood_fill_new(vector<int>& starts,
     if (cell_tags[first_face] >= 0) {
       continue;
     }
+
+    static int c = 0;
+    // save_tree_png(*global_state,
+    // "data/tests/flood_fill_" + to_string(c) + ".png", "", false);
+    c += 1;
 
     auto  cell_id = (int)result.size();
     auto& cell    = result.emplace_back();
@@ -485,6 +500,12 @@ static vector<mesh_cell> flood_fill_new(vector<int>& starts,
     }  // end of while
     cell.faces.shrink_to_fit();
   }  // end of while
+
+  static int c = 0;
+  // save_tree_png(*global_state, "data/tests/flood_fill_" + to_string(c) +
+  // ".png",
+  // "", false);
+  c += 1;
 
   return result;
 }
@@ -608,14 +629,12 @@ inline vector<vector<int>> compute_components(
   return components;
 }
 
-void save_tree_png(const bool_state& state, string filename,
-    const string& extra, bool color_shapes);
-
 static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
     const vector<int>& start, const vector<vector<vec2i>>& cycles,
     const hash_set<int>& skip_polygons, int num_polygons) {
   // Inizializziamo le label delle celle a 0.
-  auto labels = vector<vector<int>>(cells.size(), vector<int>(num_polygons, 0));
+  auto& labels = global_state->labels;
+  labels = vector<vector<int>>(cells.size(), vector<int>(num_polygons, 0));
 
   // Inizializza la label dei nodi nei cicli.
   for (auto& cycle : cycles) {
@@ -633,6 +652,10 @@ static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
     // print("queue", queue);
     auto cell_id = queue.front();
     queue.pop_front();
+    static int c = 0;
+    // save_tree_png(
+    //     *global_state, "data/tests/" + to_string(c) + ".png", "", false);
+    c += 1;
 
     auto& cell = cells[cell_id];
 
@@ -1175,7 +1198,7 @@ static bool_borders border_tags(
     }
   }
 
-  check_tags(mesh, borders.tags);
+//  check_tags(mesh, borders.tags);
 
   borders.virtual_tags = vector<hash_set<int>>(virtual_tag_map.size());
   for (auto& [key, value] : virtual_tag_map)
@@ -1255,6 +1278,8 @@ static void slice_mesh(bool_mesh& mesh, bool_state& state) {
 }
 
 static void compute_cell_labels(bool_state& state) {
+  global_state = &state;
+
   // Calcoliamo possibili cicli all'interno del grafo delle adiacenze della
   // mesh. In modo da eliminare gli archi corrispondenti.
   auto cycles = compute_graph_cycles(state.cells);
@@ -1335,6 +1360,7 @@ void update_virtual_adjacencies(
 
 void compute_cells(bool_mesh& mesh, bool_state& state) {
   // Triangola mesh in modo da embeddare tutti i poligoni come mesh-edges.
+  global_state = &state;
   slice_mesh(mesh, state);
 
   // Trova celle e loro adiacenza via flood-fill.
@@ -1529,6 +1555,34 @@ void compute_bool_operation(bool_state& state, const bool_operation& op) {
     if (aa[i]) c.cells.insert(i);
 }
 
+void compute_symmetrical_difference(
+    bool_state& state, const vector<int>& indices) {
+  auto& first  = state.shapes[indices[0]];
+  auto  result = vector<bool>(state.cells.size(), false);
+  for (auto& c : first.cells) result[c] = true;
+  first.is_root = false;
+
+  for (auto s = 1; s < indices.size(); s++) {
+    auto& second   = state.shapes[indices[s]];
+    second.is_root = false;
+
+    auto ss = vector<bool>(state.cells.size(), false);
+    for (auto& c : second.cells) ss[c] = true;
+
+    for (auto i = 0; i < result.size(); i++) result[i] = result[i] != ss[i];
+  }
+
+  auto  shape_id = state.shapes.size();
+  auto& c        = state.shapes.emplace_back();
+  c.color        = state.shapes[indices[0]].color;
+  auto sorting   = find_idx(state.shapes_sorting, indices[0]);
+
+  insert(state.shapes_sorting, sorting, (int)shape_id);
+
+  for (auto i = 0; i < result.size(); i++)
+    if (result[i]) c.cells.insert(i);
+}
+
 mesh_point intersect_mesh(const bool_mesh& mesh, const shape_bvh& bvh,
     const scene_camera& camera, const vec2f& uv) {
   auto ray = camera_ray(
@@ -1538,6 +1592,7 @@ mesh_point intersect_mesh(const bool_mesh& mesh, const shape_bvh& bvh,
 }
 
 vec3f get_cell_color(const bool_state& state, int cell_id, bool color_shapes) {
+  if (state.shapes.empty() && state.labels.empty()) return {1, 1, 1};
   if (color_shapes) {
     for (int s = (int)state.shapes_sorting.size() - 1; s >= 0; s--) {
       auto& shape = state.shapes[state.shapes_sorting[s]];

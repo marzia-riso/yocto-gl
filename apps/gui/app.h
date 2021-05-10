@@ -23,8 +23,8 @@ struct app_state {
   string         model_filename = "";
   string         test_filename  = "";
   string         svg_filename   = "";
-  int            svg_subdivs    = 2;
-  float          svg_size       = 0.005f;
+  int            svg_subdivs    = 4;
+  float          svg_size       = 0.5f;
   bool_test      test           = {};
   bool_operation operation      = {};
   gui_window*    window         = nullptr;
@@ -84,9 +84,17 @@ struct app_state {
   int         current_border = 0;
   int         current_cell   = 0;
 
-  gui_widgets widgets                     = {};
-  mesh_point  last_clicked_point          = {};
-  mesh_point  last_clicked_point_original = {};
+  gui_widgets widgets = {};
+
+  mesh_point last_clicked_point          = {};
+  mesh_point last_clicked_point_original = {};
+
+  struct last_svg {
+    mesh_point        svg_point;
+    vector<Svg_Shape> svg;
+    int               previous_polygons;
+  } last_svg          = {};
+  bool_test temp_test = {};
 
   ~app_state() {
     if (glscene) delete glscene;
@@ -111,8 +119,8 @@ void update_polygon(app_state* app, int polygon_id, int index = 0) {
   recompute_polygon_segments(app->mesh, app->state, mesh_polygon, index);
   if (mesh_polygon.length > 0)
     set_polygon_shape(polygon_shape->shape, app->mesh, mesh_polygon);
-  else
-    if(polygon_shape->shape) clear_shape(polygon_shape->shape);
+  else if (polygon_shape->shape)
+    clear_shape(polygon_shape->shape);
 }
 
 void update_polygons(app_state* app) {
@@ -402,6 +410,18 @@ inline void update_cell_colors(app_state* app) {
         state, i, app->color_shapes);
   }
   //  }
+
+void update_svg(app_state* app) {
+  init_from_svg(app->state, app->mesh, app->last_svg.svg_point,
+      app->last_svg.svg, app->svg_size, app->svg_subdivs);
+
+  for (auto p = app->last_svg.previous_polygons; p < app->state.polygons.size();
+       p++) {
+    auto& polygon = app->state.polygons[p];
+    add_polygon_shape(app, polygon, p);
+  }
+
+  update_polygons(app);
 }
 
 void save_test(
