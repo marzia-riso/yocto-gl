@@ -742,6 +742,8 @@ static void add_polygon_intersection_points(bool_state& state,
           state.isecs_generators[vertex] = {poly.polygon, poly.polygon};
 
           state.points.push_back(point);
+          printf("self-intersection: polygon %d, vertex %d\n", poly.polygon,
+              vertex);
 
           insert(poly.points, s0 + 1, uv);
           insert(poly.vertices, s0 + 1, vertex);
@@ -1287,6 +1289,8 @@ static void compute_cell_labels(bool_state& state) {
   // (marzia) Sicuro si può fare meglio
   auto skip_polygons = hash_set<int>();
   auto cycle_nodes   = hash_set<int>();
+  print("cycles", cycles);
+
   for (auto& cycle : cycles) {
     for (auto& [node, polygon] : cycle) {
       cycle_nodes.insert(node);

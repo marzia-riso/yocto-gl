@@ -58,29 +58,49 @@ void debug_cell_flood_fill(app_state* app) {
 // }
 #endif
 
-void add_polygons(app_state* app, bool_test test, const mesh_point& _center) {
-  auto& state  = app->state;
-  auto& mesh   = app->mesh;
-  auto& camera = app->camera;
+void add_polygons(app_state* app, bool_test test, const mesh_point& center,
+    bool screenspace) {
+  auto& state    = app->state;
+  auto& mesh     = app->mesh;
+  auto& camera   = app->camera;
+  auto  polygons = app->temp_test.polygons_screenspace;
 
-  auto polygons = app->temp_test.polygons_screenspace;
+  for (auto& polygon : polygons) {
+    for (auto& uv : polygon) {
+      uv *= app->svg_size;
+      uv.x = -uv.x;
+    }
+  }
 
-  auto center = _center;
+  auto get_projected_point = [&](vec2f uv) {
+    uv.x /= camera.film;                    // input.window_size.x;
+    uv.y /= (camera.film / camera.aspect);  // input.window_size.y;
+    uv.x = -uv.x;
+    uv += vec2f{0.5, 0.5};
+    auto cam      = scene_camera{};
+    auto position = eval_position(app->mesh, center);
+    auto normal   = eval_normal(app->mesh, center);
+    auto eye      = position + normal * 0.2;
+    cam.frame     = lookat_frame(eye, position, {0, 1, 0});
+    cam.focus     = length(eye - position);
+    return intersect_mesh(app->mesh, cam, uv);
+  };
+  auto get_mapped_point = [&](vec2f uv) {
+    uv /= camera.film;
+    auto path     = straightest_path(mesh, center, uv);
+    path.end.uv.x = clamp(path.end.uv.x, 0.0f, 1.0f);
+    path.end.uv.y = clamp(path.end.uv.y, 0.0f, 1.0f);
+    return path.end;
+  };
 
   for (auto& polygon : polygons) {
     state.polygons.push_back({});
     auto polygon_id = (int)state.polygons.size() - 1;
 
     for (auto uv : polygon) {
-      uv.x /= camera.film;                    // input.window_size.x;
-      uv.y /= (camera.film / camera.aspect);  // input.window_size.y;
-      uv *= app->svg_size;
-      uv.x = -uv.x;
-
-      auto path     = straightest_path(mesh, center, uv);
-      path.end.uv.x = clamp(path.end.uv.x, 0.0f, 1.0f);
-      path.end.uv.y = clamp(path.end.uv.y, 0.0f, 1.0f);
-      auto point    = path.end;
+      auto point = screenspace ? get_projected_point(uv) : get_mapped_point(uv);
+      // print("point", point);
+      if (point.face == -1) continue;
 
       // Add point to state.
       state.polygons[polygon_id].points.push_back((int)state.points.size());
@@ -103,6 +123,26 @@ void add_polygons(app_state* app, bool_test test, const mesh_point& _center) {
   update_polygons(app);
 }
 
+void load_svg(app_state* app) {
+  auto& last_svg             = app->last_svg;
+  last_svg.svg_point         = app->last_clicked_point;
+  last_svg.previous_polygons = (int)app->state.polygons.size() - 1;
+
+  auto script_path = normalize_path("scripts/svg_parser.py"s);
+  auto test_json   = normalize_path("data/tests/tmp.json"s);
+  auto cmd = "python3 "s + script_path + " "s + app->svg_filename + " "s +
+             test_json + " "s + "2";
+
+  printf("%s\n", cmd.c_str());
+  auto ret_value = system(cmd.c_str());
+  if (ret_value != 0) print_fatal("Svg conversion failed " + app->svg_filename);
+
+  app->temp_test = bool_test{};
+  load_test(app->temp_test, test_json);
+  add_polygons(
+      app, app->temp_test, app->last_svg.svg_point, app->project_points);
+}
+
 // draw with shading
 void draw_widgets(app_state* app, const gui_input& input) {
   auto widgets = &app->widgets;
@@ -123,26 +163,12 @@ void draw_widgets(app_state* app, const gui_input& input) {
 
   if (draw_filedialog_button(widgets, "load svg", true, "load svg",
           app->svg_filename, false, "data/svgs/", "test.svg", "*.svg")) {
-    auto& last_svg             = app->last_svg;
-    last_svg.svg_point         = app->last_clicked_point;
-    last_svg.previous_polygons = (int)app->state.polygons.size() - 1;
-
-    auto script_path = normalize_path("scripts/svg_parser.py"s);
-    auto test_json   = normalize_path("data/tests/tmp.json"s);
-    auto cmd = "python3 "s + script_path + " "s + app->svg_filename + " "s +
-               test_json + " "s + "2";
-
-    printf("%s\n", cmd.c_str());
-    auto ret_value = system(cmd.c_str());
-    if (ret_value != 0)
-      print_fatal("Svg conversion failed " + app->svg_filename);
-
-    app->temp_test = bool_test{};
-    load_test(app->temp_test, test_json);
-    add_polygons(app, app->temp_test, app->last_svg.svg_point);
+    load_svg(app);
   }
+  continue_line(widgets);
+  draw_checkbox(widgets, "project points", app->project_points);
 
-  if (draw_slider(widgets, "svg_size", app->svg_size, 0.0, 1.0)) {
+  if (draw_slider(widgets, "svg_size", app->svg_size, 0.0, 0.1)) {
     app->state.polygons.resize(app->last_svg.previous_polygons);
     update_svg(app);
   };
@@ -224,7 +250,8 @@ void draw_widgets(app_state* app, const gui_input& input) {
   }
 
   if (draw_button(widgets, "sample vertices")) {
-    auto vertices = sample_vertices_poisson(app->mesh.graph, 40);
+    load_svg(app);
+    auto vertices = sample_vertices_poisson(app->mesh.graph, 160);
     auto points   = vector<mesh_point>{};
     for (auto& v : vertices) {
       for (int i = 0; i < app->mesh.triangles.size(); i++) {
@@ -247,7 +274,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
     auto num_polygons = app->state.polygons.size();
     for (int i = 0; i < points.size(); i++) {
       auto& point = points[i];
-      add_polygons(app, app->temp_test, point);
+      add_polygons(app, app->temp_test, point, app->project_points);
       // draw_mesh_point(
       //     app->glscene, app->mesh, app->edges_material, point, 0.01);
       // init_from_svg(app->state, app->mesh, point, app->last_svg.svg,
@@ -789,6 +816,9 @@ int main(int argc, const char* argv[]) {
   init_window(window, {1280 + 320, 720}, "boolsurf", true);
 
   window->user_data = app;
+
+  if (app->svg_filename.size()) {
+  }
 
   auto extension = path_extension(input);
   if (extension == ".svg") {

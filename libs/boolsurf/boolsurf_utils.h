@@ -23,6 +23,23 @@ using namespace yocto;
 
 inline int mod3(int i) { return (i > 2) ? i - 3 : i; }
 
+#if 0
+#include "ext/robin_hood.h"
+template <typename Key, typename Value>
+using hash_map = robin_hood::unordered_flat_map<Key, Value>;
+
+template <typename Key>
+using hash_set = robin_hood::unordered_flat_set<Key>;
+#else
+
+#include <unordered_set>
+template <typename Key, typename Value>
+using hash_map = std::unordered_map<Key, Value>;
+
+template <typename Key>
+using hash_set = std::unordered_set<Key>;
+#endif
+
 // Vector append and concatenation
 template <typename T>
 inline void operator+=(vector<T>& a, const vector<T>& b) {
@@ -180,6 +197,7 @@ inline vec3f get_color(int i) {
 }
 
 namespace std {
+
 inline string to_string(const vec3i& v) {
   return "{" + std::to_string(v.x) + ", " + std::to_string(v.y) + ", " +
          std::to_string(v.z) + "}";
@@ -200,6 +218,58 @@ inline string to_string(const vec2f& v) {
 
 inline string to_string(const mesh_point& p) {
   return "{" + std::to_string(p.face) + ", " + std::to_string(p.uv) + "}";
+}
+
+template <typename T>
+string to_string(const vector<T>& vec) {
+  auto max_elements = 100;
+  auto result       = string{};
+  result.reserve(1e5);
+  auto count = 0;
+  auto str   = (char*)result.data();
+  count += sprintf(str, "[size: %lu] ", vec.size());
+  if (vec.empty()) {
+    count += sprintf(str, "]\n");
+    goto end;
+  }
+  for (int i = 0; i < min((int)vec.size() - 1, max_elements); i++) {
+    count += sprintf(str, "%s, ", std::to_string(vec[i]).c_str());
+  }
+  if (vec.size() > max_elements) {
+    count += sprintf(str, "...]");
+  } else {
+    count += sprintf(str, "%s]", std::to_string(vec.back()).c_str());
+  }
+end:
+  count += sprintf(str, "\n");
+  result.resize(count);
+  return result;
+}
+
+template <typename T>
+string to_string(const hash_set<T>& vec) {
+  auto max_elements = 100;
+  auto result       = string{};
+  result.reserve(1e5);
+  auto count = 0;
+  auto str   = (char*)result.data();
+  count += sprintf(str, "[size: %lu] ", vec.size());
+  if (vec.empty()) {
+    count += sprintf(str, "]\n");
+      goto end;
+  }
+  for (int i = 0; i < min((int)vec.size() - 1, max_elements); i++) {
+    count += sprintf(str, "%s, ", std::to_string(vec[i]).c_str());
+  }
+  if (vec.size() > max_elements) {
+    count += sprintf(str, "...]");
+  } else {
+    count += sprintf(str, "%s]", std::to_string(vec.back()).c_str());
+  }
+    end:
+  count += sprintf(str, "\n");
+  result.resize(count);
+  return result;
 }
 }  // namespace std
 
@@ -255,23 +325,6 @@ struct ogl_texture;
 
 void draw_triangulation(
     ogl_texture* texture, int face, vec2i size = {2048, 2048});
-
-#if 0
-#include "ext/robin_hood.h"
-template <typename Key, typename Value>
-using hash_map = robin_hood::unordered_flat_map<Key, Value>;
-
-template <typename Key>
-using hash_set = robin_hood::unordered_flat_set<Key>;
-#else
-
-#include <unordered_set>
-template <typename Key, typename Value>
-using hash_map = std::unordered_map<Key, Value>;
-
-template <typename Key>
-using hash_set = std::unordered_set<Key>;
-#endif
 
 template <class K, class V>
 inline bool contains(const hash_map<K, V>& map, const K& x) {

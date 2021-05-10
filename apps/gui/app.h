@@ -24,7 +24,8 @@ struct app_state {
   string         test_filename  = "";
   string         svg_filename   = "";
   int            svg_subdivs    = 4;
-  float          svg_size       = 0.5f;
+  float          svg_size       = 0.01;
+  bool           project_points = false;
   bool_test      test           = {};
   bool_operation operation      = {};
   gui_window*    window         = nullptr;
@@ -171,8 +172,7 @@ void load_shape(app_state* app, const string& filename) {
   //  vector<vec3f> colors;
   //  vector<vec3f> normals;
   //  if (!load_mesh(filename, app->mesh.triangles, app->mesh.positions,
-  //  normals,
-  //          texcoords, colors, error)) {
+  //  normals, texcoords, colors, error)) {
   if (!load_shape(filename, app->mesh, error)) {
     printf("%s\n", error.c_str());
     print_fatal("Error loading model " + filename);
