@@ -112,15 +112,14 @@ void add_polygons(app_state* app, bool_test test, const mesh_point& center,
       state.polygons[polygon_id].points.clear();
       continue;
     }
-
-    recompute_polygon_segments(mesh, state, state.polygons[polygon_id]);
+    // recompute_polygon_segments(mesh, state, state.polygons[polygon_id]);
   }
+
   for (auto p = app->last_svg.previous_polygons; p < app->state.polygons.size();
        p++) {
     auto& polygon = app->state.polygons[p];
     add_polygon_shape(app, polygon, p);
   }
-  update_polygons(app);
 }
 
 void load_svg(app_state* app) {
@@ -141,6 +140,7 @@ void load_svg(app_state* app) {
   load_test(app->temp_test, test_json);
   add_polygons(
       app, app->temp_test, app->last_svg.svg_point, app->project_points);
+  update_polygons(app);
 }
 
 // draw with shading
@@ -215,12 +215,14 @@ void draw_widgets(app_state* app, const gui_input& input) {
     continue_line(widgets);
     draw_checkbox(widgets, "points", app->glscene->instances[2]->hidden, true);
     continue_line(widgets);
-    static bool show_polygons = true;
-    if (draw_checkbox(widgets, "polygons", show_polygons)) {
+
+    if (draw_checkbox(widgets, "polygons", app->show_polygons)) {
       for (auto i : app->polygon_shapes) {
-        i->hidden = !show_polygons;
+        i->hidden = !app->show_polygons;
       }
+      if (app->show_polygons) update_polygons(app);
     }
+
     if (!app->glscene->instances[1]->hidden) {
       draw_coloredit(widgets, "edges color", app->edges_material->color);
     }
@@ -251,7 +253,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
 
   if (draw_button(widgets, "sample vertices")) {
     load_svg(app);
-    auto vertices = sample_vertices_poisson(app->mesh.graph, 160);
+    auto vertices = sample_vertices_poisson(app->mesh.graph, 200);
     auto points   = vector<mesh_point>{};
     for (auto& v : vertices) {
       for (int i = 0; i < app->mesh.triangles.size(); i++) {
@@ -275,13 +277,8 @@ void draw_widgets(app_state* app, const gui_input& input) {
     for (int i = 0; i < points.size(); i++) {
       auto& point = points[i];
       add_polygons(app, app->temp_test, point, app->project_points);
-      // draw_mesh_point(
-      //     app->glscene, app->mesh, app->edges_material, point, 0.01);
-      // init_from_svg(app->state, app->mesh, point, app->last_svg.svg,
-      //     app->svg_size, app->svg_subdivs);
-      // add_polygon_shape(
-      //     app, app->state.polygons[i + num_polygons], i + num_polygons);
     }
+    update_polygons(app);
   }
 
   if (begin_header(widgets, "mesh info")) {
@@ -391,11 +388,18 @@ void draw_widgets(app_state* app, const gui_input& input) {
   if (draw_button(widgets, "Apply difference")) {
     commit_state(app);
 
-    auto indices = vector<int>(app->state.shapes.size() - 1);
-    for (auto i = 1; i < indices.size() + 1; i++) indices[(i - 1)] = i;
+    // auto indices = vector<int>(app->state.shapes.size() - 1);
+    // for (auto i = 1; i < indices.size() + 1; i++) indices[(i - 1)] = i;
 
-    compute_symmetrical_difference(app->state, indices);
-    update_cell_colors(app);
+    // compute_symmetrical_difference(app->state, indices);
+    // update_cell_colors(app);
+    for (int i = 0; i < app->state.cells.size(); i++) {
+      auto k = sum(app->state.labels[i]);
+      if (k % 2 == 1)
+        app->cell_shapes[i]->material->color = {1, 0, 0};
+      else
+        app->cell_shapes[i]->material->color = {1, 1, 1};
+    }
   }
 
   if (draw_button(widgets, "Clear operations")) {

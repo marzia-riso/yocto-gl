@@ -31,6 +31,7 @@ struct app_state {
   gui_window*    window         = nullptr;
   bool           color_shapes   = false;
   bool           color_hashgrid = false;
+  bool           show_polygons  = true;
   bool           use_projection = false;
   scene_camera   camera         = {};
 
@@ -118,6 +119,8 @@ void update_polygon(app_state* app, int polygon_id, int index = 0) {
 
   // Draw polygon.
   recompute_polygon_segments(app->mesh, app->state, mesh_polygon, index);
+  if (!app->show_polygons) return;
+
   if (mesh_polygon.length > 0)
     set_polygon_shape(polygon_shape->shape, app->mesh, mesh_polygon);
   else if (polygon_shape->shape)
