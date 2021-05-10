@@ -584,7 +584,7 @@ static void compute_cycles(const vector<mesh_cell>& cells, int node,
 inline vector<vector<vec2i>> compute_graph_cycles(
     const vector<mesh_cell>& cells) {
   auto visited        = vector<int>(cells.size(), 0);
-  auto parents        = vector<vec2i>(cells.size());
+  auto parents        = vector<vec2i>(cells.size(), {0, 0});
   auto cycles         = vector<vector<vec2i>>();
   auto start_node     = 0;
   auto invalid_parent = vec2i{-1, -1};
@@ -1198,7 +1198,7 @@ static bool_borders border_tags(
     }
   }
 
-//  check_tags(mesh, borders.tags);
+  //  check_tags(mesh, borders.tags);
 
   borders.virtual_tags = vector<hash_set<int>>(virtual_tag_map.size());
   for (auto& [key, value] : virtual_tag_map)
