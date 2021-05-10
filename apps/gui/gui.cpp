@@ -65,31 +65,6 @@ void add_polygons(app_state* app, bool_test test, const mesh_point& _center) {
 
   auto polygons = app->temp_test.polygons_screenspace;
 
-  for (auto& polygon : polygons) {
-    auto area = 0.0f;
-    for (int p = 0; p < polygon.size(); p++) {
-      auto& point = polygon[p];
-      auto& next  = polygon[(p + 1) % polygon.size()];
-      area += cross(next, point);
-    }
-
-    if (area < 0) {
-      std::reverse(polygon.begin(), polygon.end());
-    }
-  }
-
-  auto bbox = bbox2f{};
-  for (auto& polygon : polygons) {
-    for (auto& p : polygon) {
-      bbox = merge(bbox, p);
-    }
-  }
-
-  for (auto& polygon : polygons) {
-    for (auto& p : polygon) {
-      p = (p - center(bbox)) / max(size(bbox));
-    }
-  }
   auto center = _center;
 
   for (auto& polygon : polygons) {
@@ -151,7 +126,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
     auto& last_svg             = app->last_svg;
     last_svg.svg_point         = app->last_clicked_point;
     last_svg.previous_polygons = (int)app->state.polygons.size() - 1;
-    //
+
     auto script_path = normalize_path("scripts/svg_parser.py"s);
     auto test_json   = normalize_path("data/tests/tmp.json"s);
     auto cmd = "python3 "s + script_path + " "s + app->svg_filename + " "s +

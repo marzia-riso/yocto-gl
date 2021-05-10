@@ -171,32 +171,6 @@ inline bool_state make_test_state(const bool_test& test, const bool_mesh& mesh,
   auto state    = bool_state{};
   auto polygons = test.polygons_screenspace;
 
-  for (auto& polygon : polygons) {
-    auto area = 0.0f;
-    for (int p = 0; p < polygon.size(); p++) {
-      auto& point = polygon[p];
-      auto& next  = polygon[(p + 1) % polygon.size()];
-      area += cross(next, point);
-    }
-
-    if (area < 0) {
-      std::reverse(polygon.begin(), polygon.end());
-    }
-  }
-
-  auto bbox = bbox2f{};
-  for (auto& polygon : polygons) {
-    for (auto& p : polygon) {
-      bbox = merge(bbox, p);
-    }
-  }
-
-  for (auto& polygon : polygons) {
-    for (auto& p : polygon) {
-      p = (p - center(bbox)) / max(size(bbox));
-    }
-  }
-
   if (!use_projection) {
     map_polygons_onto_surface(state, mesh, polygons, camera, drawing_size);
   } else {

@@ -53,6 +53,25 @@ bool load_test(bool_test& test, const string& filename) {
 
     if (test.screenspace) {
       test.polygons_screenspace = js["polygons"].get<vector<vector<vec2f>>>();
+
+      for (auto& polygon : test.polygons_screenspace) {
+        auto area = 0.0f;
+        for (int p = 0; p < polygon.size(); p++) {
+          auto& point = polygon[p];
+          auto& next  = polygon[(p + 1) % polygon.size()];
+          area += cross(next, point);
+        }
+
+        if (area < 0) reverse(polygon.begin(), polygon.end());
+      }
+
+      auto bbox = bbox2f{};
+      for (auto& polygon : test.polygons_screenspace)
+        for (auto& p : polygon) bbox = merge(bbox, p);
+
+      for (auto& polygon : test.polygons_screenspace)
+        for (auto& p : polygon) p = (p - center(bbox)) / max(size(bbox));
+
     } else {
       test.points   = js["points"].get<vector<mesh_point>>();
       test.polygons = js["polygons"].get<vector<vector<int>>>();
