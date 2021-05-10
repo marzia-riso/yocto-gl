@@ -339,9 +339,9 @@ static mesh_hashgrid compute_hashgrid(bool_mesh& mesh,
         last_face = segment.face;
       }
 
-      if (last_vertex != -1)
-        control_points[last_vertex] =
-            polygon.points[(e + 1) % polygon.edges.size()];
+      //      if (last_vertex != -1)
+      //        control_points[last_vertex] =
+      //            polygon.points[(e + 1) % polygon.edges.size()];
     }
 
     if (indices == vec2i{-1, -1}) {
@@ -432,8 +432,8 @@ static vector<mesh_cell> flood_fill_new(vector<int>& starts,
     }
 
     static int c = 0;
-    save_tree_png(*global_state,
-        "data/tests/flood_fill_" + to_string(c) + ".png", "", false);
+    // save_tree_png(*global_state,
+    // "data/tests/flood_fill_" + to_string(c) + ".png", "", false);
     c += 1;
 
     auto  cell_id = (int)result.size();
@@ -502,8 +502,9 @@ static vector<mesh_cell> flood_fill_new(vector<int>& starts,
   }  // end of while
 
   static int c = 0;
-  save_tree_png(*global_state, "data/tests/flood_fill_" + to_string(c) + ".png",
-      "", false);
+  // save_tree_png(*global_state, "data/tests/flood_fill_" + to_string(c) +
+  // ".png",
+  // "", false);
   c += 1;
 
   return result;
@@ -652,8 +653,8 @@ static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
     auto cell_id = queue.front();
     queue.pop_front();
     static int c = 0;
-    save_tree_png(
-        *global_state, "data/tests/" + to_string(c) + ".png", "", false);
+    // save_tree_png(
+    //     *global_state, "data/tests/" + to_string(c) + ".png", "", false);
     c += 1;
 
     auto& cell = cells[cell_id];
@@ -1197,7 +1198,7 @@ static bool_borders border_tags(
     }
   }
 
-  check_tags(mesh, borders.tags);
+//  check_tags(mesh, borders.tags);
 
   borders.virtual_tags = vector<hash_set<int>>(virtual_tag_map.size());
   for (auto& [key, value] : virtual_tag_map)

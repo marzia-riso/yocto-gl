@@ -93,8 +93,8 @@ struct app_state {
     mesh_point        svg_point;
     vector<Svg_Shape> svg;
     int               previous_polygons;
-  } last_svg     = {};
-bool_test temp_test = {};
+  } last_svg          = {};
+  bool_test temp_test = {};
 
   ~app_state() {
     if (glscene) delete glscene;
@@ -400,16 +400,19 @@ inline void update_cell_shapes(app_state* app) {
 
 inline void update_cell_colors(app_state* app) {
   auto& state = app->state;
-  //  if (app->color_shapes) {
-  //    for (int i = 0; i < state.cells.size(); i++) {
-  //      app->cell_shapes[i]->material->color = state.shapes[i].color;
-  //    }
-  //  } else {
+
+  // for (int i = 0; i < state.cells.size(); i++) {
+  //   app->cell_shapes[i]->material->color = get_cell_color(
+  //       state, i, app->color_shapes);
+  // }
+
   for (int i = 0; i < state.cells.size(); i++) {
-    app->cell_shapes[i]->material->color = get_cell_color(
-        state, i, app->color_shapes);
+    auto k = sum(state.labels[i]);
+    if (k % 2)
+      app->cell_shapes[i]->material->color = {1, 0, 0};
+    else
+      app->cell_shapes[i]->material->color = {1, 1, 1};
   }
-  //  }
 }
 
 void update_svg(app_state* app) {

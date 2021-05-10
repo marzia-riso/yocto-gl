@@ -58,23 +58,73 @@ void debug_cell_flood_fill(app_state* app) {
 // }
 #endif
 
-void add_polygons(app_state* app, bool_test test) {
-  for (auto& polygon : test.polygons) {
-    for (auto& point : polygon) {
-      point += (int)app->state.points.size();
+void add_polygons(app_state* app, bool_test test, const mesh_point& _center) {
+  auto& state  = app->state;
+  auto& mesh   = app->mesh;
+  auto& camera = app->camera;
+
+  auto polygons = app->temp_test.polygons_screenspace;
+
+  for (auto& polygon : polygons) {
+    auto area = 0.0f;
+    for (int p = 0; p < polygon.size(); p++) {
+      auto& point = polygon[p];
+      auto& next  = polygon[(p + 1) % polygon.size()];
+      area += cross(next, point);
     }
-    auto& mesh_polygon  = app->state.polygons.emplace_back();
-    mesh_polygon.points = polygon;
-    recompute_polygon_segments(app->mesh, app->state, mesh_polygon);
+
+    if (area < 0) {
+      std::reverse(polygon.begin(), polygon.end());
+    }
   }
 
-  app->state.points += test.points;
+  auto bbox = bbox2f{};
+  for (auto& polygon : polygons) {
+    for (auto& p : polygon) {
+      bbox = merge(bbox, p);
+    }
+  }
+
+  for (auto& polygon : polygons) {
+    for (auto& p : polygon) {
+      p = (p - center(bbox)) / max(size(bbox));
+    }
+  }
+  auto center = _center;
+
+  for (auto& polygon : polygons) {
+    state.polygons.push_back({});
+    auto polygon_id = (int)state.polygons.size() - 1;
+
+    for (auto uv : polygon) {
+      uv.x /= camera.film;                    // input.window_size.x;
+      uv.y /= (camera.film / camera.aspect);  // input.window_size.y;
+      uv *= app->svg_size;
+      uv.x = -uv.x;
+
+      auto path     = straightest_path(mesh, center, uv);
+      path.end.uv.x = clamp(path.end.uv.x, 0.0f, 1.0f);
+      path.end.uv.y = clamp(path.end.uv.y, 0.0f, 1.0f);
+      auto point    = path.end;
+
+      // Add point to state.
+      state.polygons[polygon_id].points.push_back((int)state.points.size());
+      state.points.push_back(point);
+    }
+
+    if (state.polygons[polygon_id].points.size() <= 2) {
+      assert(0);
+      state.polygons[polygon_id].points.clear();
+      continue;
+    }
+
+    recompute_polygon_segments(mesh, state, state.polygons[polygon_id]);
+  }
   for (auto p = app->last_svg.previous_polygons; p < app->state.polygons.size();
        p++) {
     auto& polygon = app->state.polygons[p];
     add_polygon_shape(app, polygon, p);
   }
-
   update_polygons(app);
 }
 
@@ -105,7 +155,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
     auto script_path = normalize_path("scripts/svg_parser.py"s);
     auto test_json   = normalize_path("data/tests/tmp.json"s);
     auto cmd = "python3 "s + script_path + " "s + app->svg_filename + " "s +
-               test_json + " "s + to_string(app->svg_subdivs);
+               test_json + " "s + "2";
 
     printf("%s\n", cmd.c_str());
     auto ret_value = system(cmd.c_str());
@@ -114,77 +164,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
 
     app->temp_test = bool_test{};
     load_test(app->temp_test, test_json);
-
-    {
-      auto& state  = app->state;
-      auto& mesh   = app->mesh;
-      auto& camera = app->camera;
-
-      auto polygons = app->temp_test.polygons_screenspace;
-
-      for (auto& polygon : polygons) {
-        auto area = 0.0f;
-        for (int p = 0; p < polygon.size(); p++) {
-          auto& point = polygon[p];
-          auto& next  = polygon[(p + 1) % polygon.size()];
-          area += cross(next, point);
-        }
-
-        if (area < 0) {
-          std::reverse(polygon.begin(), polygon.end());
-        }
-      }
-
-      auto bbox = bbox2f{};
-      for (auto& polygon : polygons) {
-        for (auto& p : polygon) {
-          bbox = merge(bbox, p);
-        }
-      }
-
-      for (auto& polygon : polygons) {
-        for (auto& p : polygon) {
-          p = (p - center(bbox)) / max(size(bbox));
-        }
-      }
-      auto center = last_svg.svg_point;
-
-      for (auto& polygon : polygons) {
-        state.polygons.push_back({});
-        auto polygon_id = (int)state.polygons.size() - 1;
-
-        for (auto uv : polygon) {
-          uv.x /= camera.film;                    // input.window_size.x;
-          uv.y /= (camera.film / camera.aspect);  // input.window_size.y;
-          uv *= app->svg_size;
-          uv.x = -uv.x;
-
-          auto path     = straightest_path(mesh, center, uv);
-          path.end.uv.x = clamp(path.end.uv.x, 0.0f, 1.0f);
-          path.end.uv.y = clamp(path.end.uv.y, 0.0f, 1.0f);
-          auto point    = path.end;
-
-          // Add point to state.
-          state.polygons[polygon_id].points.push_back((int)state.points.size());
-          state.points.push_back(point);
-        }
-
-        if (state.polygons[polygon_id].points.size() <= 2) {
-          assert(0);
-          state.polygons[polygon_id].points.clear();
-          continue;
-        }
-
-        recompute_polygon_segments(mesh, state, state.polygons[polygon_id]);
-      }
-    }
-
-    for (auto p = app->last_svg.previous_polygons;
-         p < app->state.polygons.size(); p++) {
-      auto& polygon = app->state.polygons[p];
-      add_polygon_shape(app, polygon, p);
-    }
-    update_polygons(app);
+    add_polygons(app, app->temp_test, app->last_svg.svg_point);
   }
 
   if (draw_slider(widgets, "svg_size", app->svg_size, 0.0, 1.0)) {
@@ -269,7 +249,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
   }
 
   if (draw_button(widgets, "sample vertices")) {
-    auto vertices = sample_vertices_poisson(app->mesh.graph, 10);
+    auto vertices = sample_vertices_poisson(app->mesh.graph, 40);
     auto points   = vector<mesh_point>{};
     for (auto& v : vertices) {
       for (int i = 0; i < app->mesh.triangles.size(); i++) {
@@ -292,6 +272,7 @@ void draw_widgets(app_state* app, const gui_input& input) {
     auto num_polygons = app->state.polygons.size();
     for (int i = 0; i < points.size(); i++) {
       auto& point = points[i];
+      add_polygons(app, app->temp_test, point);
       // draw_mesh_point(
       //     app->glscene, app->mesh, app->edges_material, point, 0.01);
       // init_from_svg(app->state, app->mesh, point, app->last_svg.svg,
@@ -299,7 +280,6 @@ void draw_widgets(app_state* app, const gui_input& input) {
       // add_polygon_shape(
       //     app, app->state.polygons[i + num_polygons], i + num_polygons);
     }
-    update_polygons(app);
   }
 
   if (begin_header(widgets, "mesh info")) {
