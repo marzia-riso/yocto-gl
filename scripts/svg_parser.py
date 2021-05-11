@@ -146,8 +146,7 @@ def create_json(infile, outfile, num_subdivisions):
                 for points in path_points:
                     for p in range(len(points)):
                         nppoint = np.array(points[p])
-                        # nppoint = nppoint * rot_transform + tran_transform
-                        nppoint = nppoint + tran_transform
+                        nppoint = nppoint * rot_transform + tran_transform
 
                         points[p] = tuple(nppoint.tolist()[0])
 
