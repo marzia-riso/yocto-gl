@@ -121,11 +121,21 @@ def create_json(infile, outfile, num_subdivisions):
     for element in root:
         if element.tag == "{http://www.w3.org/2000/svg}g":
 
+            # Parsing transformation matrix
             # Parsing translation matrix
-            translation = (0, 0)
+            rot_transform = np.zeros((2, 2))
+            tran_transform = np.zeros((2, 1))
+
             if 'transform' in element.attrib:
-                transform = element.attrib['transform'][7:-1].split(',')[-2:]
-                translation = (float(transform[0]), float(transform[1]))
+                matrix = element.attrib['transform'][7:-1].split(",")
+                print(matrix)
+                rot_transform = np.matrix(
+                    matrix[:4], dtype=float).reshape(2, 2).transpose()
+                tran_transform = np.matrix(
+                    matrix[4:], dtype=float).reshape(1, 2)
+
+                print(rot_transform)
+                print(tran_transform)
 
             paths = []
             find_simple_paths(element, paths)
@@ -135,8 +145,12 @@ def create_json(infile, outfile, num_subdivisions):
                     path, num_subdivisions)
                 for points in path_points:
                     for p in range(len(points)):
-                        points[p] = (points[p][0] + translation[0],
-                                     points[p][1] + translation[1])
+                        nppoint = np.array(points[p])
+                        # nppoint = nppoint * rot_transform + tran_transform
+                        nppoint = nppoint + tran_transform
+
+                        points[p] = tuple(nppoint.tolist()[0])
+
                     data['polygons'].append(points)
 
         elif element.tag == "{http://www.w3.org/2000/svg}path":
