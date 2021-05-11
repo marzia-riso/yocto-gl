@@ -1305,6 +1305,8 @@ static void compute_cell_labels(bool_state& state) {
   if (state.ambient_cells.empty())
     state.ambient_cells = vector<int>(cycle_nodes.begin(), cycle_nodes.end());
 
+  print("ambient cells", state.ambient_cells);
+
   state.labels = propagate_cell_labels(state.cells, state.ambient_cells, cycles,
       skip_polygons, state.polygons.size());
 

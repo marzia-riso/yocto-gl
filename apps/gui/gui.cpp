@@ -124,7 +124,6 @@ void add_polygons(app_state* app, bool_test test, const mesh_point& center,
 
 void load_svg(app_state* app) {
   auto& last_svg             = app->last_svg;
-  last_svg.svg_point         = app->last_clicked_point;
   last_svg.previous_polygons = (int)app->state.polygons.size() - 1;
 
   auto script_path = normalize_path("scripts/svg_parser.py"s);
@@ -138,9 +137,6 @@ void load_svg(app_state* app) {
 
   app->temp_test = bool_test{};
   load_test(app->temp_test, test_json);
-  add_polygons(
-      app, app->temp_test, app->last_svg.svg_point, app->project_points);
-  update_polygons(app);
 }
 
 // draw with shading
@@ -161,9 +157,17 @@ void draw_widgets(app_state* app, const gui_input& input) {
     save_test(app, app->state, test_filename);
   }
 
+  continue_line(widgets);
   if (draw_filedialog_button(widgets, "load svg", true, "load svg",
           app->svg_filename, false, "data/svgs/", "test.svg", "*.svg")) {
     load_svg(app);
+  }
+
+  if (draw_button(widgets, "draw svg")) {
+    commit_state(app);
+    add_polygons(
+        app, app->temp_test, app->last_clicked_point, app->project_points);
+    update_polygons(app);
   }
   continue_line(widgets);
   draw_checkbox(widgets, "project points", app->project_points);
@@ -251,10 +255,13 @@ void draw_widgets(app_state* app, const gui_input& input) {
     // end_header(widgets);
   }
 
-  if (draw_button(widgets, "sample vertices")) {
+  draw_slider(widgets, "num polygons", app->num_sampled_polygons, 0, 500);
+  if (draw_button(widgets, "bomb polygons")) {
+    commit_state(app);
     load_svg(app);
-    auto vertices = sample_vertices_poisson(app->mesh.graph, 200);
-    auto points   = vector<mesh_point>{};
+    auto vertices = sample_vertices_poisson(
+        app->mesh.graph, app->num_sampled_polygons);
+    auto points = vector<mesh_point>{};
     for (auto& v : vertices) {
       for (int i = 0; i < app->mesh.triangles.size(); i++) {
         auto tr = app->mesh.triangles[i];
@@ -395,10 +402,11 @@ void draw_widgets(app_state* app, const gui_input& input) {
     // update_cell_colors(app);
     for (int i = 0; i < app->state.cells.size(); i++) {
       auto k = sum(app->state.labels[i]);
-      if (k % 2 == 1)
-        app->cell_shapes[i]->material->color = {1, 0, 0};
-      else
+      if (k % 2 == 1) {
+        // app->cell_shapes[i]->material->color = {1, 0, 0};
+      } else {
         app->cell_shapes[i]->material->color = {1, 1, 1};
+      }
     }
   }
 

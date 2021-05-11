@@ -20,20 +20,21 @@ using namespace yocto;
 // Application state
 struct app_state {
   // loading parameters
-  string         model_filename = "";
-  string         test_filename  = "";
-  string         svg_filename   = "";
-  int            svg_subdivs    = 4;
-  float          svg_size       = 0.01;
-  bool           project_points = false;
-  bool_test      test           = {};
-  bool_operation operation      = {};
-  gui_window*    window         = nullptr;
-  bool           color_shapes   = false;
-  bool           color_hashgrid = false;
-  bool           show_polygons  = true;
-  bool           use_projection = false;
-  scene_camera   camera         = {};
+  string         model_filename       = "";
+  string         test_filename        = "";
+  string         svg_filename         = "";
+  int            svg_subdivs          = 4;
+  float          svg_size             = 0.01;
+  bool           project_points       = false;
+  int            num_sampled_polygons = 200;
+  bool_test      test                 = {};
+  bool_operation operation            = {};
+  gui_window*    window               = nullptr;
+  bool           color_shapes         = false;
+  bool           color_hashgrid       = false;
+  bool           show_polygons        = true;
+  bool           use_projection       = false;
+  scene_camera   camera               = {};
 
   // options
   shade_params drawgl_prms = {};
@@ -92,7 +93,6 @@ struct app_state {
   mesh_point last_clicked_point_original = {};
 
   struct last_svg {
-    mesh_point        svg_point;
     vector<Svg_Shape> svg;
     int               previous_polygons;
   } last_svg          = {};
@@ -415,7 +415,7 @@ inline void update_cell_colors(app_state* app) {
 }
 
 void update_svg(app_state* app) {
-  init_from_svg(app->state, app->mesh, app->last_svg.svg_point,
+  init_from_svg(app->state, app->mesh, app->last_clicked_point,
       app->last_svg.svg, app->svg_size, app->svg_subdivs);
 
   for (auto p = app->last_svg.previous_polygons; p < app->state.polygons.size();

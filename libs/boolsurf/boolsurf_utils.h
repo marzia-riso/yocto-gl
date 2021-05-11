@@ -220,62 +220,57 @@ inline string to_string(const mesh_point& p) {
   return "{" + std::to_string(p.face) + ", " + std::to_string(p.uv) + "}";
 }
 
-template <typename T>
-string to_string(const vector<T>& vec) {
-  auto max_elements = 100;
-  auto result       = string{};
-  result.reserve(1e5);
-  auto count = 0;
-  auto str   = (char*)result.data();
-  count += sprintf(str, "[size: %lu] ", vec.size());
-  if (vec.empty()) {
-    count += sprintf(str, "]\n");
-    goto end;
-  }
-  for (int i = 0; i < min((int)vec.size() - 1, max_elements); i++) {
-    count += sprintf(str, "%s, ", std::to_string(vec[i]).c_str());
-  }
-  if (vec.size() > max_elements) {
-    count += sprintf(str, "...]");
-  } else {
-    count += sprintf(str, "%s]", std::to_string(vec.back()).c_str());
-  }
-end:
-  count += sprintf(str, "\n");
-  result.resize(count);
-  return result;
-}
-
-template <typename T>
-string to_string(const hash_set<T>& vec) {
-  auto max_elements = 100;
-  auto result       = string{};
-  result.reserve(1e5);
-  auto count = 0;
-  auto str   = (char*)result.data();
-  count += sprintf(str, "[size: %lu] ", vec.size());
-  if (vec.empty()) {
-    count += sprintf(str, "]\n");
+// TODO(giacomo): doesn't work
+  template <typename T>
+  string to_string(const vector<T>& vec) {
+    auto max_elements = 100;
+    auto result       = string{};
+    result.reserve(1e5);
+    auto count = 0;
+    auto str   = (char*)result.data();
+    count += sprintf(str, "[size: %lu] ", vec.size());
+    if (vec.empty()) {
+      count += sprintf(str, "]\n");
       goto end;
+    }
+    for (int i = 0; i < min((int)vec.size() - 1, max_elements); i++) {
+      count += sprintf(str, "%s, ", std::to_string(vec[i]).c_str());
+    }
+    if (vec.size() > max_elements) {
+      count += sprintf(str, "...]");
+    } else {
+      count += sprintf(str, "%s]", std::to_string(vec.back()).c_str());
+    }
+  end:
+    count += sprintf(str, "\n");
+    result.resize(count);
+    return result;
   }
-  for (int i = 0; i < min((int)vec.size() - 1, max_elements); i++) {
-    count += sprintf(str, "%s, ", std::to_string(vec[i]).c_str());
-  }
-  if (vec.size() > max_elements) {
-    count += sprintf(str, "...]");
-  } else {
-    count += sprintf(str, "%s]", std::to_string(vec.back()).c_str());
-  }
-    end:
-  count += sprintf(str, "\n");
-  result.resize(count);
-  return result;
-}
+
+ template <typename T>
+ string to_string(const hash_set<T>& vec) {
+   auto max_elements = 100;
+   auto result       = string(1e5, '\0');
+   auto count        = 0;
+   auto str          = (char*)result.data();
+   count += sprintf(str, "[size: %lu] ", vec.size());
+   int i = 0;
+   for (auto& item : vec) {
+     if (i > max_elements) break;
+     i += 1;
+     printf("ao: %s\n", std::to_string(item).c_str());
+     count += sprintf(str, "%s, ", std::to_string(item).c_str());
+   }
+   count += sprintf(str, "]\n");
+   result.resize(count);
+   return result;
+ }
 }  // namespace std
 
-template <typename T>
+ template <typename T>
 void print(const string& name, const T& v) {
-  printf("%s: %s\n", name.c_str(), std::to_string(v).c_str());
+  auto s = std::to_string(v);
+  printf("%s: %s\n", name.c_str(), s.c_str());
 }
 
 template <typename T>
