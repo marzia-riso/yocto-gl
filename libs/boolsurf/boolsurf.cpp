@@ -288,7 +288,8 @@ static mesh_hashgrid compute_hashgrid(bool_mesh& mesh,
   for (auto polygon_id = 0; polygon_id < polygons.size(); polygon_id++) {
     auto& polygon = polygons[polygon_id];
     if (polygon.length == 0) continue;
-    if(polygon.edges.empty()) continue;
+    if (polygon.edges.empty()) continue;
+    if (polygon.edges[0].empty()) continue;
 
     // La polilinea della prima faccia del poligono viene processata alla fine
     // (perché si trova tra il primo e l'ultimo edge)
@@ -537,6 +538,22 @@ static vector<int> find_roots(const vector<mesh_cell>& cells) {
     if (adjacency[i] == 0) result.push_back(i);
   }
   return result;
+}
+
+static vector<int> find_leaves(const vector<mesh_cell>& cells) {
+  // Trova le celle non hanno archi entranti con segno di poligono positivo.
+  auto out_degrees = vector<int>(cells.size(), 0);
+  for (int i = 0; i < cells.size(); i++) {
+    for (auto& [adj, p] : cells[i].adjacency) {
+      if (p > 0) out_degrees[i] += 1;
+    }
+  }
+
+  auto leaves = vector<int>{};
+  for (int i = 0; i < out_degrees.size(); i++) {
+    if (out_degrees[i] == 0) leaves.push_back(i);
+  }
+  return leaves;
 }
 
 static void compute_cycles(const vector<mesh_cell>& cells, int node,
@@ -1215,48 +1232,78 @@ static bool_borders border_tags(
 
 static vector<int> find_ambient_cells(
     const bool_state& state, const hash_set<int>& cycle_nodes) {
-  auto roots     = find_roots(state.cells);
-  auto queue     = deque<int>(roots.begin(), roots.end());
-  auto distances = vector<int>(state.cells.size(), -99999);
-  auto parents   = vector<vector<int>>(state.cells.size());
+  // auto roots     = find_roots(state.cells);
+  auto leaves       = find_leaves(state.cells);
+  auto queue        = deque<int>(leaves.begin(), leaves.end());
+  auto distances    = vector<int>(state.cells.size(), -1);
+  auto edge_weights = hash_map<vec2i, int>{};
+  print("leaves", leaves);
+
   for (auto& s : queue) {
     distances[s] = 0;
-    parents[s]   = {s};
   }
   while (queue.size()) {
     auto node = queue.front();
     queue.pop_front();
+    printf("[open]: cell %d, distance %d \n", node, distances[node]);
 
     for (auto& [neighbor, polygon] : state.cells[node].adjacency) {
-      if (polygon < 0) continue;
+      // if (polygon < 0) continue;
+
+      // TODO(giacomo): mo vediamo.
       if (contains(cycle_nodes, node) && contains(cycle_nodes, neighbor)) {
         if (distances[node] == distances[neighbor]) continue;
-        parents[neighbor]   = parents[node];
+        // parents[neighbor]   = parents[node];
         distances[neighbor] = distances[node];
         queue.push_back(neighbor);
         continue;
       }
 
-      auto new_depth = distances[node] + 1;
-      if (new_depth < distances[neighbor]) {
+      auto edge_weight = 1;
+      auto edge_key    = make_edge_key({node, neighbor});
+      if (contains(edge_weights, edge_key)) {
+        edge_weight = edge_weights.at(edge_key);
+      } else {
+        edge_weights[edge_key] = edge_weight;
+      }
+
+      auto new_distance = distances[node] - sign(polygon) * edge_weight;
+      auto old_distance = distances[neighbor];
+
+      if (new_distance == old_distance) {
         continue;
       }
 
-      if (new_depth > distances[neighbor]) {
-        parents[neighbor]   = {parents[node]};
-        distances[neighbor] = new_depth;
-      } else if (new_depth == distances[neighbor]) {
-        parents[neighbor] += parents[node];
+      if (new_distance > old_distance) {
+        printf("[add]: neighbor %d, old_distance %d, new_distance %d \n",
+            neighbor, old_distance, new_distance);
+        distances[neighbor] = new_distance;
+        queue.push_back(neighbor);
       }
-      queue.push_back(neighbor);
+
+      // if (new_distance < old_distance) {
+      //   queue.push_back(neighbor);
+      // }
+
+      // if (new_depth < distances[neighbor]) {
+      //   continue;
+      // }
+
+      // if (new_depth > distances[neighbor]) {
+      //   parents[neighbor]   = {parents[node]};
+      //   distances[neighbor] = new_depth;
+      // } else if (new_depth == distances[neighbor]) {
+      //   parents[neighbor] += parents[node];
+      // }
+      // queue.push_back(neighbor);
     }
   }
 
-  auto max_depth     = max(distances);
+  auto max_distance  = max(distances);
   auto ambient_cells = hash_set<int>{};
   for (int i = 0; i < distances.size(); i++) {
-    if (distances[i] == max_depth) {
-      for (auto& p : parents[i]) ambient_cells.insert(p);
+    if (distances[i] == max_distance) {
+      ambient_cells.insert(i);
     }
   }
 
@@ -1301,6 +1348,8 @@ static void compute_cell_labels(bool_state& state) {
       skip_polygons.insert(polygon);
     }
   }
+
+  if (cycles.size()) exit(1);
 
   // Calcoliamo il labelling definitivo per effettuare le booleane tra
   // poligoni
