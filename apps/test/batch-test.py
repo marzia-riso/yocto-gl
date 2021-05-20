@@ -42,7 +42,7 @@ def svg(bin, dirname):
         msg = f'[{mesh_id}/{mesh_num}] {mesh_name}'
         print(msg + ' ' * max(0, 78-len(msg)))
 
-        cmd = f'{bin} --model {mesh_name} --output {images_dir}/{name}.png data/svgs/abc.json'
+        cmd = f'{bin} --model {mesh_name} --output_image {images_dir}/{name}.png data/svgs/abc.json'
         print(cmd)
         if append == '':
             append = '--append-timings'
@@ -102,7 +102,7 @@ def jsons(bin, dirname):
         msg = f'[{json_id}/{jsons_num}] {json_name}'
         print(msg + ' ' * max(0, 78-len(msg)))
 
-        cmd = f'{bin} {json_name} --output {images_dir}/{name}.png'
+        cmd = f'{bin} {json_name} --output_image {images_dir}/{name}.png'
         print(cmd)
         if append == '':
             append = '--append-timings'

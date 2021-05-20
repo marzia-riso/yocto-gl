@@ -1,4 +1,5 @@
 #include <yocto/yocto_cli.h>
+#include <yocto/yocto_sceneio.h>  // TODO(giacomo): Serve solo per funzioni inline temporanee
 #include <yocto/yocto_trace.h>
 
 #include "boolsurf.h"
@@ -95,6 +96,56 @@ void add_polygons(bool_state& state, const bool_mesh& mesh,
     float svg_size, bool screenspace);
 
 string tree_to_string(const bool_state& state, bool color_shapes);
+
+inline string tree_to_string(const vector<vector<int>>& graph) {
+  string result = "digraph {\n";
+  result += "forcelabels=true\n";
+
+  for (int i = 0; i < graph.size(); i++) {
+    auto& node = graph[i];
+    // auto  color = get_cell_color(state, i, color_shapes);
+    // color       = rgb_to_hsv(color);
+    char str[1024];
+    // auto label = string{};
+    // if (state.labels.empty())
+    //   label = "";
+    // else {
+    //   for (int k = 1; k < state.labels[i].size(); k++) {
+    //     if (state.labels[i][k] == null_label) {
+    //       label += "0 ";
+    //       continue;
+    //     }
+    //     label += to_string(state.labels[i][k]) + " ";
+    //   }
+    // }
+    sprintf(str, "%d\n", i);
+    result += std::string(str);
+
+    for (auto c : node) {
+      // if (polygon < 0) continue;
+      // int  c     = neighbor;
+      // auto color = rgb_to_hsv(get_color(polygon));
+      sprintf(str, "%d -> %d \n", i, c);
+      result += std::string(str);
+    }
+  }
+  result += "}\n";
+  return result;
+}
+
+inline void save_tree_png(const vector<vector<int>>& _graph, string filename) {
+  auto  graph = replace_extension(filename, ".txt");
+  FILE* file  = fopen(graph.c_str(), "w");
+  fprintf(file, "%s", tree_to_string(_graph).c_str());
+  fclose(file);
+
+  auto image = replace_extension(filename, ".png");
+  auto cmd   = "dot -Tpng "s + graph + " > " + image;
+  printf("%s\n", cmd.c_str());
+  system(cmd.c_str());
+  cmd = "rm "s + graph;
+  system(cmd.c_str());
+}
 
 void save_tree_png(const bool_state& state, string filename,
     const string& extra, bool color_shapes);

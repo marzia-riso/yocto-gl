@@ -81,7 +81,11 @@ int main(int num_args, const char* args[]) {
   add_option(cli, "color-shapes", color_shapes, "Color shapes.");
   parse_cli(cli, num_args, args);
 
-  if (!test_filename.size()) print_fatal("No input filename");
+  if (!test_filename.size()) {
+    print_fatal("No input filename");
+  } else {
+    printf("test filename: %s\n", test_filename.c_str());
+  }
 
   auto test      = bool_test{};
   auto extension = path_extension(test_filename);

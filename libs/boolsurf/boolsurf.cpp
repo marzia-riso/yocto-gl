@@ -3,6 +3,7 @@
 #include <cassert>
 #include <deque>
 
+#include "boolsurf_io.h"
 #include "ext/CDT/CDT/include/CDT.h"
 
 constexpr auto adjacent_to_nothing = -2;
@@ -1225,7 +1226,8 @@ static bool_borders border_tags(
 static vector<int> find_ambient_cells(
     bool_state& state, hash_set<int>& cycle_nodes) {
   PROFILE();
-  auto roots   = find_roots(state.cells);
+  auto roots = find_roots(state.cells);
+  print("roots", roots);
   auto queue   = deque<int>(roots.begin(), roots.end());
   auto parents = vector<vector<vector<int>>>(state.cells.size());
   for (auto& s : queue) {
@@ -1233,18 +1235,29 @@ static vector<int> find_ambient_cells(
   }
 
   while (queue.size()) {
+    print("queue", queue);
     auto node = queue.front();
     queue.pop_front();
 
     for (auto& [neighbor, polygon] : state.cells[node].adjacency) {
       if (polygon < 0) continue;
-      if (contains(cycle_nodes, node) && contains(cycle_nodes, neighbor)) {
-        parents[neighbor] = parents[node];
-        queue.push_back(neighbor);
-        continue;
+      // if (contains(cycle_nodes, node) && contains(cycle_nodes, neighbor)) {
+      //   parents[neighbor] = parents[node];
+      //   queue.push_back(neighbor);
+      //   continue;
+      // }
+      if (node == neighbor) continue;
+      bool cycle = false;
+      for (auto& p : parents[node]) {
+        if (contains(p, neighbor)) {
+          cycle = true;
+          break;
+        }
       }
+      if (cycle) continue;
 
-      for (auto p : parents[node]) {
+      for (int i = 0; i < parents[node].size(); i++) {
+        auto p = parents[node][i];
         p += node;
         parents[neighbor] += p;
       }
@@ -1291,32 +1304,81 @@ static vector<int> find_ambient_cells(
     auto& parent_map = parent_maps[i];
     for (auto& [_, values] : parent_map) {
       for (auto& parent_path : values) {
-        dag[parent_path.back()].push_back(i);
+        if (!contains(dag[parent_path.back()], i))
+          dag[parent_path.back()].push_back(i);
       }
     }
   }
 
-  queue          = deque<int>(roots.begin(), roots.end());
-  auto distances = vector<int>(state.cells.size(), 0);
-  while (queue.size()) {
-    auto node = queue.front();
-    queue.pop_front();
+  save_tree_png(dag, "dag.png");
 
-    for (auto& neighbor : dag[node]) {
-      if (contains(cycle_nodes, node) && contains(cycle_nodes, neighbor)) {
-        if (distances[node] == distances[neighbor]) continue;
-        distances[neighbor] = distances[node];
-        queue.push_back(neighbor);
-        continue;
-      }
+  auto distances = vector<int>(state.cells.size(), -1);
+  {
+    auto queue   = deque<int>(roots.begin(), roots.end());
+    auto parents = vector<hash_set<int>>(state.cells.size());
+    for (auto& node : queue) {
+      distances[node] = 0;
+      parents[node]   = {node};
+    }
 
-      auto new_depth = distances[node] + 1;
+    auto add_to_queue = [&](int i) {
+      if (!contains(queue, i)) queue.push_back(i);
+    };
+    while (queue.size()) {
+      print("dag-queue", queue);
+      // printf("parents:\n");
+      //      for (int i = 0; i < parents.size(); i++) {
+      //        print(to_string(i), parents[i]);
+      //      }
+      // printf("\n");
+      auto node = queue.back();
+      queue.pop_back();
+      // printf("node: %d\n", node);
 
-      if (new_depth > distances[neighbor]) {
-        distances[neighbor] = new_depth;
-        queue.push_back(neighbor);
+      for (auto& neighbor : dag[node]) {
+        // if (contains(cycle_nodes, node) && contains(cycle_nodes, neighbor)) {
+        //   if (distances[node] == distances[neighbor]) continue;
+        //   distances[neighbor] = distances[node];
+        //   queue.push_back(neighbor);
+        //   continue;
+        // }
+
+        auto old_depth = distances[neighbor];
+        auto new_depth = distances[node] + 1;
+
+        if (old_depth == -1) {
+          distances[neighbor] = new_depth;
+          parents[neighbor]   = {parents[node]};
+          add_to_queue(neighbor);
+          continue;
+        }
+
+        if (new_depth == distances[neighbor]) {
+          parents[neighbor].insert(node);
+          continue;
+        }
+
+        if (new_depth > old_depth) {
+          for (auto& p : parents[neighbor]) {
+            distances[p] = new_depth - old_depth;
+            add_to_queue(p);
+          }
+          distances[neighbor] = new_depth;
+          parents[neighbor]   = {parents[node]};
+          add_to_queue(neighbor);
+        }
+
+        if (new_depth < old_depth) {
+          for (auto& p : parents[node]) {
+            if (distances[p] >= old_depth - new_depth) continue;
+            distances[p] = old_depth - new_depth;
+            add_to_queue(p);
+          }
+        }
+        break;
       }
     }
+    print("distances", distances);
   }
 
   auto result = vector<int>{};
@@ -1374,6 +1436,7 @@ static void compute_cell_labels(bool_state& state) {
       skip_polygons.insert(polygon);
     }
   }
+  // save_tree_png(state, "data/graph.png", "", false);
 
   // Calcoliamo il labelling definitivo per effettuare le booleane tra
   // poligoni
