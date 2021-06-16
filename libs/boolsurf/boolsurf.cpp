@@ -531,12 +531,13 @@ vector<mesh_cell> make_mesh_cells(
   return result;
 }
 
-static vector<int> find_roots(const vector<mesh_cell>& cells) {
+static vector<int> find_roots(
+    const vector<mesh_cell>& cells, hash_set<int>& skip_polygons) {
   // Trova le celle non hanno archi entranti con segno di poligono positivo.
   auto adjacency = vector<int>(cells.size(), 0);
   for (auto& cell : cells) {
     for (auto& [adj, p] : cell.adjacency) {
-      if (p > 0) adjacency[adj] += 1;
+      if (p > 0 && !contains(skip_polygons, p)) adjacency[adj] += 1;
     }
   }
 
@@ -653,12 +654,16 @@ static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
 
   for (auto start_cell : start) {
     labels[start_cell] = vector<int>(num_polygons, 0);
+    for (auto c = 0; c < num_polygons; c++) {
+      if (contains(skip_polygons, c)) labels[start_cell][c] = null_label;
+    }
   }
 
-  // Inizializza la label dei nodi nei cicli.
-  for (auto& cycle : cycles) {
-    for (auto& c : cycle) labels[c.x][c.y] = 1;
-  }
+  // // Inizializza la label dei nodi nei cicli.
+  // for (auto& cycle : cycles) {
+  //   for (auto& c : cycle) labels[c.x][c.y] = 1;
+  // }
+
   // Calcoliamo le label delle celle visitando il grafo di adiacenza a
   // partire dalle celle ambiente e incrementanto/decrementanto l'indice
   // corrispondente al poligono.
@@ -671,13 +676,13 @@ static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
     print("queue", queue);
     auto cell_id = queue.front();
     queue.pop_front();
-    static int c = 0;
+
+    // static int c = 0;
     // save_tree_png(
     //     *global_state, "data/tests/" + to_string(c) + ".png", "", false);
-    c += 1;
+    // c += 1;
 
     auto& cell = cells[cell_id];
-
     for (auto& edge : cell.adjacency) {
       auto neighbor         = edge.x;
       auto polygon          = edge.y;
@@ -686,6 +691,7 @@ static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
       auto is_cycle_edge = contains(skip_polygons, (int)polygon_unsigned);
 
       if (polygon < 0 && visited[neighbor]) continue;
+      if (contains(skip_polygons, (int)polygon_unsigned)) continue;
       // if (visited[neighbor]) continue;
       // Se il nodo è già stato visitato e la nuova etichetta è diversa da
       // quella già calcolata allora prendo il massimo valore in ogni
@@ -1227,10 +1233,10 @@ static bool_borders border_tags(
   return borders;
 }
 
-static vector<int> find_ambient_cells(
-    bool_state& state, hash_set<int>& cycle_nodes) {
+static vector<int> find_ambient_cells(bool_state& state,
+    hash_set<int>& cycle_nodes, hash_set<int>& skip_polygons) {
   PROFILE();
-  auto roots   = find_roots(state.cells);
+  auto roots   = find_roots(state.cells, skip_polygons);
   auto queue   = deque<int>(roots.begin(), roots.end());
   auto parents = vector<vector<vector<int>>>(state.cells.size());
   for (auto& s : queue) {
@@ -1243,11 +1249,13 @@ static vector<int> find_ambient_cells(
 
     for (auto& [neighbor, polygon] : state.cells[node].adjacency) {
       if (polygon < 0) continue;
+      if (contains(skip_polygons, polygon)) continue;
       // if (contains(cycle_nodes, node) && contains(cycle_nodes, neighbor)) {
       //   parents[neighbor] = parents[node];
       //   queue.push_back(neighbor);
       //   continue;
       // }
+
       if (node == neighbor) continue;
       bool cycle = false;
       for (auto& p : parents[node]) {
@@ -1390,16 +1398,18 @@ void compute_cell_labels(bool_state& state) {
       skip_polygons.insert(polygon);
     }
   }
+
   save_tree_png(state, "data/graph.png", "", false);
 
   // Calcoliamo il labelling definitivo per effettuare le booleane tra
   // poligoni
-
-  state.ambient_cells = find_ambient_cells(state, cycle_nodes);
-  if (state.ambient_cells.empty())
-    state.ambient_cells = vector<int>(cycle_nodes.begin(), cycle_nodes.end());
+  state.ambient_cells = find_ambient_cells(state, cycle_nodes, skip_polygons);
+  // if (state.ambient_cells.empty())
+  //   state.ambient_cells = vector<int>(cycle_nodes.begin(),
+  //   cycle_nodes.end());
 
   print("Ambient cells", state.ambient_cells.size());
+  assert(state.ambient_cells.size());
 
   state.labels = propagate_cell_labels(state.cells, state.ambient_cells,
       state.cycles, skip_polygons, (int)state.polygons.size());
@@ -1409,7 +1419,7 @@ void compute_cell_labels(bool_state& state) {
   // uscito)
   for (auto& ll : state.labels) {
     for (auto& label : ll) {
-      assert(label >= 0);
+      // assert(label >= 0);
       if (label > 1) label = label % 2;
     }
   }
