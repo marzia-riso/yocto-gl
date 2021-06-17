@@ -76,6 +76,15 @@ struct mesh_shape {
   shade_instance*     borders_shape = nullptr;
 };
 
+struct bool_cycle_edge {
+  int node;
+  int polygon;
+};
+
+struct bool_cycle {
+  vector<bool_cycle_edge> edges = {};
+};
+
 struct bool_state {
   vector<mesh_polygon> polygons = {{}};
   vector<mesh_point>   points   = {};
@@ -84,10 +93,10 @@ struct bool_state {
   hash_map<int, int>   control_points      = {};
   hash_map<int, vec2i> isecs_generators    = {};
 
-  vector<mesh_cell>     cells         = {};
-  vector<int>           ambient_cells = {};
-  vector<vector<vec2i>> cycles        = {};
-  vector<vector<int>>   labels        = {};
+  vector<mesh_cell>   cells         = {};
+  vector<int>         ambient_cells = {};
+  vector<bool_cycle>  cycles        = {};
+  vector<vector<int>> labels        = {};
 
   vector<mesh_shape> shapes         = {};
   vector<int>        shapes_sorting = {};

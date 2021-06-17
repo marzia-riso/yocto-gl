@@ -531,8 +531,8 @@ vector<mesh_cell> make_mesh_cells(
   return result;
 }
 
-static vector<int> find_roots(
-    const vector<mesh_cell>& cells, hash_set<int>& skip_polygons) {
+static vector<int> find_roots(const vector<mesh_cell>& cells,
+    hash_set<int>& cycle_nodes, hash_set<int>& skip_polygons) {
   // Trova le celle non hanno archi entranti con segno di poligono positivo.
   auto adjacency = vector<int>(cells.size(), 0);
   for (auto& cell : cells) {
@@ -541,16 +541,24 @@ static vector<int> find_roots(
     }
   }
 
-  auto result = vector<int>{};
+  auto result = hash_set<int>{};
   for (int i = 0; i < adjacency.size(); i++) {
-    if (adjacency[i] == 0) result.push_back(i);
+    if (adjacency[i] == 0) result.insert(i);
   }
-  return result;
+
+  for (auto& n : cycle_nodes) {
+    if (!contains(result, n)) {
+      for (auto& n : cycle_nodes) result.erase(n);
+    }
+  }
+
+  return vector<int>(result.begin(), result.end());
 }
 
 static void compute_cycles(const vector<mesh_cell>& cells, int node,
-    vec2i parent, vector<int> visited, vector<int>& global_visited,
-    vector<vec2i> parents, vector<vector<vec2i>>& cycles) {
+    bool_cycle_edge parent_edge, vector<int> visited,
+    vector<int>& global_visited, vector<bool_cycle_edge> parent_edges,
+    vector<bool_cycle>& cycles) {
   // Se il nodo il considerazione è già stato completamente visitato allora
   // terminiamo la visita
   if (visited[node] == 2) return;
@@ -558,20 +566,20 @@ static void compute_cycles(const vector<mesh_cell>& cells, int node,
   // Se il nodo in considerazione non è stato completamente visitato e lo
   // stiamo rivisitando ora allora abbiamo trovato un ciclo
   if (visited[node] == 1) {
-    auto  cycle   = vector<vec2i>();
-    auto& current = parent;
-    cycle.push_back(current);
+    auto  cycle   = bool_cycle();
+    auto& current = parent_edge;
+    cycle.edges.push_back(current);
 
     // Risalgo l'albero della visita fino a che non trovo lo stesso nodo e
     // salvo il ciclo individuato
-    while (current.x != node) {
-      auto prev = parents[current.x];
+    while (current.node != node) {
+      auto prev = parent_edges[current.node];
 
       // (marzia) check: è vero che ho un ciclo corretto se il verso
       // (entrante/uscente) è lo stesso per tutti gli archi?
-      if (sign(prev.y) != sign(current.y)) return;
+      if (sign(prev.polygon) != sign(current.polygon)) return;
       current = prev;
-      cycle.push_back(current);
+      cycle.edges.push_back(current);
     }
 
     cycles.push_back(cycle);
@@ -579,7 +587,7 @@ static void compute_cycles(const vector<mesh_cell>& cells, int node,
   }
 
   // Settiamo il padre del nodo attuale e iniziamo ad esplorare i suoi vicini
-  parents[node]        = parent;
+  parent_edges[node]   = parent_edge;
   visited[node]        = 1;
   global_visited[node] = 1;
 
@@ -589,7 +597,7 @@ static void compute_cycles(const vector<mesh_cell>& cells, int node,
     if (polygon > 0) continue;
     // if (neighbor == parent.x && polygon == -parent.y) continue;
     compute_cycles(cells, neighbor, {node, -polygon}, visited, global_visited,
-        parents, cycles);
+        parent_edges, cycles);
   }
 
   // Settiamo il nodo attuale come completamente visitato
@@ -597,15 +605,14 @@ static void compute_cycles(const vector<mesh_cell>& cells, int node,
   global_visited[node] = 2;
 }
 
-inline vector<vector<vec2i>> compute_graph_cycles(
-    const vector<mesh_cell>& cells) {
+inline vector<bool_cycle> compute_graph_cycles(const vector<mesh_cell>& cells) {
   PROFILE();
   auto visited        = vector<int>(cells.size(), 0);
   auto global_visited = vector<int>(cells.size(), 0);
 
-  auto parents        = vector<vec2i>(cells.size(), {0, 0});
-  auto cycles         = vector<vector<vec2i>>();
-  auto invalid_parent = vec2i{-1, -1};
+  auto parents        = vector<bool_cycle_edge>(cells.size(), {0, 0});
+  auto cycles         = vector<bool_cycle>();
+  auto invalid_parent = bool_cycle_edge{-1, -1};
 
   for (auto node = 0; node < cells.size(); node++) {
     if (global_visited[node] == 0)
@@ -654,7 +661,7 @@ inline vector<vector<int>> compute_components(
 }
 
 static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
-    const vector<int>& start, const vector<vector<vec2i>>& cycles,
+    const vector<int>& start, const vector<bool_cycle>& cycles,
     const hash_set<int>& skip_polygons, int num_polygons) {
   PROFILE();
   // Inizializziamo le label delle celle a 0.
@@ -669,15 +676,9 @@ static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
     }
   }
 
-  // // Inizializza la label dei nodi nei cicli.
-  // for (auto& cycle : cycles) {
-  //   for (auto& c : cycle) labels[c.x][c.y] = 1;
-  // }
-
   // Calcoliamo le label delle celle visitando il grafo di adiacenza a
   // partire dalle celle ambiente e incrementanto/decrementanto l'indice
   // corrispondente al poligono.
-
   auto queue   = deque<int>(start.begin(), start.end());
   auto visited = vector<bool>(cells.size(), false);
   for (auto& s : start) visited[s] = true;
@@ -701,14 +702,14 @@ static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
       auto is_cycle_edge = contains(skip_polygons, (int)polygon_unsigned);
 
       if (polygon < 0 && visited[neighbor]) continue;
-      if (contains(skip_polygons, (int)polygon_unsigned)) continue;
+      // if (contains(skip_polygons, (int)polygon_unsigned)) continue;
       // if (visited[neighbor]) continue;
       // Se il nodo è già stato visitato e la nuova etichetta è diversa da
       // quella già calcolata allora prendo il massimo valore in ogni
       // componente
 
-      auto& neighbor_labels         = labels[neighbor];
-      auto  cell_labels             = labels[cell_id];
+      auto& neighbor_labels = labels[neighbor];
+      auto  cell_labels     = labels[cell_id];
 
       // Applichiamo la even-odd rule nel caso in cui le label > 1 (Nelle self
       // intersections posso entrare in un poligono più volte senza esserne
@@ -717,11 +718,11 @@ static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
 
       auto updated_neighbor_labels = false;
       for (int i = 0; i < neighbor_labels.size(); i++) {
-        if (is_cycle_edge) {
-          if (contains(skip_polygons, i)) {
-            continue;
-          }
+        // if (is_cycle_edge) {
+        if (contains(skip_polygons, i)) {
+          continue;
         }
+        // }
 
         if (neighbor_labels[i] == null_label) {
           neighbor_labels[i]      = cell_labels[i];
@@ -744,6 +745,12 @@ static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
       visited[neighbor] = true;
     }
   }
+
+  // Inizializza la label dei nodi nei cicli.
+  for (auto& cycle : cycles) {
+    for (auto& edge : cycle.edges) labels[edge.node][edge.polygon] = 1;
+  }
+
   return labels;
 }
 
@@ -1250,7 +1257,7 @@ static bool_borders border_tags(
 static vector<int> find_ambient_cells(bool_state& state,
     hash_set<int>& cycle_nodes, hash_set<int>& skip_polygons) {
   PROFILE();
-  auto roots   = find_roots(state.cells, skip_polygons);
+  auto roots   = find_roots(state.cells, cycle_nodes, skip_polygons);
   auto queue   = deque<int>(roots.begin(), roots.end());
   auto parents = vector<vector<vector<int>>>(state.cells.size());
   for (auto& s : queue) {
@@ -1407,9 +1414,9 @@ void compute_cell_labels(bool_state& state) {
   print("Cycles", state.cycles.size());
 
   for (auto& cycle : state.cycles) {
-    for (auto& [node, polygon] : cycle) {
-      cycle_nodes.insert(node);
-      skip_polygons.insert(polygon);
+    for (auto& edge : cycle.edges) {
+      cycle_nodes.insert(edge.node);
+      skip_polygons.insert(edge.polygon);
     }
   }
 
@@ -1721,11 +1728,13 @@ vec3f get_cell_color(const bool_state& state, int cell_id, bool color_shapes) {
         count += 1;
       }
     }
+
     if (count > 0) {
       color /= count;
     } else {  // Null label cell color
       color = {0.9, 0.9, 0.9};
     }
+
     return color;
   }
 }
