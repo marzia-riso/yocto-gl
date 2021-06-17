@@ -549,8 +549,8 @@ static vector<int> find_roots(
 }
 
 static void compute_cycles(const vector<mesh_cell>& cells, int node,
-    vec2i parent, vector<int> visited, vector<vec2i> parents,
-    vector<vector<vec2i>>& cycles) {
+    vec2i parent, vector<int> visited, vector<int>& global_visited,
+    vector<vec2i> parents, vector<vector<vec2i>>& cycles) {
   // Se il nodo il considerazione è già stato completamente visitato allora
   // terminiamo la visita
   if (visited[node] == 2) return;
@@ -579,30 +579,40 @@ static void compute_cycles(const vector<mesh_cell>& cells, int node,
   }
 
   // Settiamo il padre del nodo attuale e iniziamo ad esplorare i suoi vicini
-  parents[node] = parent;
-  visited[node] = 1;
+  parents[node]        = parent;
+  visited[node]        = 1;
+  global_visited[node] = 1;
 
   for (auto& [neighbor, polygon] : cells[node].adjacency) {
     // Se stiamo percorrendo lo stesso arco ma al contrario allora continuo,
     // altrimenti esploriamo il vicino
     if (polygon > 0) continue;
     // if (neighbor == parent.x && polygon == -parent.y) continue;
-    compute_cycles(cells, neighbor, {node, -polygon}, visited, parents, cycles);
+    compute_cycles(cells, neighbor, {node, -polygon}, visited, global_visited,
+        parents, cycles);
   }
 
   // Settiamo il nodo attuale come completamente visitato
-  visited[node] = 2;
+  visited[node]        = 2;
+  global_visited[node] = 2;
 }
 
 inline vector<vector<vec2i>> compute_graph_cycles(
     const vector<mesh_cell>& cells) {
   PROFILE();
   auto visited        = vector<int>(cells.size(), 0);
+  auto global_visited = vector<int>(cells.size(), 0);
+
   auto parents        = vector<vec2i>(cells.size(), {0, 0});
   auto cycles         = vector<vector<vec2i>>();
-  auto start_node     = 0;
   auto invalid_parent = vec2i{-1, -1};
-  compute_cycles(cells, start_node, invalid_parent, visited, parents, cycles);
+
+  for (auto node = 0; node < cells.size(); node++) {
+    if (global_visited[node] == 0)
+      compute_cycles(cells, node, invalid_parent, visited, global_visited,
+          parents, cycles);
+  }
+
   return cycles;
 }
 
@@ -654,7 +664,7 @@ static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
 
   for (auto start_cell : start) {
     labels[start_cell] = vector<int>(num_polygons, 0);
-    for (auto c = 0; c < num_polygons; c++) {
+    for (auto c = 1; c < num_polygons; c++) {
       if (contains(skip_polygons, c)) labels[start_cell][c] = null_label;
     }
   }
@@ -699,6 +709,10 @@ static vector<vector<int>> propagate_cell_labels(const vector<mesh_cell>& cells,
 
       auto& neighbor_labels         = labels[neighbor];
       auto  cell_labels             = labels[cell_id];
+
+      // Applichiamo la even-odd rule nel caso in cui le label > 1 (Nelle self
+      // intersections posso entrare in un poligono più volte senza esserne
+      // prima uscito)
       cell_labels[polygon_unsigned] = 1 - cell_labels[polygon_unsigned];
 
       auto updated_neighbor_labels = false;
@@ -1249,7 +1263,7 @@ static vector<int> find_ambient_cells(bool_state& state,
 
     for (auto& [neighbor, polygon] : state.cells[node].adjacency) {
       if (polygon < 0) continue;
-      if (contains(skip_polygons, polygon)) continue;
+      // if (contains(skip_polygons, polygon)) continue;
       // if (contains(cycle_nodes, node) && contains(cycle_nodes, neighbor)) {
       //   parents[neighbor] = parents[node];
       //   queue.push_back(neighbor);
@@ -1404,25 +1418,11 @@ void compute_cell_labels(bool_state& state) {
   // Calcoliamo il labelling definitivo per effettuare le booleane tra
   // poligoni
   state.ambient_cells = find_ambient_cells(state, cycle_nodes, skip_polygons);
-  // if (state.ambient_cells.empty())
-  //   state.ambient_cells = vector<int>(cycle_nodes.begin(),
-  //   cycle_nodes.end());
-
   print("Ambient cells", state.ambient_cells.size());
   assert(state.ambient_cells.size());
 
   state.labels = propagate_cell_labels(state.cells, state.ambient_cells,
       state.cycles, skip_polygons, (int)state.polygons.size());
-
-  // Applichiamo la even-odd rule nel caso in cui le label > 1 (Nelle self
-  // intersections posso entrare in un poligono più volte senza esserne prima
-  // uscito)
-  for (auto& ll : state.labels) {
-    for (auto& label : ll) {
-      // assert(label >= 0);
-      if (label > 1) label = label % 2;
-    }
-  }
 }
 
 void update_virtual_adjacencies(
@@ -1723,7 +1723,7 @@ vec3f get_cell_color(const bool_state& state, int cell_id, bool color_shapes) {
     }
     if (count > 0) {
       color /= count;
-    } else {
+    } else {  // Null label cell color
       color = {0.9, 0.9, 0.9};
     }
     return color;
