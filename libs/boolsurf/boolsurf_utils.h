@@ -99,6 +99,17 @@ inline int find_where(const vector<T>& vec, F&& f) {
   return -1;
 }
 
+template <class T>
+inline vector<T> rotate(vector<T>& vec, int k) {
+  if (k % vec.size() == 0) return vec;
+
+  auto result = vector<T>(vec.size());
+  for (auto i = 0; i < vec.size(); i++) {
+    result[i] = vec[(i + k) % vec.size()];
+  }
+  return result;
+};
+
 // TODO(giacomo): Expose this function in yocto_mesh.h
 inline int find_adjacent_triangle(
     const vec3i& triangle, const vec3i& adjacent) {
@@ -348,12 +359,39 @@ inline const T& max(const vector<T>& vec) {
 }
 
 template <class T, typename F>
+inline int argmax(const vector<T>& vec, F&& f) {
+  auto max_index = 0;
+  for (int i = 1; i < vec.size(); i++) {
+    if (f(vec[i], vec[max_index])) max_index = i;
+  }
+  return max_index;
+}
+
+template <class T, typename F>
 inline const T& max(const vector<T>& vec, F&& f) {
   auto max_index = 0;
   for (int i = 1; i < vec.size(); i++) {
     if (f(vec[i], vec[max_index])) max_index = i;
   }
   return vec[max_index];
+}
+
+template <class T, typename F>
+inline int argmin(const vector<T>& vec, F&& f) {
+  auto min_index = 0;
+  for (int i = 1; i < vec.size(); i++) {
+    if (f(vec[i], vec[min_index])) min_index = i;
+  }
+  return min_index;
+}
+
+template <class T, typename F>
+inline const T& min(const vector<T>& vec, F&& f) {
+  auto min_index = 0;
+  for (int i = 1; i < vec.size(); i++) {
+    if (f(vec[i], vec[min_index])) min_index = i;
+  }
+  return vec[min_index];
 }
 
 template <class T>

@@ -582,6 +582,10 @@ static void compute_cycles(const vector<mesh_cell>& cells, int node,
       cycle.edges.push_back(current);
     }
 
+    int min_idx = argmin(
+        cycle.edges, [](auto& a, auto& b) -> bool { return a.node < b.node; });
+
+    cycle.edges = rotate(cycle.edges, min_idx);
     cycles.push_back(cycle);
     return;
   }
