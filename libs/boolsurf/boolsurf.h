@@ -45,7 +45,7 @@ struct mesh_polygon {
 };
 
 struct shape {
-  vector<int> polygons = {};
+  vector<mesh_polygon> polygons = {};
 };
 
 // Informazioni per la triangolazione di una faccia della mesh

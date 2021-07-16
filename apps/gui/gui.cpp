@@ -211,8 +211,8 @@ void draw_widgets(app_state* app, const gui_input& input) {
 
     // Saving output scene
     auto scene = make_scene(app->mesh, app->state, app->camera,
-        app->color_shapes, app->save_edges, app->save_polygons,
-        app->line_width, cell_colors);
+        app->color_shapes, app->save_edges, app->save_polygons, app->line_width,
+        cell_colors);
 
     // auto scene = make_debug_scene(app->mesh, app->state, app->camera);
     save_scene(path_join(scene_filename, "scene.json"), scene, error);
@@ -309,13 +309,14 @@ void draw_widgets(app_state* app, const gui_input& input) {
 
     if (draw_button(widgets, "Delete polygon")) {
       if (app->selected_polygon >= 1) {
-        app->state.polygons.erase(app->state.polygons.begin() + app->selected_polygon);
+        app->state.polygons.erase(
+            app->state.polygons.begin() + app->selected_polygon);
         printf("Removing polygon: %d\n", app->selected_polygon);
       }
     }
 
     if (draw_button(widgets, "Invert all")) {
-      for (auto i = 0; i < app->state.polygons.size(); i++){
+      for (auto i = 0; i < app->state.polygons.size(); i++) {
         auto& polygon = app->state.polygons[i];
         printf("Reversing polygon: %d\n", i);
         reverse(polygon.points.begin(), polygon.points.end());
@@ -612,18 +613,21 @@ void mouse_input(app_state* app, const gui_input& input) {
   if (input.modifier_alt) {
     commit_state(app);
 
+    auto  shape_id   = (int)app->state.bool_shapes.size() - 1;
+    auto& bool_shape = app->state.bool_shapes.back();
+
     // Add point index to last polygon.
-    auto polygon_id = (int)app->state.polygons.size() - 1;
-    app->state.polygons[polygon_id].points.push_back(
-        (int)app->state.points.size());
+    auto  polygon_id = (int)bool_shape.polygons.size() - 1;
+    auto& polygon    = bool_shape.polygons.back();
+    polygon.points.push_back((int)app->state.points.size());
 
     // Add point to state.
     app->state.points.push_back(point);
-    auto polygon_points = (int)app->state.polygons[polygon_id].points.size();
 
-    // TODO(giacomo): recomputing all paths of the polygon at every click is
-    // bad
-    update_polygon(app, polygon_id, polygon_points - 2);
+    auto polygon_points = (int)polygon.points.size();
+
+    update_polygon(app, shape_id, polygon_id, polygon_points - 2);
+    // update_polygon(app, polygon_id, polygon_points - 2);
   }
 }
 
@@ -897,25 +901,35 @@ void key_input(app_state* app, const gui_input& input) {
       case (int)gui_key('N'): {
         if (app->state.bool_shapes.empty()) return;
 
-        auto& last_shape   = app->state.bool_shapes.back();
-        auto& last_polygon = last_shape.polygons.back();
+        auto& last_shape = app->state.bool_shapes.back();
         last_shape.polygons.pop_back();
 
-        auto new_shape = shape{};
-        new_shape.polygons.push_back(last_polygon);
-        app->state.bool_shapes.push_back(new_shape);
+        auto& last_shape_shape = app->shape_shapes.back();
+        last_shape_shape.polygons.pop_back();
+
+        auto  shape_id  = (int)app->state.bool_shapes.size();
+        auto& new_shape = app->state.bool_shapes.emplace_back();
+        new_shape.polygons.push_back({});
+
+        add_shape_shape(app, shape_id);
+
       } break;
 
       case (int)gui_key::enter: {
-        if (app->state.polygons.back().points.size() > 2) {
+        if (app->state.bool_shapes.empty()) return;
+        auto& bool_shape = app->state.bool_shapes.back();
+
+        if (bool_shape.polygons.empty()) return;
+        auto& last_polygon = bool_shape.polygons.back();
+
+        if (last_polygon.points.size() > 2) {
           commit_state(app);
 
-          auto  polygon_id = (int)app->state.polygons.size();
-          auto& polygon    = app->state.polygons.emplace_back();
-          add_polygon_shape(app, polygon, polygon_id);
+          auto shape_id = (int)app->state.bool_shapes.size() - 1;
 
-          auto& shape = app->state.bool_shapes.back();
-          shape.polygons.push_back(polygon_id);
+          auto& polygon = bool_shape.polygons.emplace_back();
+          auto  p_shape = get_polygon_shape(app, polygon, shape_id);
+          app->shape_shapes[shape_id].polygons.push_back(p_shape);
         }
       }
 
@@ -1028,11 +1042,16 @@ int main(int argc, const char* argv[]) {
     update_polygons(app);
   }
 
-  app->state.polygons.push_back({});
-  app->state.bool_shapes.push_back({{1}});
+  // app->state.polygons.push_back({});
 
-  add_polygon_shape(app, {}, 0);
-  add_polygon_shape(app, app->state.polygons.back(), 1);
+  // Adding first polygon
+  auto bool_shape = shape{};
+  bool_shape.polygons.push_back({});
+  app->state.bool_shapes.push_back(bool_shape);
+
+  for (auto s = 0; s < app->state.bool_shapes.size(); s++) {
+    add_shape_shape(app, s);
+  }
 
   app->history       = {app->state};
   app->history_index = 0;

@@ -11,6 +11,11 @@ struct bool_shape : scene_shape {
   ogl_depth_test   depth_test = {};
 };
 
+// TODO (marzia): anche questo è ridicolo
+struct bool_shape_shape {
+  vector<shade_instance*> polygons = {};
+};
+
 inline void set_patch_shape(
     shade_shape* shape, const bool_mesh& mesh, const vector<int>& faces) {
   auto positions = vector<vec3f>(faces.size() * 3);

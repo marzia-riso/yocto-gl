@@ -312,7 +312,8 @@ void add_polygons(bool_state& state, const bool_mesh& mesh,
   }
 }
 
-scene_shape polygon_shape(const vector<vec3f>& positions, float thickness) {
+scene_shape create_polygon_shape(
+    const vector<vec3f>& positions, float thickness) {
   //  auto positions = eval_positions(triangles, positions, path);
   auto shape = scene_shape{};
   for (auto idx = 0; idx < positions.size(); idx++) {
@@ -494,7 +495,7 @@ scene_model make_scene(const bool_mesh& mesh, const bool_state& state,
       material.type     = scene_material_type::matte;
       instance.shape    = (int)scene.shapes.size();
 
-      auto shape = polygon_shape(positions, line_width);
+      auto shape = create_polygon_shape(positions, line_width);
       scene.shapes.push_back(shape);
     }
   }
