@@ -44,6 +44,10 @@ struct mesh_polygon {
   bool is_contained_in_single_face = false;
 };
 
+struct shape {
+  vector<int> polygons = {};
+};
+
 // Informazioni per la triangolazione di una faccia della mesh
 // Contiene: UV coords dei nodi locali di un triangolo.
 // Indici globali della mesh corrispondenti ai nodi locali
@@ -77,8 +81,9 @@ struct mesh_shape {
 };
 
 struct bool_state {
-  vector<mesh_polygon> polygons = {{}};
-  vector<mesh_point>   points   = {};
+  vector<mesh_polygon> polygons    = {{}};
+  vector<shape>        bool_shapes = {{}};
+  vector<mesh_point>   points      = {};
 
   int                  num_original_points = 0;
   hash_map<int, int>   control_points      = {};

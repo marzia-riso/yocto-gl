@@ -614,7 +614,6 @@ void mouse_input(app_state* app, const gui_input& input) {
 
     // Add point index to last polygon.
     auto polygon_id = (int)app->state.polygons.size() - 1;
-
     app->state.polygons[polygon_id].points.push_back(
         (int)app->state.points.size());
 
@@ -824,9 +823,9 @@ void key_input(app_state* app, const gui_input& input) {
         }
       } break;
 
-      case (int)gui_key('N'): {
-        debug_cells(app);
-      } break;
+        // case (int)gui_key('N'): {
+        //   debug_cells(app);
+        // } break;
 
       case (int)gui_key('F'): {
         auto add = [&](int face, int neighbor) -> bool {
@@ -895,11 +894,28 @@ void key_input(app_state* app, const gui_input& input) {
         app->glcamera = old_camera;
       } break;
 
+      case (int)gui_key('N'): {
+        if (app->state.bool_shapes.empty()) return;
+
+        auto& last_shape   = app->state.bool_shapes.back();
+        auto& last_polygon = last_shape.polygons.back();
+        last_shape.polygons.pop_back();
+
+        auto new_shape = shape{};
+        new_shape.polygons.push_back(last_polygon);
+        app->state.bool_shapes.push_back(new_shape);
+      } break;
+
       case (int)gui_key::enter: {
         if (app->state.polygons.back().points.size() > 2) {
           commit_state(app);
-          auto& polygon = app->state.polygons.emplace_back();
-          add_polygon_shape(app, polygon, (int)app->state.polygons.size() - 1);
+
+          auto  polygon_id = (int)app->state.polygons.size();
+          auto& polygon    = app->state.polygons.emplace_back();
+          add_polygon_shape(app, polygon, polygon_id);
+
+          auto& shape = app->state.bool_shapes.back();
+          shape.polygons.push_back(polygon_id);
         }
       }
 
@@ -934,7 +950,6 @@ void update_app(const gui_input& input, void* data) {
 
 int main(int argc, const char* argv[]) {
   auto app            = new app_state{};
-  auto camera_name    = ""s;
   auto input          = ""s;
   auto model_filename = ""s;
   auto window         = new gui_window{};
@@ -943,16 +958,14 @@ int main(int argc, const char* argv[]) {
 
   // parse command line
   auto cli = make_cli("yboolsurf", "views shapes inteactively");
-  add_option(cli, "camera", camera_name, "Camera name.");
   add_argument(cli, "input", input,
       "Input filename. Either a model or a json test file");
   add_option(cli, "model", model_filename, "Input model filename.");
-  // add_option(cli, "msaa", window->msaa, "Multisample anti-aliasing.");
+
   add_option(cli, "svg", app->svg_filename, "Svg filename.");
   add_option(cli, "svg-subdivs", app->svg_subdivs, "Svg subdivisions.");
-
-  // add_option(cli, "svg-size", app->svg_size, "Svg size.");
   add_option(cli, "drawing-size", app->drawing_size, "Size of mapped drawing.");
+
   add_option(cli, "thick-lines", app->thick_lines, "Thick lines.");
   add_option(cli, "line-width", app->line_width, "Thick line width.");
 
@@ -983,12 +996,15 @@ int main(int argc, const char* argv[]) {
 
     auto ret_value = system(cmd.c_str());
     if (ret_value != 0) print_fatal("Svg conversion failed " + input);
+
     app->test_filename = output;
     load_test(app->test, output);
+
   } else if (extension == ".json") {
     app->test_filename = input;
     load_test(app->test, input);
     app->model_filename = app->test.model;
+
   } else {
     app->model_filename = input;
   }
@@ -1013,8 +1029,11 @@ int main(int argc, const char* argv[]) {
   }
 
   app->state.polygons.push_back({});
+  app->state.bool_shapes.push_back({{1}});
+
   add_polygon_shape(app, {}, 0);
   add_polygon_shape(app, app->state.polygons.back(), 1);
+
   app->history       = {app->state};
   app->history_index = 0;
 
