@@ -92,6 +92,7 @@ void draw_svg_gui(gui_widgets* widgets, app_state* app) {
           app->svg_filename, false, "data/svgs/", "test.svg", "*.svg")) {
     load_svg(app);
   }
+
   if (app->svg_filename.empty()) return;
   continue_line(widgets);
 
@@ -107,12 +108,16 @@ void draw_svg_gui(gui_widgets* widgets, app_state* app) {
   draw_label(widgets, "filename##svg-filename", app->svg_filename);
 
   if (draw_slider(widgets, "size##svg_size", app->drawing_size, 0.0, 0.1)) {
-    app->state.polygons.resize(app->last_svg.previous_polygons);
+    // app->state.polygons.resize(app->last_svg.previous_polygons);
+    // app->state.bool_shapes.resize((int)app->bool_shapes.size() - 1);
+    // app->shape_shapes.resize((int)app->bool_shapes.size() - 1);
     update_svg(app);
   };
 
   if (draw_slider(widgets, "subdivs##svg_subdivs", app->svg_subdivs, 0, 16)) {
-    app->state.polygons.resize(app->last_svg.previous_polygons);
+    // app->state.polygons.resize(app->last_svg.previous_polygons);
+    // app->state.bool_shapes.resize((int)app->state.polygons.size() - 1);
+    // app->shape_shapes.resize((int)app->bool_shapes.size() - 1);
     update_svg(app);
   };
 
@@ -701,9 +706,10 @@ void key_input(app_state* app, const gui_input& input) {
         debug_indices().clear();
 
         // remove trailing empty polygons.
-        while (app->state.polygons.back().points.empty()) {
-          app->state.polygons.pop_back();
-        }
+        // TODO (marzia): check this
+        // while (app->state.polygons.back().points.empty()) {
+        //   app->state.polygons.pop_back();
+        // }
 
         compute_cells(app->mesh, app->state);
 
