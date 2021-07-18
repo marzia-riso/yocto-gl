@@ -717,7 +717,7 @@ void key_input(app_state* app, const gui_input& input) {
         save_tree_png(app->state, app->test_filename, "", app->color_shapes);
         // #endif
 
-        compute_shapes(app->state);
+        // compute_shapes(app->state);
 
         if (!app->color_hashgrid) {
           app->cell_shapes.resize(app->state.cells.size());

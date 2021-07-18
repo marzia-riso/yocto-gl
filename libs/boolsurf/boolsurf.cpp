@@ -1348,8 +1348,8 @@ static vector<int> find_ambient_cells(
 
 void slice_mesh(bool_mesh& mesh, bool_state& state) {
   PROFILE();
-  auto& polygons = state.polygons;
-  global_state   = &state;
+  auto& shapes = state.bool_shapes;
+  global_state = &state;
 
   // Calcoliamo i vertici nuovi della mesh
   // auto vertices             = add_vertices(mesh, polygons);
@@ -1357,8 +1357,7 @@ void slice_mesh(bool_mesh& mesh, bool_state& state) {
 
   // Calcoliamo hashgrid e intersezioni tra poligoni,
   // aggiungendo ulteriori vertici nuovi alla mesh
-  auto hashgrid = compute_hashgrid(
-      mesh, state.bool_shapes, state.control_points);
+  auto hashgrid = compute_hashgrid(mesh, shapes, state.control_points);
   add_polygon_intersection_points(state, hashgrid, mesh);
 
   // Triangolazione e aggiornamento dell'adiacenza
@@ -1366,7 +1365,7 @@ void slice_mesh(bool_mesh& mesh, bool_state& state) {
   update_face_adjacencies(mesh);
 
   // Calcola i border_tags per le facce triangolata.
-  mesh.borders = border_tags(mesh, hashgrid, (int)polygons.size());
+  mesh.borders = border_tags(mesh, hashgrid, (int)shapes.size());
 }
 
 void compute_cell_labels(bool_state& state) {
@@ -1407,7 +1406,10 @@ void compute_cell_labels(bool_state& state) {
 
   auto propagation_timer = simple_timer{};
   state.labels = propagate_cell_labels(state.cells, state.ambient_cells,
-      state.cycles, skip_polygons, (int)state.polygons.size());
+      state.cycles, skip_polygons, (int)state.bool_shapes.size());
+
+  // state.labels = propagate_cell_labels(state.cells, state.ambient_cells,
+  //     state.cycles, skip_polygons, (int)state.polygons.size());
   printf("Finding labelling: %f\n",
       elapsed_nanoseconds(propagation_timer) / pow(10, 6));
 
