@@ -1497,11 +1497,11 @@ void compute_shapes(bool_state& state) {
   // Calcoliamo le informazioni sulla shape, come le celle che ne fanno parte
   auto& shapes  = state.shapes;
   auto& sorting = state.shapes_sorting;
-  shapes.resize(state.polygons.size());
-  sorting.resize(state.polygons.size());
+  shapes.resize(state.bool_shapes.size());
+  sorting.resize(state.bool_shapes.size());
 
   // Assign a polygon and a color to each shape.
-  for (auto p = 0; p < state.polygons.size(); p++) {
+  for (auto p = 0; p < state.bool_shapes.size(); p++) {
     shapes[p].polygon = p;
     shapes[p].color   = get_color(p);
     sorting[p]        = p;
@@ -1636,7 +1636,6 @@ void compute_shape_borders(const bool_mesh& mesh, bool_state& state) {
       }
     }
   }
-
 }
 
 bool_state compute_border_polygons(const bool_state& state) {
