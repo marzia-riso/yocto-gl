@@ -61,18 +61,12 @@ void add_polygons(app_state* app, bool_test& test, const mesh_point& center,
   add_polygons(app->state, app->mesh, app->camera, test, center,
       app->drawing_size, screenspace, straight_up);
 
-  for (auto p = app->last_svg.previous_polygons; p < app->state.polygons.size();
-       p++) {
-    auto& polygon = app->state.polygons[p];
-    add_polygon_shape(app, polygon, p);
-  }
+  auto  last_shape = app->state.bool_shapes.size() - 1;
+  auto& shape      = app->state.bool_shapes[last_shape];
+  add_shape_shape(app, last_shape);
 }
 
 void load_svg(app_state* app) {
-  auto& last_svg             = app->last_svg;
-  last_svg.previous_polygons = (int)app->state.polygons.size();
-  if (app->state.polygons.size() > 1) last_svg.previous_polygons -= 1;
-
   auto script_path = normalize_path("scripts/svg_parser.py"s);
   auto test_json   = normalize_path("data/tests/tmp.json"s);
   auto cmd = "python3 "s + script_path + " "s + app->svg_filename + " "s +
@@ -103,21 +97,20 @@ void draw_svg_gui(gui_widgets* widgets, app_state* app) {
         app, app->temp_test, app->last_clicked_point, app->project_points);
     update_polygons(app);
   }
+
   continue_line(widgets);
   draw_checkbox(widgets, "project points", app->project_points);
   draw_label(widgets, "filename##svg-filename", app->svg_filename);
 
   if (draw_slider(widgets, "size##svg_size", app->drawing_size, 0.0, 0.1)) {
-    // app->state.polygons.resize(app->last_svg.previous_polygons);
-    // app->state.bool_shapes.resize((int)app->bool_shapes.size() - 1);
-    // app->shape_shapes.resize((int)app->bool_shapes.size() - 1);
+    // app->state.bool_shapes.resize((int)app->state.bool_shapes.size() - 1);
+    // app->shape_shapes.resize((int)app->shape_shapes.size() - 1);
     update_svg(app);
   };
 
   if (draw_slider(widgets, "subdivs##svg_subdivs", app->svg_subdivs, 0, 16)) {
-    // app->state.polygons.resize(app->last_svg.previous_polygons);
-    // app->state.bool_shapes.resize((int)app->state.polygons.size() - 1);
-    // app->shape_shapes.resize((int)app->bool_shapes.size() - 1);
+    app->state.bool_shapes.resize((int)app->state.bool_shapes.size() - 1);
+    app->shape_shapes.resize((int)app->shape_shapes.size() - 1);
     update_svg(app);
   };
 
@@ -716,7 +709,7 @@ void key_input(app_state* app, const gui_input& input) {
         compute_cells(app->mesh, app->state);
 
         // #ifdef MY_DEBUG
-        // save_tree_png(app->state, app->test_filename, "", app->color_shapes);
+        save_tree_png(app->state, app->test_filename, "", app->color_shapes);
         // #endif
 
         compute_shapes(app->state);

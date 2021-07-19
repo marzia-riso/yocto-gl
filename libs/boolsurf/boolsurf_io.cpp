@@ -27,6 +27,7 @@ bool load_json(const string& filename, json& js) {
 bool save_test(const bool_test& test, const string& filename) {
   auto js           = json{};
   js["points"]      = test.points;
+  js["shapes"]      = test.shapes;
   js["polygons"]    = test.polygons;
   js["model"]       = test.model;
   js["operations"]  = test.operations;
@@ -127,14 +128,16 @@ bool_state state_from_test(const bool_mesh& mesh, const bool_test& test,
       auto& polygon    = bool_shape.polygons.emplace_back();
       polygon.points   = test_polygon;
       recompute_polygon_segments(mesh, state, polygon);
-
-      // Add new polygon to state.
-      // auto& mesh_polygon  = state.polygons.emplace_back();
-      // mesh_polygon.points = polygon;
-      // recompute_polygon_segments(mesh, state, polygon);
     }
   } else {
-    printf("No shape detected\n");
+    for (auto& test_shape : test.shapes) {
+      auto& bool_shape = state.bool_shapes.emplace_back();
+      for (auto& polygon_id : test_shape) {
+        auto& polygon  = bool_shape.polygons.emplace_back();
+        polygon.points = test.polygons[polygon_id];
+        recompute_polygon_segments(mesh, state, polygon);
+      }
+    }
   }
 
   return state;
@@ -305,26 +308,30 @@ void add_polygons(bool_state& state, const bool_mesh& mesh,
     return path.end;
   };
 
-  for (auto& polygon : polygons) {
-    state.polygons.push_back({});
-    auto polygon_id = (int)state.polygons.size() - 1;
+  for (auto& test_shape : test.shapes) {
+    auto& bool_shape = state.bool_shapes.emplace_back();
+    for (auto id = 0; id < test_shape.size(); id++) {
+      auto& bool_polygon = bool_shape.polygons.emplace_back();
+      auto& test_polygon = polygons[test_shape[id]];
 
-    for (auto uv : polygon) {
-      auto point = screenspace ? get_projected_point(uv) : get_mapped_point(uv);
-      if (point.face == -1) continue;
+      for (auto uv : test_polygon) {
+        auto point = screenspace ? get_projected_point(uv)
+                                 : get_mapped_point(uv);
+        if (point.face == -1) continue;
 
-      // Add point to state.
-      state.polygons[polygon_id].points.push_back((int)state.points.size());
-      state.points.push_back(point);
+        // Add point to state.
+        bool_polygon.points.push_back((int)state.points.size());
+        state.points.push_back(point);
+      }
+
+      if (bool_polygon.points.size() <= 2) {
+        assert(0);
+        bool_polygon.points.clear();
+        continue;
+      }
+
+      recompute_polygon_segments(mesh, state, bool_polygon);
     }
-
-    if (state.polygons[polygon_id].points.size() <= 2) {
-      assert(0);
-      state.polygons[polygon_id].points.clear();
-      continue;
-    }
-
-    recompute_polygon_segments(mesh, state, state.polygons[polygon_id]);
   }
 }
 

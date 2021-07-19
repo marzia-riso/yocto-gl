@@ -113,7 +113,7 @@ struct app_state {
 
   struct last_svg {
     vector<Svg_Shape> svg;
-    int               previous_polygons;
+    int               previous_shape;
   } last_svg          = {};
   bool_test temp_test = {};
 
@@ -465,9 +465,10 @@ shade_instance* add_patch_shape(
 //   set_patch_shape(patch_shape, app->mesh, faces);
 //   return add_instance(app->glscene, identity3x4f, patch_shape, material);
 // }
-void add_polygon_shape(app_state* app, const mesh_polygon& polygon, int index) {
-  add_polygon_shape(app, polygon, index);
-}
+// void add_polygon_shape(app_state* app, const mesh_polygon& polygon, int
+// index) {
+//   add_polygon_shape(app, polygon, index);
+// }
 
 shade_instance* get_polygon_shape(
     app_state* app, const mesh_polygon& polygon, int index) {
@@ -532,11 +533,10 @@ void update_svg(app_state* app) {
   init_from_svg(app->state, app->mesh, app->last_clicked_point,
       app->last_svg.svg, app->drawing_size, app->svg_subdivs);
 
-  for (auto p = app->last_svg.previous_polygons; p < app->state.polygons.size();
-       p++) {
-    auto& polygon = app->state.polygons[p];
-    add_polygon_shape(app, polygon, p);
-  }
+  auto  last_shape = app->state.bool_shapes.size() - 1;
+  auto& shape      = app->state.bool_shapes[last_shape];
+  add_shape_shape(app, last_shape);
+
   update_polygons(app);
 }
 
