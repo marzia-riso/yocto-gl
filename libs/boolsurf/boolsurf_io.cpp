@@ -121,7 +121,7 @@ bool_state state_from_test(const bool_mesh& mesh, const bool_test& test,
   if (test.shapes.empty()) {
     for (auto& test_polygon : test.polygons) {
       // Add new 1-polygon shape to state
-      if (test_polygon.empty()) continue;
+      // if (test_polygon.empty()) continue;
 
       auto& bool_shape = state.bool_shapes.emplace_back();
       auto& polygon    = bool_shape.polygons.emplace_back();
