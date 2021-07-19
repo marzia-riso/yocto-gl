@@ -172,7 +172,8 @@ void bezier_last_segment(app_state* app) {
     polygon.points.push_back(app->state.points.size() + i);
   }
   app->state.points += bezier;
-  update_polygon(app, polygon_id);
+  // TODO (MARZIA): ricordati di fixare questo
+  // update_polygon(app, polygon_id);
 }
 
 void draw_widgets(app_state* app, const gui_input& input) {
@@ -506,7 +507,8 @@ void draw_widgets(app_state* app, const gui_input& input) {
         polygon.points[i] = app->state.points.size() + i;
       }
       app->state.points += bezier;
-      update_polygon(app, polygon_id);
+      // TODO(MARZIA): ricordati di fixare questo
+      // update_polygon(app, polygon_id);
     }
   }
 
@@ -714,7 +716,7 @@ void key_input(app_state* app, const gui_input& input) {
         compute_cells(app->mesh, app->state);
 
         // #ifdef MY_DEBUG
-        save_tree_png(app->state, app->test_filename, "", app->color_shapes);
+        // save_tree_png(app->state, app->test_filename, "", app->color_shapes);
         // #endif
 
         compute_shapes(app->state);
@@ -1045,6 +1047,7 @@ int main(int argc, const char* argv[]) {
 
   if (app->test_filename != "") {
     init_from_test(app);
+
     update_polygons(app);
   }
 

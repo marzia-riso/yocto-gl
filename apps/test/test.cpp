@@ -201,12 +201,16 @@ int main(int num_args, const char* args[]) {
     save_test(state, test.camera, output_json_filename);
   }
 
-  stats.polygons = (int)state.polygons.size() - 1;
-  for (auto& polygon : state.polygons) {
-    stats.control_points += polygon.points.size();
+  for (auto& bool_shape : state.bool_shapes) {
+    for (auto& polygon : bool_shape.polygons) {
+      if (polygon.points.empty()) continue;
 
-    for (auto& edge : polygon.edges) {
-      stats.added_points += edge.size();
+      stats.polygons += 1;
+      stats.control_points += polygon.points.size();
+
+      for (auto& edge : polygon.edges) {
+        stats.added_points += edge.size();
+      }
     }
   }
 

@@ -24,7 +24,7 @@ def subdivide_bezier(points):
 
     for i in range(0, len(points) - 3, 3):
         # print(f'len {len(points)}: {i}, {i+4}')
-        polygon = points[i : i + 4]
+        polygon = points[i: i + 4]
         result += subdivide_polygon(polygon)
 
     return result
@@ -121,7 +121,7 @@ def find_simple_paths(element, paths):
 
 def create_json(infile, outfile, num_subdivisions):
     root = ET.parse(infile).getroot()
-    data = {"screenspace": True, "polygons": []}
+    data = {"screenspace": True, "shapes": [], "polygons": []}
 
     for element in root:
         if element.tag == "{http://www.w3.org/2000/svg}g":
@@ -139,6 +139,7 @@ def create_json(infile, outfile, num_subdivisions):
             find_simple_paths(element, paths)
 
             for path in paths:
+                shapes = []
                 path_points = parse_path_string(path, num_subdivisions)
                 for points in path_points:
                     for p in range(len(points)):
@@ -149,12 +150,16 @@ def create_json(infile, outfile, num_subdivisions):
                         points[p] = tuple(
                             nppoint.reshape(1, 3).tolist()[0][:2])
 
+                    shapes.append(len(data["polygons"]))
                     data["polygons"].append(points)
+
+                data["shapes"].append(shapes)
 
         elif element.tag == "{http://www.w3.org/2000/svg}path":
             path_points = parse_path_string(
                 element.attrib["d"], num_subdivisions)
             for path in path_points:
+                data["shapes"].append([len(data["polygons"])])
                 data["polygons"].append(path)
 
     with open(outfile, "w") as out:

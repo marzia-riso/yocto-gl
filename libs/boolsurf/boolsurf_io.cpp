@@ -82,6 +82,10 @@ bool load_test(bool_test& test, const string& filename) {
       test.polygons = js["polygons"].get<vector<vector<int>>>();
     }
 
+    if (js.find("shapes") != js.end()) {
+      test.shapes = js["shapes"].get<vector<vector<int>>>();
+    }
+
     if (js.find("operations") != js.end()) {
       test.operations = js["operations"].get<vector<bool_operation>>();
     }
@@ -105,7 +109,8 @@ bool_state state_from_test(const bool_mesh& mesh, const bool_test& test,
     float drawing_size, bool use_projection) {
   auto state   = bool_state{};
   state.points = test.points;
-  state.polygons.clear();
+  state.bool_shapes.clear();
+  // state.polygons.clear();
 
   if (test.screenspace) {
     auto camera = make_camera(mesh);
@@ -113,12 +118,23 @@ bool_state state_from_test(const bool_mesh& mesh, const bool_test& test,
         test, mesh, mesh.bvh, camera, drawing_size, use_projection);
   }
 
-  for (auto& polygon : test.polygons) {
-    // Add new polygon to state.
-    auto& mesh_polygon  = state.polygons.emplace_back();
-    mesh_polygon.points = polygon;
+  if (test.shapes.empty()) {
+    for (auto& test_polygon : test.polygons) {
+      // Add new 1-polygon shape to state
+      if (test_polygon.empty()) continue;
 
-    recompute_polygon_segments(mesh, state, mesh_polygon);
+      auto& bool_shape = state.bool_shapes.emplace_back();
+      auto& polygon    = bool_shape.polygons.emplace_back();
+      polygon.points   = test_polygon;
+      recompute_polygon_segments(mesh, state, polygon);
+
+      // Add new polygon to state.
+      // auto& mesh_polygon  = state.polygons.emplace_back();
+      // mesh_polygon.points = polygon;
+      // recompute_polygon_segments(mesh, state, polygon);
+    }
+  } else {
+    printf("No shape detected\n");
   }
 
   return state;

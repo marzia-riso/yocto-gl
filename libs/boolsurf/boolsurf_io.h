@@ -85,6 +85,7 @@ struct bool_test {
   string                model;
   vector<mesh_point>    points;
   vector<vector<int>>   polygons;
+  vector<vector<int>>   shapes;
   vector<vector<vec2f>> polygons_screenspace;
 
   vector<bool_operation> operations  = {};
