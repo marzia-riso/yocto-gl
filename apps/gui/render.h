@@ -407,27 +407,27 @@ inline void save_triangulation(const string& filename, int face) {
   return draw_sphere(scene, mesh, material, {pos}, dim);
 }
 
-bool_shape make_arrow_shape() {
-  auto shape      = bool_shape{};
-  shape.positions = vector<vec3f>{{-0.5, 0, 0}, {0.5, 0, 0}, {0.5, 1, 0},
-      {1, 1, 0}, {0, 2, 0}, {-1, 1, 0}, {-0.5, 1, 0}};
-  shape.triangles = vector<vec3i>{{0, 1, 2}, {0, 2, 6}, {3, 4, 5}};
-  for (int i = 0; i < 7; i++) {
-    swap(shape.positions[i].y, shape.positions[i].z);
-  }
+// bool_shape make_arrow_shape() {
+//   auto shape      = bool_shape{};
+//   shape.positions = vector<vec3f>{{-0.5, 0, 0}, {0.5, 0, 0}, {0.5, 1, 0},
+//       {1, 1, 0}, {0, 2, 0}, {-1, 1, 0}, {-0.5, 1, 0}};
+//   shape.triangles = vector<vec3i>{{0, 1, 2}, {0, 2, 6}, {3, 4, 5}};
+//   for (int i = 0; i < 7; i++) {
+//     swap(shape.positions[i].y, shape.positions[i].z);
+//   }
 
-  shape.positions += shape.positions;
-  for (int i = 7; i < shape.positions.size(); i++) {
-    swap(shape.positions[i].y, shape.positions[i].x);
-  }
+//   shape.positions += shape.positions;
+//   for (int i = 7; i < shape.positions.size(); i++) {
+//     swap(shape.positions[i].y, shape.positions[i].x);
+//   }
 
-  for (int i = 0; i < 3; i++) {
-    auto t = shape.triangles[i];
-    t += vec3i{7, 7, 7};
-    shape.triangles.push_back(t);
-  }
-  return shape;
-}
+//   for (int i = 0; i < 3; i++) {
+//     auto t = shape.triangles[i];
+//     t += vec3i{7, 7, 7};
+//     shape.triangles.push_back(t);
+//   }
+//   return shape;
+// }
 
 #if 0
 

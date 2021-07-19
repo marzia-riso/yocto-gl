@@ -39,9 +39,9 @@ struct app_state {
   bool save_edges    = false;
   bool save_polygons = false;
 
-  bool         color_hashgrid = false;
-  bool         show_polygons  = true;
-  bool         show_arrows    = false;
+  bool color_hashgrid = false;
+  bool show_polygons  = true;
+  // bool         show_arrows    = false;
   bool         use_projection = false;
   scene_camera camera         = {};
 
@@ -57,9 +57,9 @@ struct app_state {
   // TODO (marzia): è ridicolo, cambialo!
   vector<bool_shape_shape> shape_shapes = {};
 
-  vector<shade_instance*> cell_shapes         = {};
-  vector<shade_instance*> polygon_shapes      = {};
-  vector<shade_instance*> arrow_shapes        = {};
+  vector<shade_instance*> cell_shapes    = {};
+  vector<shade_instance*> polygon_shapes = {};
+  // vector<shade_instance*> arrow_shapes        = {};
   shade_instance*         hashgrid_shape      = nullptr;
   vector<shade_instance*> border_faces_shapes = {};
 
@@ -133,7 +133,6 @@ void set_polygon_shape(app_state* app, int shape_id, int polygon_id) {
       mesh, positions, app->thick_lines, app->line_width);
   set_shape(app->shape_shapes[shape_id].polygons[polygon_id], polygon_shape);
 
-  // TODO (marzia): riaggiungi questo
   // auto arrow_shape = make_arrow_shape();
   // for (auto& p : arrow_shape.positions) p *= 0.005;
   // for (int i :
@@ -156,17 +155,17 @@ void set_polygon_shape(app_state* app, int polygon_id) {
       mesh, positions, app->thick_lines, app->line_width);
   set_shape(app->polygon_shapes[polygon_id], polygon_shape);
 
-  auto arrow_shape = make_arrow_shape();
-  for (auto& p : arrow_shape.positions) p *= 0.005;
-  for (int i :
-      {1, (int)positions.size() / 3, (int)(positions.size() * 2) / 3}) {
-    arrow_shape.froms.push_back(positions[i]);
-    auto left = normalize(positions[i + 1] - positions[i]);
-    auto y    = cross(left, normals[i]);
-    arrow_shape.tos.push_back(positions[i] - y);
-  }
+  // auto arrow_shape = make_arrow_shape();
+  // for (auto& p : arrow_shape.positions) p *= 0.005;
+  // for (int i :
+  //     {1, (int)positions.size() / 3, (int)(positions.size() * 2) / 3}) {
+  //   arrow_shape.froms.push_back(positions[i]);
+  //   auto left = normalize(positions[i + 1] - positions[i]);
+  //   auto y    = cross(left, normals[i]);
+  //   arrow_shape.tos.push_back(positions[i] - y);
+  // }
 
-  set_shape(app->arrow_shapes[polygon_id], arrow_shape);
+  // set_shape(app->arrow_shapes[polygon_id], arrow_shape);
 }
 
 void update_polygon(
@@ -487,13 +486,13 @@ shade_instance* get_polygon_shape(
   polygon_instance->depth_test = ogl_depth_test::always;
   app->polygon_shapes += polygon_instance;
 
-  auto arrow_shape    = add_shape(app->glscene);
-  auto arrow_material = polygon_material;
+  // auto arrow_shape    = add_shape(app->glscene);
+  // auto arrow_material = polygon_material;
 
-  auto arrow_instance = add_instance(
-      app->glscene, identity3x4f, arrow_shape, arrow_material);
-  arrow_instance->depth_test = ogl_depth_test::always;
-  app->arrow_shapes += arrow_instance;
+  // auto arrow_instance = add_instance(
+  //     app->glscene, identity3x4f, arrow_shape, arrow_material);
+  // arrow_instance->depth_test = ogl_depth_test::always;
+  // app->arrow_shapes += arrow_instance;
 
   return polygon_instance;
 }
