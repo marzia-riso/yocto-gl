@@ -544,11 +544,20 @@ void save_test(
     app_state* app, const bool_state& state, const string& filename) {
   app->test.points   = state.points;
   app->test.polygons = {{}};
-  for (auto& mesh_polygon : state.polygons) {
-    if (mesh_polygon.points.size()) {
-      app->test.polygons.push_back(mesh_polygon.points);
+  for (auto s = 0; s < state.bool_shapes.size(); s++) {
+    auto test_shape = vector<int>();
+    for (auto p = 0; p < state.bool_shapes[s].polygons.size(); p++) {
+      auto& polygon = state.bool_shapes[s].polygons[p];
+
+      if (polygon.points.size()) {
+        test_shape.push_back((int)app->test.polygons.size());
+        app->test.polygons.push_back(polygon.points);
+      }
     }
+
+    if (test_shape.size()) app->test.shapes.push_back(test_shape);
   }
+
   app->test.camera.frame    = app->glcamera->frame;
   app->test.camera.lens     = app->glcamera->lens;
   app->test.camera.aspect   = app->glcamera->aspect;
