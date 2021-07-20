@@ -98,4 +98,28 @@ def operation(jsons_dir, output_jsons_dir):
                 json.dump(js, json_file, indent=2)
 
 
+@cli.command()
+@click.argument('tests_dir')
+@click.argument('output_tests_dir')
+def fix(tests_dir, output_tests_dir):
+    test_names = glob.glob(f'{meshes_dir}/tests/*.json')
+    test_num = len(test_names)
+
+    try:
+        os.mkdir(output_tests_dir)
+    except:
+        pass
+
+    for test_id, test_name in enumerate(test_names):
+        name = os.path.basename(test_name).split('.')[0]
+
+        msg = f'[{test_id+1}/{test_num}] {test_name}'
+        print(msg + ' ' * max(0, 78-len(msg)))
+
+        cmd = f'.\\bin\\gui.exe --output-test {output_tests_dir}/{name}.json {test_name}'
+        print(cmd)
+
+        subprocess.run(cmd, shell=True).returncode
+
+
 cli()

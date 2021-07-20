@@ -61,9 +61,7 @@ void add_polygons(app_state* app, bool_test& test, const mesh_point& center,
   add_polygons(app->state, app->mesh, app->camera, test, center,
       app->drawing_size, screenspace, straight_up);
 
-  auto  last_shape = app->state.bool_shapes.size() - 1;
-  auto& shape      = app->state.bool_shapes[last_shape];
-  add_shape_shape(app, last_shape);
+  add_shape_shape(app, app->last_svg.last_shape);
 }
 
 void load_svg(app_state* app) {
@@ -96,6 +94,7 @@ void draw_svg_gui(gui_widgets* widgets, app_state* app) {
     add_polygons(
         app, app->temp_test, app->last_clicked_point, app->project_points);
     update_polygons(app);
+    app->last_svg.last_shape = (int)app->state.bool_shapes.size() - 1;
   }
 
   continue_line(widgets);
@@ -103,14 +102,14 @@ void draw_svg_gui(gui_widgets* widgets, app_state* app) {
   draw_label(widgets, "filename##svg-filename", app->svg_filename);
 
   if (draw_slider(widgets, "size##svg_size", app->drawing_size, 0.0, 0.1)) {
-    // app->state.bool_shapes.resize((int)app->state.bool_shapes.size() - 1);
-    // app->shape_shapes.resize((int)app->shape_shapes.size() - 1);
+    app->state.bool_shapes.resize(app->last_svg.last_shape);
+    // app->shape_shapes.resize(app->last_svg.last_shape);
     update_svg(app);
   };
 
   if (draw_slider(widgets, "subdivs##svg_subdivs", app->svg_subdivs, 0, 16)) {
-    app->state.bool_shapes.resize((int)app->state.bool_shapes.size() - 1);
-    app->shape_shapes.resize((int)app->shape_shapes.size() - 1);
+    app->state.bool_shapes.resize(app->last_svg.last_shape);
+    // app->shape_shapes.resize(app->last_svg.last_shape);
     update_svg(app);
   };
 
@@ -270,16 +269,15 @@ void draw_widgets(app_state* app, const gui_input& input) {
     }
 
     draw_coloredit(widgets, "mesh color", glmaterial->color);
-    // draw_slider(widgets, "resolution", params.resolution, 0, 4096);
-    // draw_combobox(
-    //     widgets, "lighting", (int&)params.lighting, shade_lighting_names);
     draw_checkbox(widgets, "wireframe", params.wireframe);
+
     continue_line(widgets);
     draw_checkbox(widgets, "double sided", params.double_sided);
 
     if (app->hashgrid_shape) {
       draw_checkbox(widgets, "hashgrid", app->hashgrid_shape->hidden, true);
     }
+
     if (app->border_faces_shapes.size()) {
       if (draw_checkbox(widgets, "border faces",
               app->border_faces_shapes[0]->hidden, true)) {
@@ -322,6 +320,41 @@ void draw_widgets(app_state* app, const gui_input& input) {
         reverse(polygon.edges.begin(), polygon.edges.end());
       }
     }
+    end_header(widgets);
+  }
+
+  if (begin_header(widgets, "Compose shapes")) {
+    auto ff = [&](int i) { return to_string(i); };
+
+    auto s = ""s;
+    for (auto& shape_id : app->current_shape) s += to_string(shape_id) + " ";
+    draw_label(widgets, "Current:", s);
+
+    draw_combobox(widgets, "Shape", app->selected_polygon,
+        (int)app->state.bool_shapes.size(), ff);
+
+    if (draw_button(widgets, "Add")) {
+      app->current_shape.insert(app->selected_polygon);
+    }
+
+    if (draw_button(widgets, "Remove")) {
+      app->current_shape.erase(app->selected_polygon);
+    }
+
+    if (draw_button(widgets, "Create")) {
+      auto& bool_shape = app->state.bool_shapes.emplace_back();
+      for (auto shape_id : app->current_shape) {
+        auto& shape_polygons = app->state.bool_shapes[shape_id].polygons;
+        while (shape_polygons.size()) {
+          auto polygon = shape_polygons.back();
+          shape_polygons.pop_back();
+
+          bool_shape.polygons.push_back(polygon);
+        }
+      }
+      app->current_shape.clear();
+    }
+
     end_header(widgets);
   }
 

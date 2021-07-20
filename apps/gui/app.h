@@ -113,7 +113,7 @@ struct app_state {
 
   struct last_svg {
     vector<Svg_Shape> svg;
-    int               previous_shape;
+    int               last_shape;
   } last_svg          = {};
   bool_test temp_test = {};
 
@@ -544,6 +544,7 @@ void save_test(
     app_state* app, const bool_state& state, const string& filename) {
   app->test.points   = state.points;
   app->test.polygons = {{}};
+  app->test.shapes   = {{0}};
   for (auto s = 0; s < state.bool_shapes.size(); s++) {
     auto test_shape = vector<int>();
     for (auto p = 0; p < state.bool_shapes[s].polygons.size(); p++) {
