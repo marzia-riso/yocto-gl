@@ -102,7 +102,7 @@ def operation(jsons_dir, output_jsons_dir):
 @click.argument('tests_dir')
 @click.argument('output_tests_dir')
 def fix(tests_dir, output_tests_dir):
-    test_names = glob.glob(f'{meshes_dir}/tests/*.json')
+    test_names = glob.glob(f'{tests_dir}/tests/*.json')
     test_num = len(test_names)
 
     try:
